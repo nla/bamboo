@@ -1,0 +1,15 @@
+
+
+Archiving
+---------
+
+Given: Heritrix crawl.
+
+Outputs:
+
+- Lucene index /derivative & otis
+- CDX /derivative
+- WARCs /derivative
+- crawl reports archived
+- crawl configuration archived
+- md entry in database

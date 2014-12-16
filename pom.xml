@@ -1,0 +1,55 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>au.gov.nla.pandas</groupId>
+    <artifactId>pandas</artifactId>
+    <version>3.0.6</version>
+  </parent>
+  <artifactId>bamboo</artifactId>
+  <version>0.1.0</version>
+
+  <build>
+    <sourceDirectory>${basedir}/src</sourceDirectory>
+    <testSourceDirectory>${basedir}/test</testSourceDirectory>
+    <resources>
+      <resource>
+        <directory>${basedir}/resources</directory>
+      </resource>
+    </resources>
+  </build>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>au.gov.nla.pandas</groupId>
+      <artifactId>pandas-core</artifactId>
+      <version>0.1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jdbi</groupId>
+      <artifactId>jdbi</artifactId>
+      <version>2.55</version>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>1.4.182</version>
+    </dependency>
+    <dependency>
+      <groupId>com.googlecode.flyway</groupId>
+      <artifactId>flyway-core</artifactId>
+      <version>2.1.1</version>
+    </dependency>
+    <dependency>
+      <groupId>au.gov.nla</groupId>
+      <artifactId>doss</artifactId>
+      <version>0.26.4</version>
+    </dependency>
+  </dependencies>
+</project>
