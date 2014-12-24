@@ -2,7 +2,6 @@ package bamboo;
 
 public class Gatherer {
 
-	final PandasDB db = PandasDB.open();
 	int pollingInterval = 1000;
 	
 	public void run() {
