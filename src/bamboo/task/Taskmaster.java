@@ -1,7 +1,5 @@
 package bamboo.task;
 
-import org.apache.commons.compress.utils.CountingInputStream;
-
 import java.io.*;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;

@@ -1,6 +1,6 @@
 package bamboo.task;
 
-import org.apache.commons.compress.utils.CountingInputStream;
+import org.apache.commons.io.input.CountingInputStream;
 
 import java.io.*;
 import java.net.MalformedURLException;
@@ -191,7 +191,7 @@ public class CdxStatsJob implements Taskmaster.Job {
         }
 
         public String readLine() throws IOException {
-            if (cis.getBytesRead() >= length) {
+            if (cis.getByteCount() >= length) {
                 return null;
             }
             return dis.readLine();
@@ -203,7 +203,7 @@ public class CdxStatsJob implements Taskmaster.Job {
         }
 
         public long getBytesRead() {
-            return cis.getBytesRead();
+            return cis.getByteCount();
         }
     }
 

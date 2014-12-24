@@ -13,7 +13,6 @@ import bamboo.Config;
 import bamboo.Db;
 import bamboo.DbPool;
 import com.sun.xml.internal.bind.v2.schemagen.xmlschema.Import;
-import doss.*;
 
 public class ImportJob implements Taskmaster.Job {
 	final private DbPool dbPool;
