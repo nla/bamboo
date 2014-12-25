@@ -32,6 +32,7 @@ public class Bamboo {
             GET("/collection/:id", this::showCollection, "id", "[0-9]+"),
             GET("/import", this::showImportForm),
             GET("/tasks", this::showTasks),
+            new SeriesController(this).routes,
             notFound("404. Alas, there is nothing here."));
 
     Response index(Request request) {
@@ -119,6 +120,7 @@ public class Bamboo {
 
     public static Handler startApp() throws IOException {
         Bamboo bamboo = new Bamboo();
+        bamboo.dbPool.migrate();
         Configuration fremarkerConfig = FreeMarkerHandler.defaultConfiguration(Bamboo.class, "/bamboo/views");
         fremarkerConfig.addAutoInclude("layout.ftl");
         BeansWrapper beansWrapper = BeansWrapper.getDefaultInstance();
