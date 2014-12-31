@@ -41,6 +41,7 @@
             <ul class="nav nav-sidebar">
                 <li class="active"><a href="#">Overview <span class="sr-only">(current)</span></a></li>
                 <li><a href="#">Collections (TODO)</a></li>
+                <li><a href="series">Crawl Series</a></li>
                 <li><a href="#">Crawls (TODO)</a></li>
             </ul>
             <ul class="nav nav-sidebar">

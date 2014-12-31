@@ -18,12 +18,12 @@ import static droute.Response.render;
 import static droute.Response.response;
 import static droute.Route.*;
 
-public class Bamboo {
+public class Bamboo implements Handler, AutoCloseable {
     final Config config = new Config();
     final DbPool dbPool = new DbPool(config);
     final Taskmaster taskmaster = new Taskmaster();
 
-    Handler routes = routes(
+    final Handler routes = routes(
             resources("/webjars", "META-INF/resources/webjars"),
             resources("/assets", "bamboo/assets"),
             GET("/", this::index),
@@ -34,6 +34,18 @@ public class Bamboo {
             GET("/tasks", this::showTasks),
             new SeriesController(this).routes,
             notFound("404. Alas, there is nothing here."));
+
+    final Handler handler;
+
+    public Bamboo() {
+        dbPool.migrate();
+        Configuration fremarkerConfig = FreeMarkerHandler.defaultConfiguration(Bamboo.class, "/bamboo/views");
+        fremarkerConfig.addAutoInclude("layout.ftl");
+        BeansWrapper beansWrapper = BeansWrapper.getDefaultInstance();
+        beansWrapper.setExposeFields(true);
+        fremarkerConfig.setObjectWrapper(beansWrapper);
+        handler = new FreeMarkerHandler(fremarkerConfig, routes);
+    }
 
     Response index(Request request) {
         try (Db db = dbPool.take()) {
@@ -118,55 +130,13 @@ public class Bamboo {
         return response(400, message);
     }
 
-    public static Handler startApp() throws IOException {
-        Bamboo bamboo = new Bamboo();
-        bamboo.dbPool.migrate();
-        Configuration fremarkerConfig = FreeMarkerHandler.defaultConfiguration(Bamboo.class, "/bamboo/views");
-        fremarkerConfig.addAutoInclude("layout.ftl");
-        BeansWrapper beansWrapper = BeansWrapper.getDefaultInstance();
-        beansWrapper.setExposeFields(true);
-        fremarkerConfig.setObjectWrapper(beansWrapper);
-        return new FreeMarkerHandler(fremarkerConfig, bamboo.routes);
+    @Override
+    public void close() {
+        dbPool.close();
     }
 
-    public static void usage() {
-        System.err.println("Usage: java " + Bamboo.class.getName() + " [-b bindaddr] [-p port] [-i]");
-        System.err.println("");
-        System.err.println("  -b bindaddr   Bind to a particular IP address");
-        System.err.println("  -i            Inherit the server socket via STDIN (for use with systemd, inetd etc)");
-        System.err.println("  -p port       Local port to listen on");
-    }
-
-    public static void main(String[] args) throws IOException {
-        int port = 8080;
-        String host = null;
-        boolean inheritSocket = false;
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("-p")) {
-                port = Integer.parseInt(args[++i]);
-            } else if (args[i].equals("-b")) {
-                host = args[++i];
-            } else if (args[i].equals("-i")) {
-                inheritSocket = true;
-            } else {
-                usage();
-                System.exit(1);
-            }
-        }
-        Handler handler = startApp();
-        if (inheritSocket) {
-            Channel channel = System.inheritedChannel();
-            if (channel != null && channel instanceof ServerSocketChannel) {
-                new NanoServer(handler, ((ServerSocketChannel) channel).socket()).startAndJoin();
-                System.exit(0);
-            }
-            System.err.println("When -i is given STDIN must be a ServerSocketChannel, but got " + channel);
-            System.exit(1);
-        }
-        if (host != null) {
-            new NanoServer(handler, host, port).startAndJoin();
-        } else {
-            new NanoServer(handler, port).startAndJoin();
-        }
+    @Override
+    public Response handle(Request request) {
+        return handler.handle(request);
     }
 }
