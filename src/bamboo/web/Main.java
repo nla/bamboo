@@ -1,5 +1,6 @@
-package bamboo;
+package bamboo.web;
 
+import bamboo.core.Bamboo;
 import droute.Handler;
 import droute.ShotgunHandler;
 import droute.nanohttpd.NanoServer;
@@ -33,7 +34,7 @@ public class Main {
                 System.exit(1);
             }
         }
-        Handler handler = new ShotgunHandler("bamboo.Bamboo");
+        Handler handler = new ShotgunHandler("bamboo.web.Webapp");
         if (inheritSocket) {
             Channel channel = System.inheritedChannel();
             if (channel != null && channel instanceof ServerSocketChannel) {

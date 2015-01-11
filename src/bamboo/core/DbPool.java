@@ -1,4 +1,4 @@
-package bamboo;
+package bamboo.core;
 
 import com.googlecode.flyway.core.Flyway;
 import com.zaxxer.hikari.HikariConfig;
@@ -6,7 +6,6 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.skife.jdbi.v2.DBI;
 
 import java.io.Closeable;
-import java.io.IOException;
 
 public class DbPool implements Closeable {
     final HikariDataSource ds;

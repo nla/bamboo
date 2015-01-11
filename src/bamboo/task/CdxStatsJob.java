@@ -22,7 +22,7 @@ import java.util.zip.GZIPInputStream;
 
 import static java.nio.file.StandardOpenOption.READ;
 
-public class CdxStatsJob implements Taskmaster.Job {
+public class CdxStatsJob  {
     final Path cdxPath;
     final static long taskSize = 8 * 1024 * 1024;
     List<CdxStatsTask> tasks = new ArrayList<>();
@@ -73,7 +73,6 @@ public class CdxStatsJob implements Taskmaster.Job {
         return map;
     }
 
-    @Override
     public String getProgress() {
         long targetBytes = 0;
         long progressBytes = 0;

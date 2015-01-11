@@ -6,6 +6,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.nio.file.*;
 
+import bamboo.core.Bamboo;
+import bamboo.core.Db;
+import bamboo.core.DbPool;
 import bamboo.task.ImportJob;
 import org.junit.*;
 import org.junit.rules.*;
@@ -21,6 +24,7 @@ public class ArchiveTaskTest {
 		config.setHeritrixJobs(folder.getRoot().toPath());
 		DbPool dbPool = new DbPool(config);
 		dbPool.migrate();
+		Bamboo bamboo = new Bamboo(config, dbPool);
 
 		Path seriesPath = folder.newFolder("crawl-series").toPath();
 		long seriesId;
@@ -35,8 +39,7 @@ public class ArchiveTaskTest {
 		Files.write(launchWarcs.resolve("TEST-1234.warc.gz"), "dummy".getBytes());
 		//Files.createDirectories(jobPath.resolve("20140802011839"));
 
-		ImportJob task = new ImportJob(dbPool, jobPath, seriesId);
-		task.run();
+		bamboo.importHeritrixCrawl("testcrawl", seriesId).get();
 
 		assertTrue(Files.exists(seriesPath.resolve("001/000/TEST-1234.warc.gz")));
 		//fail("Not yet implemented");

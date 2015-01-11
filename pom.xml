@@ -21,6 +21,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
+        <version>2.1</version>
         <executions>
           <execution>
             <phase>package</phase>
@@ -30,7 +31,7 @@
             <configuration>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>bamboo.Bamboo</mainClass>
+                  <mainClass>bamboo.core.Bamboo</mainClass>
                 </transformer>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
                   <resource>META-INF/services/java.sql.Driver</resource>
@@ -122,6 +123,46 @@
     </dependency>
 
     <dependency>
+      <groupId>org.netpreserve.commons</groupId>
+      <artifactId>webarchive-commons</artifactId>
+      <version>1.1.4</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.htmlparser</groupId>
+          <artifactId>htmlparser</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.json</groupId>
+          <artifactId>json</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.googlecode.juniversalchardet</groupId>
+          <artifactId>juniversalchardet</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.pig</groupId>
+          <artifactId>pig</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.gnu.inet</groupId>
+          <artifactId>libidn</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpcore</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>joda-time</groupId>
+          <artifactId>joda-time</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.12</version>
@@ -147,6 +188,13 @@
       <groupId>org.webjars</groupId>
       <artifactId>flotr2</artifactId>
       <version>d43f8566e8</version>
+    </dependency>
+
+    <dependency>
+      <groupId>net.sourceforge.jwebunit</groupId>
+      <artifactId>jwebunit-htmlunit-plugin</artifactId>
+      <version>3.2</version>
+      <scope>test</scope>
     </dependency>
 
   </dependencies>

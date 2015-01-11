@@ -1,4 +1,4 @@
-package bamboo;
+package bamboo.core;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -11,6 +11,7 @@ import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -77,25 +78,44 @@ public interface Db extends AutoCloseable {
 		public final Long totalDocs;
 		public final Long totalBytes;
 		public final Long crawlSeriesId;
+		public final Path path;
 
-		public Crawl(long id, String name, Long totalDocs, Long totalBytes, Long crawlSeriesId) {
+		public Crawl(long id, String name, Long totalDocs, Long totalBytes, Long crawlSeriesId, Path path) {
 			this.id = id;
 			this.name = name;
 			this.totalDocs = totalDocs;
 			this.totalBytes = totalBytes;
 			this.crawlSeriesId = crawlSeriesId;
+			this.path = path;
 		}
 	}
 
 	public static class CrawlMapper implements ResultSetMapper<Crawl> {
 		@Override
 		public Crawl map(int index, ResultSet r, StatementContext ctx) throws SQLException {
-			return new Crawl(r.getLong("id"), r.getString("name"), (Long)r.getObject("total_docs"),
-					(Long)r.getObject("total_bytes"), (Long)r.getObject("crawl_series_id"));
+			String path = r.getString("path");
+			return new Crawl(
+					r.getLong("id"),
+					r.getString("name"),
+					(Long)r.getObject("total_docs"),
+					(Long)r.getObject("total_bytes"),
+					(Long)r.getObject("crawl_series_id"),
+					path != null ? Paths.get(path) : null);
 		}
 	}
+
+	@SqlUpdate("INSERT INTO crawl (name, crawl_series_id) VALUES (:name, :crawl_series_id)")
+	@GetGeneratedKeys
+	long createCrawl(@Bind("name") String name, @Bind("crawl_series_id") Long crawlSeriesId);
+
+	@SqlQuery("SELECT * FROM crawl WHERE id = :id")
+	Crawl findCrawl(@Bind("id") long crawlId);
+
 	@SqlQuery("SELECT crawl.* FROM crawl LEFT JOIN cdx_crawl ON crawl.id = cdx_crawl.crawl_id WHERE cdx_id = :cdx_id")
 	Iterable<Crawl> findCrawlsByCdxId(@Bind("cdx_id") long cdxId);
+
+	@SqlUpdate("UPDATE crawl SET path = :path WHERE id = :id")
+	int updateCrawlPath(@Bind("id") long id, @Bind("path") String path);
 
 	public static class CrawlSeries {
 		public final long id;

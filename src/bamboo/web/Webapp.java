@@ -1,27 +1,29 @@
-package bamboo;
+package bamboo.web;
 
+import bamboo.core.Bamboo;
+import bamboo.core.Db;
+import bamboo.io.HeritrixJob;
 import bamboo.task.CdxStatsJob;
-import bamboo.task.Taskmaster;
-import droute.*;
-import droute.nanohttpd.NanoServer;
+import droute.FreeMarkerHandler;
+import droute.Handler;
+import droute.Request;
+import droute.Response;
 import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.Configuration;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.channels.Channel;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.file.Paths;
 
 import static droute.Response.redirect;
 import static droute.Response.render;
 import static droute.Response.response;
 import static droute.Route.*;
+import static droute.Route.GET;
+import static droute.Route.notFound;
 
-public class Bamboo implements Handler, AutoCloseable {
-    final Config config = new Config();
-    final DbPool dbPool = new DbPool(config);
-    final Taskmaster taskmaster = new Taskmaster();
+public class Webapp implements Handler, AutoCloseable {
+    final Bamboo bamboo = new Bamboo();
 
     final Handler routes = routes(
             resources("/webjars", "META-INF/resources/webjars"),
@@ -32,13 +34,12 @@ public class Bamboo implements Handler, AutoCloseable {
             GET("/collection/:id", this::showCollection, "id", "[0-9]+"),
             GET("/import", this::showImportForm),
             GET("/tasks", this::showTasks),
-            new SeriesController(this).routes,
+            new SeriesController(bamboo).routes,
             notFound("404. Alas, there is nothing here."));
 
     final Handler handler;
 
-    public Bamboo() {
-        dbPool.migrate();
+    public Webapp() {
         Configuration fremarkerConfig = FreeMarkerHandler.defaultConfiguration(Bamboo.class, "/bamboo/views");
         fremarkerConfig.addAutoInclude("layout.ftl");
         BeansWrapper beansWrapper = BeansWrapper.getDefaultInstance();
@@ -48,14 +49,14 @@ public class Bamboo implements Handler, AutoCloseable {
     }
 
     Response index(Request request) {
-        try (Db db = dbPool.take()) {
+        try (Db db = bamboo.dbPool.take()) {
             return render("index.ftl",
                     "collections", db.listCollections());
         }
     }
 
     Response showCdx(Request request) {
-        try (Db db = dbPool.take()) {
+        try (Db db = bamboo.dbPool.take()) {
             long id = Long.parseLong(request.param("id"));
             Db.Cdx cdx = db.findCdx(id);
             if (cdx == null) {
@@ -68,21 +69,21 @@ public class Bamboo implements Handler, AutoCloseable {
     }
 
     Response calcCdxStats(Request request) {
-        long id = Long.parseLong(request.param("id"));
-        try (Db db = dbPool.take()) {
+/*        long id = Long.parseLong(request.param("id"));
+        try (Db db = bamboo.dbPool.take()) {
             Db.Cdx cdx = db.findCdx(id);
             if (cdx == null) {
                 return response(404, "No such CDX: " + id);
             }
-            taskmaster.launch(new CdxStatsJob(Paths.get(cdx.path)));
+            bamboo.taskmaster.launch(new CdxStatsJob(Paths.get(cdx.path)));
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to launch calcstats job for CDX " + id, e);
-        }
+        }*/
         return redirect(request.contextUri().resolve("tasks").toString());
     }
 
     Response showCollection(Request request) {
-        try (Db db = dbPool.take()) {
+        try (Db db = bamboo.dbPool.take()) {
             long id = Long.parseLong(request.param("id"));
             Db.Collection collection = db.findCollection(id);
             if (collection == null) {
@@ -95,31 +96,29 @@ public class Bamboo implements Handler, AutoCloseable {
     }
 
     Response showImportForm(Request request) {
-        try (Db db = dbPool.take()) {
-            return render("import.ftl",
+        try (Db db = bamboo.dbPool.take()) {
+            return Response.render("import.ftl",
                     "allCrawlSeries", db.listCrawlSeries(),
-                    "jobs", HeritrixJob.list(config.getHeritrixJobs()));
+                    "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()));
         }
     }
 
     Response performImport(Request request) {
-        try (Db db = dbPool.take()) {
+        try (Db db = bamboo.dbPool.take()) {
             String jobName = request.param("heritrixJob");
-            HeritrixJob job = HeritrixJob.byName(config.getHeritrixJobs(), jobName);
-
             long crawlSeriesId = Long.parseLong(request.param("crawlSeriesId"));
             Db.CrawlSeries crawlSeries = db.findCrawlSeriesById(crawlSeriesId);
             if (crawlSeries == null) {
                 return badRequest("No such crawl series: " + crawlSeriesId);
             }
-
+            bamboo.importHeritrixCrawl(jobName, crawlSeriesId);
 
             return response("todo");
         }
     }
 
     Response showTasks(Request request) {
-        return render("tasks.ftl", "jobs", taskmaster.getJobs());
+        return render("tasks.ftl", "jobs", bamboo.taskmaster.getJobs());
     }
 
     Response showThing(Request request) {
@@ -131,12 +130,12 @@ public class Bamboo implements Handler, AutoCloseable {
     }
 
     @Override
-    public void close() {
-        dbPool.close();
+    public Response handle(Request request) {
+        return handler.handle(request);
     }
 
     @Override
-    public Response handle(Request request) {
-        return handler.handle(request);
+    public void close() throws Exception {
+        bamboo.close();
     }
 }

@@ -1,5 +1,7 @@
 package bamboo;
 
+import bamboo.core.Config;
+
 import java.nio.file.Path;
 
 public class TestConfig extends Config {

@@ -1,9 +1,10 @@
-package bamboo;
+package bamboo.web;
 
+import bamboo.core.Bamboo;
+import bamboo.core.Db;
 import droute.Handler;
 import droute.Request;
 import droute.Response;
-import droute.Route;
 
 import static droute.Response.*;
 import static droute.Route.*;
