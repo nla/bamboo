@@ -10,7 +10,7 @@
     <label for="crawlSeriesId">Crawl Series:</label>
     <select id="crawlSeriesId" name="crawlSeriesId" class="chosen">
         [#list allCrawlSeries as series]
-            <option value="${series.id}">${series.name}</option>
+            <option value="${series.id}"[#if series.id == selectedCrawlSeriesId!-1] selected[/#if]>${series.name}</option>
         [/#list]
     </select><br>
     <button type="submit">Import</button>

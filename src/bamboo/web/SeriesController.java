@@ -14,8 +14,8 @@ public class SeriesController {
     public Handler routes = routes(
             GET("/series", this::index),
             GET("/series/new", this::newForm),
-            POST("/series/new", this::createSeries)
-            );
+            POST("/series/new", this::createSeries),
+            GET("/series/:id", this::show, "id", "[0-9]+"));
 
     public SeriesController(Bamboo bamboo) {
         this.bamboo = bamboo;
@@ -35,6 +35,17 @@ public class SeriesController {
         try (Db db = bamboo.dbPool.take()) {
             long seriesId = db.createCrawlSeries(request.formParam("name"), request.formParam("path"));
             return seeOther("/series");
+        }
+    }
+
+    Response show(Request request) {
+        long seriesId = Long.parseLong(request.urlParam("id"));
+        try (Db db = bamboo.dbPool.take()) {
+            Db.CrawlSeries series = db.findCrawlSeriesById(seriesId);
+            if (series == null) {
+                return notFound("No such crawl series: " + seriesId);
+            }
+            return render("series/show.ftl", "series", series, "crawls", db.findCrawlsByCrawlSeriesId(seriesId));
         }
     }
 

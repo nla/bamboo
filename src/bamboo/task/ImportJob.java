@@ -50,7 +50,9 @@ public class ImportJob implements Taskmaster.Job {
 			heritrixJob.checkSuitableForArchiving();
 
 			Path dest = allocateCrawlPath(crawl, series);
-			copyWarcs(heritrixJob.warcs().collect(Collectors.toList()), dest);
+			Path warcsDir = dest.resolve("warcs");
+			Files.createDirectory(warcsDir);
+			copyWarcs(heritrixJob.warcs().collect(Collectors.toList()), warcsDir);
 			constructCrawlBundle(heritrixJob.dir(), dest);
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);

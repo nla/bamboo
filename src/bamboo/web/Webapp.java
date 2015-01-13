@@ -3,7 +3,6 @@ package bamboo.web;
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
 import bamboo.io.HeritrixJob;
-import bamboo.task.CdxStatsJob;
 import droute.FreeMarkerHandler;
 import droute.Handler;
 import droute.Request;
@@ -11,14 +10,9 @@ import droute.Response;
 import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.Configuration;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Paths;
-
+import static bamboo.util.Parsing.parseLongOrNull;
 import static droute.Response.*;
 import static droute.Route.*;
-import static droute.Route.GET;
-import static droute.Route.notFound;
 
 public class Webapp implements Handler, AutoCloseable {
     final Bamboo bamboo = new Bamboo();
@@ -33,8 +27,10 @@ public class Webapp implements Handler, AutoCloseable {
             GET("/import", this::showImportForm),
             POST("/import", this::performImport),
             GET("/tasks", this::showTasks),
+            new CrawlsController(bamboo).routes,
             new SeriesController(bamboo).routes,
-            notFound("404. Alas, there is nothing here."));
+            new TasksController(bamboo).routes,
+            notFoundHandler("404. Alas, there is nothing here."));
 
     final Handler handler;
 
@@ -98,6 +94,7 @@ public class Webapp implements Handler, AutoCloseable {
         try (Db db = bamboo.dbPool.take()) {
             return render("import.ftl",
                     "allCrawlSeries", db.listCrawlSeries(),
+                    "selectedCrawlSeriesId", parseLongOrNull(request.queryParam("crawlSeries")),
                     "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()));
         }
     }

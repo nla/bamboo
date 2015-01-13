@@ -1,6 +1,7 @@
 package bamboo.core;
 
 import bamboo.io.HeritrixJob;
+import bamboo.task.CdxIndexJob;
 import bamboo.task.ImportJob;
 import bamboo.task.Taskmaster;
 
@@ -39,11 +40,7 @@ public class Bamboo implements AutoCloseable {
             crawlId = db.createCrawl(jobName, crawlSeriesId);
         }
         ImportJob importJob = new ImportJob(config, dbPool, crawlId);
-        try {
-            return taskmaster.launch(importJob);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return taskmaster.launch(importJob);
     }
 
     public static void main(String args[]) {
@@ -64,5 +61,10 @@ public class Bamboo implements AutoCloseable {
         System.out.println("\nSub-commands:");
         System.out.println("  import <jobName> <crawlSeriesId> s- Import a crawl from Heritrix");
         System.exit(1);
+    }
+
+    public void buildCdx(long crawlId)  {
+        CdxIndexJob job = new CdxIndexJob(dbPool, crawlId);
+        taskmaster.launch(job);
     }
 }

@@ -79,14 +79,22 @@ public interface Db extends AutoCloseable {
 		public final Long totalBytes;
 		public final Long crawlSeriesId;
 		public final Path path;
+		public final int state;
 
-		public Crawl(long id, String name, Long totalDocs, Long totalBytes, Long crawlSeriesId, Path path) {
+		public Crawl(long id, String name, Long totalDocs, Long totalBytes, Long crawlSeriesId, Path path, int state) {
 			this.id = id;
 			this.name = name;
 			this.totalDocs = totalDocs;
 			this.totalBytes = totalBytes;
 			this.crawlSeriesId = crawlSeriesId;
 			this.path = path;
+			this.state = state;
+		}
+
+		private static final String[] STATE_NAMES = {"Importing"};
+
+		public String stateName() {
+			return STATE_NAMES[state];
 		}
 	}
 
@@ -94,15 +102,20 @@ public interface Db extends AutoCloseable {
 		@Override
 		public Crawl map(int index, ResultSet r, StatementContext ctx) throws SQLException {
 			String path = r.getString("path");
+			Integer state = (Integer)r.getObject("state");
 			return new Crawl(
 					r.getLong("id"),
 					r.getString("name"),
 					(Long)r.getObject("total_docs"),
 					(Long)r.getObject("total_bytes"),
 					(Long)r.getObject("crawl_series_id"),
-					path != null ? Paths.get(path) : null);
+					path != null ? Paths.get(path) : null,
+					state != null ? state : 0);
 		}
 	}
+
+	@SqlQuery("SELECT * FROM crawl")
+	List<Crawl> listCrawls();
 
 	@SqlUpdate("INSERT INTO crawl (name, crawl_series_id) VALUES (:name, :crawl_series_id)")
 	@GetGeneratedKeys
@@ -113,6 +126,9 @@ public interface Db extends AutoCloseable {
 
 	@SqlQuery("SELECT crawl.* FROM crawl LEFT JOIN cdx_crawl ON crawl.id = cdx_crawl.crawl_id WHERE cdx_id = :cdx_id")
 	Iterable<Crawl> findCrawlsByCdxId(@Bind("cdx_id") long cdxId);
+
+	@SqlQuery("SELECT * FROM crawl WHERE crawl_series_id = :crawl_series_id")
+	Iterable<Crawl> findCrawlsByCrawlSeriesId(@Bind("crawl_series_id") long crawlSeriesId);
 
 	@SqlUpdate("UPDATE crawl SET path = :path WHERE id = :id")
 	int updateCrawlPath(@Bind("id") long id, @Bind("path") String path);

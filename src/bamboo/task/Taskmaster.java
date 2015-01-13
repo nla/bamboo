@@ -13,7 +13,7 @@ public class Taskmaster {
     private ExecutorService threadPool = Executors.newWorkStealingPool();
     private List<Job> jobs = new ArrayList<>();
 
-    public Future<?> launch(Job job) throws IOException {
+    public Future<?> launch(Job job) {
         return threadPool.submit(() -> {
             jobs.add(job);
             ProgressMonitor monitor = new ProgressMonitor();

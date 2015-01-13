@@ -5,7 +5,10 @@
     </thead>
     <tbody>
         [#list seriesList as series]
-            <tr><td>${series.name}</td><td>${series.path}</td></tr>
+            <tr>
+                <td><a href="series/${series.id}">${series.name}</a></td>
+                <td>${series.path}</td>
+            </tr>
         [/#list]
     </tbody>
 </table>
