@@ -15,9 +15,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Paths;
 
-import static droute.Response.redirect;
-import static droute.Response.render;
-import static droute.Response.response;
+import static droute.Response.*;
 import static droute.Route.*;
 import static droute.Route.GET;
 import static droute.Route.notFound;
@@ -33,6 +31,7 @@ public class Webapp implements Handler, AutoCloseable {
             POST("/cdx/:id/calcstats", this::calcCdxStats, "id", "[0-9]+"),
             GET("/collection/:id", this::showCollection, "id", "[0-9]+"),
             GET("/import", this::showImportForm),
+            POST("/import", this::performImport),
             GET("/tasks", this::showTasks),
             new SeriesController(bamboo).routes,
             notFound("404. Alas, there is nothing here."));
@@ -79,7 +78,7 @@ public class Webapp implements Handler, AutoCloseable {
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to launch calcstats job for CDX " + id, e);
         }*/
-        return redirect(request.contextUri().resolve("tasks").toString());
+        return seeOther(request.contextUri().resolve("tasks").toString());
     }
 
     Response showCollection(Request request) {
@@ -97,7 +96,7 @@ public class Webapp implements Handler, AutoCloseable {
 
     Response showImportForm(Request request) {
         try (Db db = bamboo.dbPool.take()) {
-            return Response.render("import.ftl",
+            return render("import.ftl",
                     "allCrawlSeries", db.listCrawlSeries(),
                     "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()));
         }
@@ -113,7 +112,7 @@ public class Webapp implements Handler, AutoCloseable {
             }
             bamboo.importHeritrixCrawl(jobName, crawlSeriesId);
 
-            return response("todo");
+            return seeOther("/crawls");
         }
     }
 

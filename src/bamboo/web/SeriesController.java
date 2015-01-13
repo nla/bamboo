@@ -34,7 +34,7 @@ public class SeriesController {
     Response createSeries(Request request) {
         try (Db db = bamboo.dbPool.take()) {
             long seriesId = db.createCrawlSeries(request.formParam("name"), request.formParam("path"));
-            return response("ok " + seriesId);
+            return seeOther("/series");
         }
     }
 

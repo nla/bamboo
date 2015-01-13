@@ -87,6 +87,11 @@ public class WebTest {
         }
 
         @Override
+        public String postBody() {
+            return null;
+        }
+
+        @Override
         public void setState(Object o) {
 
         }
