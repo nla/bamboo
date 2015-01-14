@@ -74,3 +74,63 @@
     [#assign siStr = (num / (siMap[thousands].factor))?string("0.#") + siMap[thousands].unit /]
     [#return siStr /]
 [/#function]
+
+[#function max x y]
+    [#if x > y]
+        [#return x]
+    [#else]
+        [#return y]
+    [/#if]
+[/#function]
+
+[#function min x y]
+    [#if x < y]
+        [#return x]
+    [#else]
+        [#return y]
+    [/#if]
+[/#function]
+
+[#macro pagination current last]
+    [#assign url = request.contextUri().relativize(request.uri()).getPath()]
+    [#if current < 5]
+        [#assign pages = 1..min(last, 5)]
+    [#elseif last - current < 5]
+        [#assign pages = max(last - 5, 1)..last]
+    [#else]
+        [#assign pages = (current - 2)..(current + 2)]
+    [/#if]
+    <nav>
+        <ul class="pagination">
+            [#if (current > 1)]
+                <li><a href="${url}?page=${current - 1}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a></li>
+            [#else]
+                <li class="disabled"><span aria-hidden="true">&laquo;</span></li>
+            [/#if]
+            [#if (current >= 5)]
+                <li><a href="${url}?page=1">1</a></li>
+                <li class="disabled"><span aria-hidden="true">&hellip;</span></li>
+            [/#if]
+            [#list pages as page]
+                [#if page == current]
+                    <li class="active"><span>${page}</span></li>
+                [#else]
+                    <li><a href="${url}?page=${page}">${page}</a></li>
+                [/#if]
+            [/#list]
+            [#if (last - current >= 5)]
+                <li class="disabled"><span aria-hidden="true">&hellip;</span></li>
+                <li><a href="${url}?page=${last}">${last}</a></li>
+            [/#if]
+            [#if current < last]
+                <li><a href="${url}?page=${current + 1}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a></li>
+            [#else]
+                <li class="disabled"><span aria-hidden="true">&raquo;</span></li>
+            [/#if]
+        </ul>
+    </nav>
+[/#macro]

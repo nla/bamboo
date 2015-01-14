@@ -10,7 +10,7 @@ import droute.Response;
 import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.Configuration;
 
-import static bamboo.util.Parsing.parseLongOrNull;
+import static bamboo.util.Parsing.parseLongOrDefault;
 import static droute.Response.*;
 import static droute.Route.*;
 
@@ -94,7 +94,7 @@ public class Webapp implements Handler, AutoCloseable {
         try (Db db = bamboo.dbPool.take()) {
             return render("import.ftl",
                     "allCrawlSeries", db.listCrawlSeries(),
-                    "selectedCrawlSeriesId", parseLongOrNull(request.queryParam("crawlSeries")),
+                    "selectedCrawlSeriesId", parseLongOrDefault(request.queryParam("crawlSeries"), -1),
                     "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()));
         }
     }

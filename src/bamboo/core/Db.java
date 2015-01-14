@@ -133,6 +133,12 @@ public interface Db extends AutoCloseable {
 	@SqlUpdate("UPDATE crawl SET path = :path WHERE id = :id")
 	int updateCrawlPath(@Bind("id") long id, @Bind("path") String path);
 
+	@SqlQuery("SELECT * FROM crawl LIMIT :limit OFFSET :offset")
+	List<Crawl> paginateCrawls(@Bind("limit") long limit, @Bind("offset") long offset);
+
+	@SqlQuery("SELECT COUNT(*) FROM crawl")
+	long countCrawls();
+
 	public static class CrawlSeries {
 		public final long id;
 		public final String name;
