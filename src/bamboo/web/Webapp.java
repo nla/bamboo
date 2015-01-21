@@ -109,7 +109,7 @@ public class Webapp implements Handler, AutoCloseable {
             }
             bamboo.importHeritrixCrawl(jobName, crawlSeriesId);
 
-            return seeOther("/crawls");
+            return seeOther(request.contextUri().resolve("crawls").toString());
         }
     }
 

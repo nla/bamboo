@@ -1,5 +1,9 @@
 [@page title="${series.name}"]
 
+<table>
+    <tr><td>Name:</td><td>${series.name}</td></tr>
+</table>
+
 <h2>Crawls</h2>
 
 [#include "/crawls/_list.ftl"]

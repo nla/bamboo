@@ -18,6 +18,7 @@ import java.util.List;
 
 public interface Db extends AutoCloseable {
 
+
 	public static class Cdx {
 		public final long id;
 		public final long collectionId;
@@ -164,13 +165,23 @@ public interface Db extends AutoCloseable {
 	@SqlQuery("SELECT * FROM crawl_series ORDER BY name")
 	List<CrawlSeries> listCrawlSeries();
 
+	@SqlQuery("COUNT(*) FROM crawl_series")
+	long countCrawlSeries();
+
+	@SqlQuery("SELECT * FROM crawl_series ORDER BY name LIMIT :limit OFFSET :offset")
+	List<CrawlSeries> paginateCrawlSeries(@Bind("limit") long limit, @Bind("offset") long offset);
+
 	@SqlUpdate("INSERT INTO crawl_series (name, path) VALUES (:name, :path)")
 	@GetGeneratedKeys
 	long createCrawlSeries(@Bind("name") String name, @Bind("path") String path);
 
+	@SqlUpdate("UPDATE crawl_series SET name = :name, path = :path WHERE id = :id")
+	int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path);
+
 	/*
 	 * TODO
 	 */
+
 
 	long addCrawl();
 

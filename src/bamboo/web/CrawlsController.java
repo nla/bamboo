@@ -2,12 +2,11 @@ package bamboo.web;
 
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
-import bamboo.util.Parsing;
+import bamboo.util.Pager;
 import droute.Handler;
 import droute.Request;
 import droute.Response;
 
-import static bamboo.util.Parsing.parseLongOrDefault;
 import static droute.Response.*;
 import static droute.Route.*;
 
@@ -23,15 +22,11 @@ public class CrawlsController {
     }
 
     Response index(Request request) {
-        long pageSize = 100;
-        long page = parseLongOrDefault(request.queryParam("page"), 1);
-        long offset = (page - 1) * pageSize;
         try (Db db = bamboo.dbPool.take()) {
-            long lastPage = db.countCrawls() / pageSize + 1;
+            Pager<Db.Crawl> pager = new Pager<>(request, "page", db.countCrawls(), db::paginateCrawls);
             return render("crawls/index.ftl",
-                    "crawls", db.paginateCrawls(pageSize, offset),
-                    "currentPage", page,
-                    "lastPage", lastPage);
+                    "crawls", pager.items,
+                    "crawlsPager", pager);
         }
     }
 
