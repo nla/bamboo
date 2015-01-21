@@ -3,6 +3,7 @@ package bamboo.web;
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
 import bamboo.util.Pager;
+import droute.Csrf;
 import droute.Handler;
 import droute.Request;
 import droute.Response;
@@ -34,7 +35,7 @@ public class SeriesController {
     }
 
     Response newForm(Request request) {
-        return render("series/new.ftl");
+        return render("series/new.ftl", "csrfToken", Csrf.token(request));
     }
 
     Response createSeries(Request request) {
@@ -62,7 +63,7 @@ public class SeriesController {
             if (series == null) {
                 return notFound("No such crawl series: " + seriesId);
             }
-            return render("series/edit.ftl", "series", series);
+            return render("series/edit.ftl", "series", series, "csrfToken", Csrf.token(request));
         }
     }
 

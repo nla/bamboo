@@ -1,6 +1,7 @@
 [@page title="Import Crawl"]
 
 <form method="POST">
+    <input name="csrfToken" value="${csrfToken}" type="hidden">
     <label for="heritrixJob">Heritrix Job:</label>
     <select id="heritrixJob" name="heritrixJob" class="chosen">
         [#list jobs as job]

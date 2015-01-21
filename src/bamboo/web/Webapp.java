@@ -3,10 +3,7 @@ package bamboo.web;
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
 import bamboo.io.HeritrixJob;
-import droute.FreeMarkerHandler;
-import droute.Handler;
-import droute.Request;
-import droute.Response;
+import droute.*;
 import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.Configuration;
 
@@ -40,7 +37,8 @@ public class Webapp implements Handler, AutoCloseable {
         BeansWrapper beansWrapper = BeansWrapper.getDefaultInstance();
         beansWrapper.setExposeFields(true);
         fremarkerConfig.setObjectWrapper(beansWrapper);
-        handler = new FreeMarkerHandler(fremarkerConfig, routes);
+        Handler handler = new FreeMarkerHandler(fremarkerConfig, routes);
+        this.handler = Csrf.protect(handler);
     }
 
     Response index(Request request) {
@@ -95,7 +93,8 @@ public class Webapp implements Handler, AutoCloseable {
             return render("import.ftl",
                     "allCrawlSeries", db.listCrawlSeries(),
                     "selectedCrawlSeriesId", parseLongOrDefault(request.queryParam("crawlSeries"), -1),
-                    "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()));
+                    "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()),
+                    "csrfToken", Csrf.token(request));
         }
     }
 
