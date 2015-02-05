@@ -49,8 +49,9 @@ public class CdxIndexJob implements Taskmaster.Job {
                         buildCdx(warc.path);
                         db2.setWarcCdxIndexed(warc.id, System.currentTimeMillis());
                         System.out.println("Finished CDX indexing " + warc.id + " " + warc.path);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        throw new RuntimeException(e);
                     }
                 });
             }
