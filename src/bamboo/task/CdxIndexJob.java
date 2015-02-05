@@ -53,9 +53,9 @@ public class CdxIndexJob implements Taskmaster.Job {
                         throw new UncheckedIOException(e);
                     }
                 });
-                threadPool.shutdown();
-                threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
             }
+            threadPool.shutdown();
+            threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } finally {
