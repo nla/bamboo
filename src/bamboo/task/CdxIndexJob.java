@@ -147,7 +147,12 @@ public class CdxIndexJob implements Taskmaster.Job {
             for (Header header : LaxHttpParser.parseHeaders(record, ARCConstants.DEFAULT_ENCODING)) {
                 switch (header.getName().toLowerCase()) {
                     case "location":
-                        location = URI.create(h.getUrl()).resolve(header.getValue()).toString();
+                        try {
+                            URL url = new URL(h.getUrl());
+                            location = new URL(url, header.getValue()).toString().replace(" ", "%20");
+                        } catch (MalformedURLException e) {
+                            // skip it
+                        }
                         break;
                     case "content-type":
                         contentType = header.getValue();
@@ -168,7 +173,7 @@ public class CdxIndexJob implements Taskmaster.Job {
         StringBuilder out = new StringBuilder();
         out.append('-').append(' '); // let server do canonicalization
         out.append(warcToArcDate(h.getDate())).append(' ');
-        out.append(h.getUrl()).append(' ');
+        out.append(h.getUrl().replace(" ", "%20")).append(' ');
         out.append(optional(contentType)).append(' ');
         out.append(status == null ? "-" : Integer.toString(status.getStatusCode())).append(' ');
         out.append(optional(digest)).append(' ');
