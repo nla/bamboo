@@ -18,10 +18,10 @@ public class DbPool implements Closeable {
         hikariConfig.setPassword(config.getDbPassword());
         ds = new HikariDataSource(hikariConfig);
         dbi = new DBI(ds);
-        dbi.registerMapper(new Db.CdxMapper());
         dbi.registerMapper(new Db.CollectionMapper());
         dbi.registerMapper(new Db.CrawlMapper());
         dbi.registerMapper(new Db.CrawlSeriesMapper());
+        dbi.registerMapper(new Db.WarcMapper());
     }
 
     public void migrate() {

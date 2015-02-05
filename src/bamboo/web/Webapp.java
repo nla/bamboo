@@ -18,7 +18,6 @@ public class Webapp implements Handler, AutoCloseable {
             resources("/webjars", "META-INF/resources/webjars"),
             resources("/assets", "bamboo/assets"),
             GET("/", this::index),
-            GET("/cdx/:id", this::showCdx, "id", "[0-9]+"),
             POST("/cdx/:id/calcstats", this::calcCdxStats, "id", "[0-9]+"),
             GET("/collection/:id", this::showCollection, "id", "[0-9]+"),
             GET("/import", this::showImportForm),
@@ -48,19 +47,6 @@ public class Webapp implements Handler, AutoCloseable {
         }
     }
 
-    Response showCdx(Request request) {
-        try (Db db = bamboo.dbPool.take()) {
-            long id = Long.parseLong(request.param("id"));
-            Db.Cdx cdx = db.findCdx(id);
-            if (cdx == null) {
-                return response(404, "No such CDX: " + id);
-            }
-            return render("cdx.ftl",
-                    "cdx", cdx,
-                    "crawls", db.findCrawlsByCdxId(id));
-        }
-    }
-
     Response calcCdxStats(Request request) {
 /*        long id = Long.parseLong(request.param("id"));
         try (Db db = bamboo.dbPool.take()) {
@@ -83,8 +69,7 @@ public class Webapp implements Handler, AutoCloseable {
                 return response(404, "No such collection: " + id);
             }
             return render("collection.ftl",
-                    "collection", collection,
-                    "cdxs", db.findCdxsByCollectionId(id));
+                    "collection", collection);
         }
     }
 

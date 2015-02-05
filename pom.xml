@@ -196,19 +196,5 @@
       <version>3.2</version>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>org.mapdb</groupId>
-      <artifactId>mapdb</artifactId>
-      <version>1.0.6</version>
-    </dependency>
-
-
-    <dependency>
-      <groupId>org.fusesource.leveldbjni</groupId>
-      <artifactId>leveldbjni-all</artifactId>
-      <version>1.8</version>
-    </dependency>
-
   </dependencies>
 </project>

@@ -7,6 +7,7 @@ import bamboo.task.Taskmaster;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import static droute.Response.render;
@@ -43,13 +44,32 @@ public class Bamboo implements AutoCloseable {
         return taskmaster.launch(importJob);
     }
 
-    public static void main(String args[]) {
+    public void insertWarc(long crawlId, String path) {
+        try (Db db = dbPool.take()) {
+            long warcId = db.insertWarc(crawlId, path);
+            System.out.println("Registered WARC " + warcId);
+        }
+    }
+
+    public void runCdxIndexer() throws Exception {
+        taskmaster.launch(new CdxIndexJob(dbPool)).get();
+    }
+
+    public static void main(String args[]) throws Exception {
         Bamboo bamboo = new Bamboo();
         if (args.length == 0)
             usage();
         switch (args[0]) {
             case "import":
                 bamboo.importHeritrixCrawl(args[1], Long.parseLong(args[2]));
+                break;
+            case "insert-warc":
+                for (int i = 2; i < args.length; i++) {
+                    bamboo.insertWarc(Long.parseLong(args[1]), args[i]);
+                }
+                break;
+            case "cdx-indexer":
+                bamboo.runCdxIndexer();
                 break;
             default:
                 usage();
@@ -58,13 +78,11 @@ public class Bamboo implements AutoCloseable {
 
     public static void usage() {
         System.out.println("Usage: bamboo <subcommand>");
+        System.out.println("Bamboo admin tools");
         System.out.println("\nSub-commands:");
-        System.out.println("  import <jobName> <crawlSeriesId> s- Import a crawl from Heritrix");
+        System.out.println("  cdx-indexer                      - Run the CDX indexer");
+        System.out.println("  import <jobName> <crawlSeriesId> - Import a crawl from Heritrix");
+        System.out.println("  insert-warc <crawl-id> <paths>   - Register WARCs with a crawl");
         System.exit(1);
-    }
-
-    public void buildCdx(long crawlId)  {
-        CdxIndexJob job = new CdxIndexJob(dbPool, crawlId);
-        taskmaster.launch(job);
     }
 }

@@ -43,7 +43,7 @@ public class CrawlsController {
 
     Response buildCdx(Request request) {
         long crawlId = Long.parseLong(request.urlParam("id"));
-        bamboo.buildCdx(crawlId);
+        //bamboo.buildCdx(crawlId);
         return seeOther(request.contextUri().resolve("crawls/" + crawlId).toString());
     }
 

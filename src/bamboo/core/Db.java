@@ -18,37 +18,7 @@ import java.util.List;
 
 public interface Db extends AutoCloseable {
 
-
-	public static class Cdx {
-		public final long id;
-		public final long collectionId;
-		public final String path;
-		public final long totalDocs;
-		public final long totalBytes;
-
-		public Cdx(long id, long collectionId, String path, long totalDocs, long totalBytes) {
-			this.id = id;
-			this.collectionId = collectionId;
-			this.path = path;
-			this.totalDocs = totalDocs;
-			this.totalBytes = totalBytes;
-		}
-	}
-
-	public static class CdxMapper implements ResultSetMapper<Cdx> {
-
-		@Override
-		public Cdx map(int index, ResultSet r, StatementContext ctx) throws SQLException {
-			return new Cdx(r.getLong("id"), r.getLong("collection_id"), r.getString("path"), r.getLong("total_docs"),
-					r.getLong("total_bytes"));
-		}
-	}
-
-	@SqlQuery("SELECT * FROM cdx WHERE collection_id = :collection_id")
-	Iterable<Cdx> findCdxsByCollectionId(@Bind("collection_id") long collectionId);
-
-	@SqlQuery("SELECT * FROM cdx WHERE id = :id")
-	Cdx findCdx(@Bind("id") long id);
+	void close();
 
 	public static class Collection {
 		public final long id;
@@ -178,14 +148,37 @@ public interface Db extends AutoCloseable {
 	@SqlUpdate("UPDATE crawl_series SET name = :name, path = :path WHERE id = :id")
 	int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path);
 
-	/*
-	 * TODO
-	 */
+	public static class Warc {
+		public final long id;
+		public final long crawlId;
+		public final Path path;
+		public final long cdxIndexed;
+
+		public Warc(long id, long crawlId, Path path, long cdxIndexed) {
+			this.id = id;
+			this.crawlId = crawlId;
+			this.path = path;
+			this.cdxIndexed = cdxIndexed;
+		}
+	}
+
+	public static class WarcMapper implements ResultSetMapper<Warc> {
+		@Override
+		public Warc map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+			return new Warc(resultSet.getLong("id"), resultSet.getLong("crawl_id"),
+					Paths.get(resultSet.getString("path")), resultSet.getLong("cdx_indexed"));
+		}
+	}
+
+	@SqlUpdate("INSERT INTO warc (crawl_id, path, cdx_indexed) VALUES (:crawlId, :path, 0)")
+	@GetGeneratedKeys
+	long insertWarc(@Bind("crawlId") long crawlId, @Bind("path") String path);
+
+	@SqlQuery("SELECT * FROM warc WHERE cdx_indexed = 0")
+	List<Warc> findWarcsToCdxIndex();
+
+	@SqlUpdate("UPDATE warc SET cdx_indexed = :timestamp WHERE id = :id")
+	int setWarcCdxIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
 
 
-	long addCrawl();
-
-	void addWarc(long V, String s, String s1);
-
-	void close();
 }
