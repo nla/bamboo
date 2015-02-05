@@ -5,10 +5,11 @@ import bamboo.core.DbPool;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.StatusLine;
 import org.archive.format.arc.ARCConstants;
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
-import org.archive.io.warc.WARCReader;
-import org.archive.io.warc.WARCReaderFactory;
+import org.archive.util.Base32;
 import org.archive.util.LaxHttpParser;
 
 import java.io.*;
@@ -18,6 +19,9 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -46,6 +50,9 @@ public class CdxIndexJob implements Taskmaster.Job {
     final static DateTimeFormatter arcDateFormat = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     private static String warcToArcDate(String warcDate) {
+        if (warcDate.length() == 14) {
+            return warcDate; // already an ARC date
+        }
         return LocalDateTime.parse(warcDate, warcDateFormat).format(arcDateFormat);
     }
 
@@ -89,7 +96,7 @@ public class CdxIndexJob implements Taskmaster.Job {
 
     private static void writeCdx(Path warc, Writer out) {
         String filename = warc.getFileName().toString();
-        try (WARCReader reader = WARCReaderFactory.get(warc.toFile())) {
+        try (ArchiveReader reader = ArchiveReaderFactory.get(warc.toFile())) {
             for (ArchiveRecord record : reader) {
                 String cdxLine = formatCdxLine(filename, record);
                 if (cdxLine != null) {
@@ -105,9 +112,10 @@ public class CdxIndexJob implements Taskmaster.Job {
     private static String formatCdxLine(String filename, ArchiveRecord record) throws IOException {
         ArchiveRecordHeader h = record.getHeader();
 
-        if (!h.getHeaderValue("WARC-Type").equals("response"))
+        String warcType = (String)h.getHeaderValue("WARC-Type");
+        if (warcType != null && !warcType.equals("response"))
             return null;
-        if (h.getUrl().startsWith("dns:"))
+        if (h.getUrl().startsWith("dns:") || h.getUrl().startsWith("filedesc:"))
             return null;
 
         StatusLine status = null;
@@ -133,12 +141,14 @@ public class CdxIndexJob implements Taskmaster.Job {
         contentType = cleanContentType(contentType);
 
         String digest = (String) h.getHeaderValue("WARC-Payload-Digest");
-        if (digest != null && digest.startsWith("sha1:")) {
+        if (digest == null) {
+            digest = calcDigest(record);
+        } else if (digest.startsWith("sha1:")) {
             digest = digest.substring(5);
         }
 
         StringBuilder out = new StringBuilder();
-        out.append(h.getUrl()).append(' ');
+        out.append('-').append(' '); // let server do canonicalization
         out.append(warcToArcDate(h.getDate())).append(' ');
         out.append(h.getUrl()).append(' ');
         out.append(optional(contentType)).append(' ');
@@ -152,6 +162,23 @@ public class CdxIndexJob implements Taskmaster.Job {
         return out.toString();
     }
 
+    private static String calcDigest(ArchiveRecord record) throws IOException {
+        String digest;
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA1");
+            byte[] buf = new byte[8192];
+            for (; ; ) {
+                int len = record.read(buf);
+                if (len < 0) break;
+                md.update(buf, 0, len);
+            }
+            digest = Base32.encode(md.digest());
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        return digest;
+    }
+
     private static String optional(String s) {
         if (s == null) {
             return "-";
@@ -160,6 +187,7 @@ public class CdxIndexJob implements Taskmaster.Job {
     }
 
     private static String cleanContentType(String contentType) {
+        if (contentType == null) return null;
         contentType = stripAfterChar(contentType, ';');
         return stripAfterChar(contentType, ' ');
     }
@@ -171,5 +199,10 @@ public class CdxIndexJob implements Taskmaster.Job {
         } else {
             return s;
         }
+    }
+
+    public static void main(String args[]) {
+        BufferedWriter out = new BufferedWriter(new OutputStreamWriter(System.out));
+        writeCdx(Paths.get(args[0]), out);
     }
 }
