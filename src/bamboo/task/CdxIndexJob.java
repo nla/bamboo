@@ -24,6 +24,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
@@ -37,12 +40,26 @@ public class CdxIndexJob implements Taskmaster.Job {
 
     @Override
     public void run(Taskmaster.IProgressMonitor progress) throws IOException {
+        ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
         try (Db db = dbPool.take()) {
             for (Db.Warc warc : db.findWarcsToCdxIndex()) {
-                System.out.println("CDX indexing " + warc.id + " " + warc.path);
-                buildCdx(warc.path);
-                db.setWarcCdxIndexed(warc.id, System.currentTimeMillis());
+                threadPool.submit(() -> {
+                    try (Db db2 = dbPool.take()) {
+                        System.out.println("CDX indexing " + warc.id + " " + warc.path);
+                        buildCdx(warc.path);
+                        db2.setWarcCdxIndexed(warc.id, System.currentTimeMillis());
+                        System.out.println("Finished CDX indexing " + warc.id + " " + warc.path);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+                threadPool.shutdown();
+                threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
             }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            threadPool.shutdownNow();
         }
     }
 
