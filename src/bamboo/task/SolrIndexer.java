@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 
 public class SolrIndexer {
 
-    static int MAX_DOC_SIZE = 0x1000000;
+    static int MAX_DOC_SIZE = 0x100000;
     static int COMMIT_WITHIN_MS = 300000;
 
     private final Config config;
@@ -63,7 +63,12 @@ public class SolrIndexer {
     }
 
     public void run() {
-        ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        int threads = Runtime.getRuntime().availableProcessors();
+        String threadSetting = System.getenv("BAMBOO_SOLR_THREADS");
+        if (threadSetting != null) {
+            threads = Integer.parseInt(threadSetting);
+        }
+        ExecutorService threadPool = Executors.newFixedThreadPool(threads);
         try (Db db = dbPool.take()) {
             for (Db.Warc warc : db.findWarcsToSolrIndex()) {
                 threadPool.submit(() -> indexWarc(warc));
@@ -78,7 +83,7 @@ public class SolrIndexer {
     }
 
     void indexWarc(Db.Warc warc) {
-        System.out.println("Solr indexing " + warc.id + " " + warc.path);
+        System.out.println(new Date() +  " Solr indexing " + warc.id + " " + warc.path);
         List<SolrInputDocument> batch = new ArrayList<>();
         try (ArchiveReader reader = ArchiveReaderFactory.get(warc.path.toFile())) {
             for (ArchiveRecord record : reader) {
@@ -86,7 +91,7 @@ public class SolrIndexer {
                 if (doc != null) {
                     batch.add(doc);
                 }
-                if (batch.size() > 10) {
+                if (batch.size() > 4) {
                     solr.add(batch, COMMIT_WITHIN_MS);
                     batch.clear();
                 }
@@ -97,7 +102,7 @@ public class SolrIndexer {
             try (Db db = dbPool.take()) {
                 db.setWarcSolrIndexed(warc.id, System.currentTimeMillis());
             }
-            System.out.println("Finished Solr indexing " + warc.id + " " + warc.path);
+            System.out.println(new Date() + " Finished Solr indexing " + warc.id + " " + warc.path);
         } catch (IOException e) {
             e.printStackTrace();
             throw new UncheckedIOException(e);
