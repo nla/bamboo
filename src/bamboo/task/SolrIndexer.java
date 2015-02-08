@@ -3,6 +3,7 @@ package bamboo.task;
 import bamboo.core.Config;
 import bamboo.core.Db;
 import bamboo.core.DbPool;
+import com.google.common.net.InternetDomainName;
 import com.itextpdf.text.exceptions.InvalidPdfException;
 import com.itextpdf.text.pdf.PdfReader;
 import com.itextpdf.text.pdf.parser.PdfReaderContentParser;
@@ -33,10 +34,12 @@ import java.nio.CharBuffer;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class SolrIndexer {
 
     static int MAX_DOC_SIZE = 0x1000000;
+    static int COMMIT_WITHIN_MS = 10000;
 
     private final Config config;
     private final DbPool dbPool;
@@ -63,14 +66,21 @@ public class SolrIndexer {
                 threadPool.submit(() -> indexWarc(warc));
             }
         }
+        threadPool.shutdown();
+        try {
+            threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     void indexWarc(Db.Warc warc) {
+        System.out.println("Solr indexing " + warc.id + " " + warc.path);
         try (ArchiveReader reader = ArchiveReaderFactory.get(warc.path.toFile())) {
             for (ArchiveRecord record : reader) {
                 SolrInputDocument doc = makeDoc(record);
                 if (doc != null) {
-                    solr.add(doc);
+                    solr.add(doc, COMMIT_WITHIN_MS);
                 }
             }
             try (Db db = dbPool.take()) {
@@ -86,6 +96,7 @@ public class SolrIndexer {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
+        System.out.println("Finished Solr indexing " + warc.id + " " + warc.path);
     }
 
     public static SolrInputDocument makeDoc(ArchiveRecord record) throws IOException {
@@ -99,13 +110,16 @@ public class SolrIndexer {
         }
 
         String contentType = httpHeader.getCleanContentType();
+        String arcDate = Warcs.getArcDate(warcHeader);
 
         SolrInputDocument doc = new SolrInputDocument();
-        doc.addField("url", url.toString());
+        doc.addField("id", url + " " + arcDate);
+        doc.addField("url", url);
         doc.addField("length", warcHeader.getContentLength());
         doc.addField("code", httpHeader.status);
-        doc.addField("date", Warcs.getArcDate(warcHeader));
-        doc.addField("site", new URL(url).getHost());
+        doc.addField("date", arcDate);
+        InternetDomainName domain = InternetDomainName.from(new URL(url).getHost());
+        doc.addField("site", domain.topPrivateDomain().toString());
         doc.addField("type", contentType);
 
         String digest = (String) warcHeader.getHeaderValue("WARC-Payload-Digest");

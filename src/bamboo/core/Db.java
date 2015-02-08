@@ -185,6 +185,4 @@ public interface Db extends AutoCloseable {
 
     @SqlUpdate("UPDATE warc SET solr_indexed = :timestamp WHERE id = :id")
     int setWarcSolrIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
-
-
 }
