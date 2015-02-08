@@ -31,6 +31,8 @@ import java.io.UncheckedIOException;
 import java.net.URL;
 import java.nio.BufferOverflowException;
 import java.nio.CharBuffer;
+import java.time.*;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -117,7 +119,8 @@ public class SolrIndexer {
         doc.addField("url", url);
         doc.addField("length", warcHeader.getContentLength());
         doc.addField("code", httpHeader.status);
-        doc.addField("date", arcDate);
+        Instant instant = LocalDateTime.parse(arcDate).atOffset(ZoneOffset.UTC).toInstant();
+        doc.addField("date", Date.from(instant));
         InternetDomainName domain = InternetDomainName.from(new URL(url).getHost());
         doc.addField("site", domain.topPrivateDomain().toString());
         doc.addField("type", contentType);
