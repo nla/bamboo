@@ -32,6 +32,7 @@ import java.net.URL;
 import java.nio.BufferOverflowException;
 import java.nio.CharBuffer;
 import java.time.*;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -41,7 +42,7 @@ import java.util.concurrent.TimeUnit;
 public class SolrIndexer {
 
     static int MAX_DOC_SIZE = 0x1000000;
-    static int COMMIT_WITHIN_MS = 10000;
+    static int COMMIT_WITHIN_MS = 300000;
 
     private final Config config;
     private final DbPool dbPool;
@@ -78,12 +79,20 @@ public class SolrIndexer {
 
     void indexWarc(Db.Warc warc) {
         System.out.println("Solr indexing " + warc.id + " " + warc.path);
+        List<SolrInputDocument> batch = new ArrayList<>();
         try (ArchiveReader reader = ArchiveReaderFactory.get(warc.path.toFile())) {
             for (ArchiveRecord record : reader) {
                 SolrInputDocument doc = makeDoc(record);
                 if (doc != null) {
-                    solr.add(doc, COMMIT_WITHIN_MS);
+                    batch.add(doc);
                 }
+                if (batch.size() > 100) {
+                    solr.add(batch, COMMIT_WITHIN_MS);
+                    batch.clear();
+                }
+            }
+            if (!batch.isEmpty()) {
+                solr.add(batch, COMMIT_WITHIN_MS);
             }
             try (Db db = dbPool.take()) {
                 db.setWarcSolrIndexed(warc.id, System.currentTimeMillis());
@@ -113,6 +122,10 @@ public class SolrIndexer {
 
         String contentType = httpHeader.getCleanContentType();
         String arcDate = Warcs.getArcDate(warcHeader);
+
+        if (contentType == null) {
+            return null;
+        }
 
         SolrInputDocument doc = new SolrInputDocument();
         doc.addField("id", url + " " + arcDate);
