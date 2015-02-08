@@ -144,7 +144,7 @@ public class CdxIndexJob implements Taskmaster.Job {
         // parse HTTP header
         String line = new String(LaxHttpParser.readRawLine(record), ISO_8859_1);
         if (!StatusLine.startsWithHTTP(line)) {
-            throw new RuntimeException("Not a HTTP status line: " + line);
+            return null;
         }
         int status = parseStatusLine(line);
         for (Header header : LaxHttpParser.parseHeaders(record, ARCConstants.DEFAULT_ENCODING)) {
