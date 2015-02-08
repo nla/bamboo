@@ -86,7 +86,7 @@ public class SolrIndexer {
                 if (doc != null) {
                     batch.add(doc);
                 }
-                if (batch.size() > 100) {
+                if (batch.size() > 10) {
                     solr.add(batch, COMMIT_WITHIN_MS);
                     batch.clear();
                 }
