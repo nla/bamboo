@@ -2,35 +2,21 @@ package bamboo.task;
 
 import bamboo.core.Db;
 import bamboo.core.DbPool;
-import org.apache.commons.httpclient.Header;
-import org.apache.commons.httpclient.StatusLine;
-import org.archive.format.arc.ARCConstants;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
-import org.archive.util.Base32;
-import org.archive.util.LaxHttpParser;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 public class CdxIndexJob implements Taskmaster.Job {
     final private DbPool dbPool;
@@ -64,16 +50,6 @@ public class CdxIndexJob implements Taskmaster.Job {
         } finally {
             threadPool.shutdownNow();
         }
-    }
-
-    final static DateTimeFormatter warcDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
-    final static DateTimeFormatter arcDateFormat = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-
-    private static String warcToArcDate(String warcDate) {
-        if (warcDate.length() == 14) {
-            return warcDate; // already an ARC date
-        }
-        return LocalDateTime.parse(warcDate, warcDateFormat).format(arcDateFormat);
     }
 
     private static URL getCdxServerUrl() {
@@ -131,55 +107,23 @@ public class CdxIndexJob implements Taskmaster.Job {
 
     private static String formatCdxLine(String filename, ArchiveRecord record) throws IOException {
         ArchiveRecordHeader h = record.getHeader();
-
-        String warcType = (String)h.getHeaderValue("WARC-Type");
-        if (warcType != null && !warcType.equals("response"))
-            return null;
-        if (h.getUrl().startsWith("dns:") || h.getUrl().startsWith("filedesc:"))
-            return null;
-
-        String contentType = null;
-        String location = null;
-
-        // parse HTTP header
-        String line = new String(LaxHttpParser.readRawLine(record), ISO_8859_1);
-        if (!StatusLine.startsWithHTTP(line)) {
+        if (!Warcs.isResponseRecord(h)) {
             return null;
         }
-        int status = parseStatusLine(line);
-        for (Header header : LaxHttpParser.parseHeaders(record, ARCConstants.DEFAULT_ENCODING)) {
-            switch (header.getName().toLowerCase()) {
-                case "location":
-                    try {
-                        URL url = new URL(h.getUrl());
-                        location = new URL(url, header.getValue()).toString().replace(" ", "%20");
-                    } catch (MalformedURLException e) {
-                        // skip it
-                    }
-                    break;
-                case "content-type":
-                    contentType = header.getValue();
-                    break;
-            }
-        }
-
-        contentType = cleanContentType(contentType);
-
-        String digest = (String) h.getHeaderValue("WARC-Payload-Digest");
-        if (digest == null) {
-            digest = calcDigest(record);
-        } else if (digest.startsWith("sha1:")) {
-            digest = digest.substring(5);
+        String url = Warcs.getCleanUrl(h);
+        HttpHeader http = HttpHeader.parse(record, url);
+        if (http == null) {
+            return null;
         }
 
         StringBuilder out = new StringBuilder();
         out.append('-').append(' '); // let server do canonicalization
-        out.append(warcToArcDate(h.getDate())).append(' ');
-        out.append(h.getUrl().replace(" ", "%20")).append(' ');
-        out.append(optional(contentType)).append(' ');
-        out.append(status == -1 ? "-" : Integer.toString(status)).append(' ');
-        out.append(optional(digest)).append(' ');
-        out.append(optional(location)).append(' ');
+        out.append(Warcs.getArcDate(h)).append(' ');
+        out.append(url).append(' ');
+        out.append(optional(http.getCleanContentType())).append(' ');
+        out.append(http.status == -1 ? "-" : Integer.toString(http.status)).append(' ');
+        out.append(optional(Warcs.getOrCalcDigest(record))).append(' ');
+        out.append(optional(http.location)).append(' ');
         out.append("- "); // TODO: X-Robots-Tag http://noarchive.net/xrobots/
         out.append(Long.toString(h.getContentLength())).append(' ');
         out.append(Long.toString(h.getOffset())).append(' ');
@@ -187,54 +131,11 @@ public class CdxIndexJob implements Taskmaster.Job {
         return out.toString();
     }
 
-    private static final Pattern STATUS_LINE = Pattern.compile("\\s*\\S+\\s+(\\d+)(?:\\s.*|$)");
-
-    private static int parseStatusLine(String line) {
-        Matcher m = STATUS_LINE.matcher(line);
-        if (m.matches()) {
-            return Integer.parseInt(m.group(1));
-        } else {
-            return -1;
-        }
-    }
-
-    private static String calcDigest(ArchiveRecord record) throws IOException {
-        String digest;
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA1");
-            byte[] buf = new byte[8192];
-            for (; ; ) {
-                int len = record.read(buf);
-                if (len < 0) break;
-                md.update(buf, 0, len);
-            }
-            digest = Base32.encode(md.digest());
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-        return digest;
-    }
-
     private static String optional(String s) {
         if (s == null) {
             return "-";
         }
         return s;
-    }
-
-    private static String cleanContentType(String contentType) {
-        if (contentType == null) return null;
-        contentType = stripAfterChar(contentType, ';');
-        return stripAfterChar(contentType, ' ');
-    }
-
-    private static String stripAfterChar(String s, int c) {
-        int i = s.indexOf(c);
-        if (i > -1) {
-            return s.substring(0, i);
-        } else {
-            return s;
-        }
     }
 
     public static void main(String args[]) {

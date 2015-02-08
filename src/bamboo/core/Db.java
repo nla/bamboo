@@ -20,7 +20,7 @@ public interface Db extends AutoCloseable {
 
 	void close();
 
-	public static class Collection {
+    public static class Collection {
 		public final long id;
 		public final String name;
 
@@ -177,8 +177,14 @@ public interface Db extends AutoCloseable {
 	@SqlQuery("SELECT * FROM warc WHERE cdx_indexed = 0")
 	List<Warc> findWarcsToCdxIndex();
 
+    @SqlQuery("SELECT * FROM warc WHERE solr_indexed = 0")
+    List<Warc> findWarcsToSolrIndex();
+
 	@SqlUpdate("UPDATE warc SET cdx_indexed = :timestamp WHERE id = :id")
 	int setWarcCdxIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
+
+    @SqlUpdate("UPDATE warc SET solr_indexed = :timestamp WHERE id = :id")
+    int setWarcSolrIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
 
 
 }
