@@ -27,6 +27,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
@@ -136,28 +138,28 @@ public class CdxIndexJob implements Taskmaster.Job {
         if (h.getUrl().startsWith("dns:") || h.getUrl().startsWith("filedesc:"))
             return null;
 
-        StatusLine status = null;
         String contentType = null;
         String location = null;
 
         // parse HTTP header
         String line = new String(LaxHttpParser.readRawLine(record), ISO_8859_1);
-        if (StatusLine.startsWithHTTP(line)) {
-            status = new StatusLine(line);
-            for (Header header : LaxHttpParser.parseHeaders(record, ARCConstants.DEFAULT_ENCODING)) {
-                switch (header.getName().toLowerCase()) {
-                    case "location":
-                        try {
-                            URL url = new URL(h.getUrl());
-                            location = new URL(url, header.getValue()).toString().replace(" ", "%20");
-                        } catch (MalformedURLException e) {
-                            // skip it
-                        }
-                        break;
-                    case "content-type":
-                        contentType = header.getValue();
-                        break;
-                }
+        if (!StatusLine.startsWithHTTP(line)) {
+            throw new RuntimeException("Not a HTTP status line: " + line);
+        }
+        int status = parseStatusLine(line);
+        for (Header header : LaxHttpParser.parseHeaders(record, ARCConstants.DEFAULT_ENCODING)) {
+            switch (header.getName().toLowerCase()) {
+                case "location":
+                    try {
+                        URL url = new URL(h.getUrl());
+                        location = new URL(url, header.getValue()).toString().replace(" ", "%20");
+                    } catch (MalformedURLException e) {
+                        // skip it
+                    }
+                    break;
+                case "content-type":
+                    contentType = header.getValue();
+                    break;
             }
         }
 
@@ -175,7 +177,7 @@ public class CdxIndexJob implements Taskmaster.Job {
         out.append(warcToArcDate(h.getDate())).append(' ');
         out.append(h.getUrl().replace(" ", "%20")).append(' ');
         out.append(optional(contentType)).append(' ');
-        out.append(status == null ? "-" : Integer.toString(status.getStatusCode())).append(' ');
+        out.append(status == -1 ? "-" : Integer.toString(status)).append(' ');
         out.append(optional(digest)).append(' ');
         out.append(optional(location)).append(' ');
         out.append("- "); // TODO: X-Robots-Tag http://noarchive.net/xrobots/
@@ -183,6 +185,17 @@ public class CdxIndexJob implements Taskmaster.Job {
         out.append(Long.toString(h.getOffset())).append(' ');
         out.append(filename).append('\n');
         return out.toString();
+    }
+
+    private static final Pattern STATUS_LINE = Pattern.compile("\\s*\\S+\\s+(\\d+)(?:\\s.*|$)");
+
+    private static int parseStatusLine(String line) {
+        Matcher m = STATUS_LINE.matcher(line);
+        if (m.matches()) {
+            return Integer.parseInt(m.group(1));
+        } else {
+            return -1;
+        }
     }
 
     private static String calcDigest(ArchiveRecord record) throws IOException {
