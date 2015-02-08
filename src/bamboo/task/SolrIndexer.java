@@ -119,7 +119,7 @@ public class SolrIndexer {
         doc.addField("url", url);
         doc.addField("length", warcHeader.getContentLength());
         doc.addField("code", httpHeader.status);
-        Instant instant = LocalDateTime.parse(arcDate).atOffset(ZoneOffset.UTC).toInstant();
+        Instant instant = LocalDateTime.parse(arcDate, Warcs.arcDateFormat).atOffset(ZoneOffset.UTC).toInstant();
         doc.addField("date", Date.from(instant));
         InternetDomainName domain = InternetDomainName.from(new URL(url).getHost());
         doc.addField("site", domain.topPrivateDomain().toString());
