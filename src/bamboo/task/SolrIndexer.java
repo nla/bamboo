@@ -97,6 +97,7 @@ public class SolrIndexer {
             try (Db db = dbPool.take()) {
                 db.setWarcSolrIndexed(warc.id, System.currentTimeMillis());
             }
+            System.out.println("Finished Solr indexing " + warc.id + " " + warc.path);
         } catch (IOException e) {
             e.printStackTrace();
             throw new UncheckedIOException(e);
@@ -106,8 +107,10 @@ public class SolrIndexer {
         } catch (SolrServerException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
+        } catch (Throwable e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        System.out.println("Finished Solr indexing " + warc.id + " " + warc.path);
     }
 
     public static SolrInputDocument makeDoc(ArchiveRecord record) throws IOException {
