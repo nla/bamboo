@@ -26,6 +26,7 @@ import org.archive.io.ArchiveRecordHeader;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URL;
@@ -204,7 +205,7 @@ public class SolrIndexer {
             doc.addField("title", record.getHeader().getUrl());
             doc.addField("content", buf.toString());
             return doc;
-        } catch (InvalidPdfException | NoClassDefFoundError | RuntimeException e) {
+        } catch (InvalidPdfException | NoClassDefFoundError | RuntimeException | EOFException e) {
             return null; // invalid or encrypted pdf
         }
     }
