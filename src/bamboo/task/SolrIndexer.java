@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 public class SolrIndexer {
 
@@ -118,6 +119,8 @@ public class SolrIndexer {
         }
     }
 
+    private final static Pattern WWW_PREFIX = Pattern.compile("^www[0-9]*\\.");
+
     public static SolrInputDocument makeDoc(ArchiveRecord record) throws IOException {
         ArchiveRecordHeader warcHeader = record.getHeader();
         if (!Warcs.isResponseRecord(warcHeader)) return null;
@@ -142,8 +145,14 @@ public class SolrIndexer {
         doc.addField("code", httpHeader.status);
         Instant instant = LocalDateTime.parse(arcDate, Warcs.arcDateFormat).atOffset(ZoneOffset.UTC).toInstant();
         doc.addField("date", Date.from(instant));
-        InternetDomainName domain = InternetDomainName.from(new URL(url).getHost());
-        doc.addField("site", domain.topPrivateDomain().toString());
+        String host = new URL(url).getHost();
+        try {
+            InternetDomainName domain = InternetDomainName.from(host);
+            doc.addField("site", domain.topPrivateDomain().toString());
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            // IP addresses, hosts which don't have a known TLD etc
+            doc.addField("site", WWW_PREFIX.matcher(host).replaceFirst(""));
+        }
         doc.addField("type", contentType);
 
         String digest = (String) warcHeader.getHeaderValue("WARC-Payload-Digest");
@@ -195,7 +204,7 @@ public class SolrIndexer {
             doc.addField("title", record.getHeader().getUrl());
             doc.addField("content", buf.toString());
             return doc;
-        } catch (InvalidPdfException | NoClassDefFoundError e) {
+        } catch (InvalidPdfException | NoClassDefFoundError | RuntimeException e) {
             return null; // invalid or encrypted pdf
         }
     }
