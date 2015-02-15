@@ -202,6 +202,7 @@ public class SolrIndexer {
             } catch (BufferOverflowException e) {
                 // reached MAX_DOC_SIZE amount of content
             }
+            buf.flip();
             doc.addField("title", record.getHeader().getUrl());
             doc.addField("content", buf.toString());
             return doc;
