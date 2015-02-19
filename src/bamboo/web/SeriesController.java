@@ -52,7 +52,9 @@ public class SeriesController {
             if (series == null) {
                 return notFound("No such crawl series: " + seriesId);
             }
-            return render("series/show.ftl", "series", series, "crawls", db.findCrawlsByCrawlSeriesId(seriesId));
+            return render("series/show.ftl",
+                    "series", series,
+                    "crawls", db.findCrawlsByCrawlSeriesId(seriesId));
         }
     }
 

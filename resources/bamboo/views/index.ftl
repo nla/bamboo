@@ -1,12 +1,16 @@
 [@page title="Overview"]
+
+<h2>Crawl Series</h2>
 <ul>
-    <li><a href="import">Import a crawl from Heritrix</a></li>
+    [#list seriesList as series]
+    <li><a href="series/${series.id}">${series.name}</a></li>
+    [/#list]
 </ul>
 
 <div id="dummy-chart" style="width: 400px; height: 400px;"></div>
 
-
 <h2>Collections</h2>
+<div class="alert alert-danger"><b>TODO:</b> Collections are not functional yet</div>
 <ul>
     [#list collections as collection]
         <li><a href="collection/${collection.id}">${collection.name}</a></li>
@@ -16,29 +20,29 @@
 
 <script src="webjars/flotr2/d43f8566e8/flotr2.min.js"></script>
 <script>
-    var container = document.getElementById("dummy-chart");
-        var
-    d1 = [
-        [0, 4]
-    ],
-        d2 = [
-            [0, 3]
-        ],
-        d3 = [
-            [0, 1.03]
-        ],
-        graph;
+    // by Mark at http://stackoverflow.com/a/14919494
+    function formatBytes(bytes, si) {
+        var thresh = si ? 1000 : 1024;
+        if(bytes < thresh) return bytes + ' B';
+        var units = si ? ['kB','MB','GB','TB','PB','EB','ZB','YB'] : ['KiB','MiB','GiB','TiB','PiB','EiB','ZiB','YiB'];
+        var u = -1;
+        do {
+            bytes /= thresh;
+            ++u;
+        } while(bytes >= thresh);
+        return bytes.toFixed(1)+' '+units[u];
+    }
 
-    graph = Flotr.draw(container, [{
-        data: d1,
-        label: 'Whole Domain Harvest',
-    }, {
-        data: d2,
-        label: 'Australian Government Web Archive'
-    }, {
-        data: d3,
-        label: 'Legacy NPH',
-    },], {
+    var container = document.getElementById("dummy-chart");
+
+    var graph = Flotr.draw(container, [
+    [#list seriesList as series]
+        {
+            data: [[0, ${(series.warcSize)?c}]],
+            label: "${series.name}",
+        },
+    [/#list]
+    ], {
         HtmlText: false,
         grid: {
             verticalLines: false,
@@ -52,11 +56,15 @@
         },
         pie: {
             show: true,
-            explode: 6
+            explode: 6,
+            labelFormatter : function (pie, slice) {
+                return formatBytes(slice, true);
+            }
         },
+        /*
         mouse: {
             track: true
-        },
+        },*/
         legend: {
             position: 'se',
             backgroundColor: '#D2E8FF'

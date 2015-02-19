@@ -1,7 +1,7 @@
-[@page title="${series.name}"]
+[@page title="Series: ${series.name}"]
 
-<table>
-    <tr><td>Name:</td><td>${series.name}</td></tr>
+<table class="table">
+    <tr><th class="col-md-2">WARC files</th><td>${series.warcFiles} warcs, <abbr title="${series.warcSize} bytes">${si(series.warcSize)}B</abbr> (compressed)</td></tr>
 </table>
 
 <h2>Crawls</h2>

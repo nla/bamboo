@@ -43,6 +43,7 @@ public class Webapp implements Handler, AutoCloseable {
     Response index(Request request) {
         try (Db db = bamboo.dbPool.take()) {
             return render("index.ftl",
+                    "seriesList", db.listCrawlSeries(),
                     "collections", db.listCollections());
         }
     }

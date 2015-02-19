@@ -39,9 +39,10 @@ public class CrawlsController {
             }
             return render("crawls/show.ftl",
                     "crawl", crawl,
-                    "warcCount", db.countWarcsInCrawl(crawlId),
+                    "series", db.findCrawlSeriesById(crawl.crawlSeriesId),
                     "warcsToBeCdxIndexed", db.countWarcsToBeCdxIndexedInCrawl(crawlId),
                     "warcsToBeSolrIndexed", db.countWarcsToBeSolrIndexedInCrawl(crawlId)
+
                     );
         }
     }

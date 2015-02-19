@@ -1,24 +1,19 @@
 package bamboo.core;
 
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 import org.skife.jdbi.v2.*;
-import org.skife.jdbi.v2.sqlobject.Bind;
-import org.skife.jdbi.v2.sqlobject.GetGeneratedKeys;
-import org.skife.jdbi.v2.sqlobject.SqlQuery;
-import org.skife.jdbi.v2.sqlobject.SqlUpdate;
+import org.skife.jdbi.v2.sqlobject.*;
+import org.skife.jdbi.v2.sqlobject.Transaction;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-public interface Db extends AutoCloseable {
+public abstract class Db implements AutoCloseable {
 
-	void close();
+	public abstract  void close();
 
 	public static class Collection {
 		public final long id;
@@ -38,10 +33,10 @@ public interface Db extends AutoCloseable {
 	}
 
 	@SqlQuery("SELECT * FROM collection")
-	Iterable<Collection> listCollections();
+	public abstract Iterable<Collection> listCollections();
 
 	@SqlQuery("SELECT * FROM collection WHERE id = :id")
-	Collection findCollection(@Bind("id") long id);
+	public abstract  Collection findCollection(@Bind("id") long id);
 
 	public static class Crawl {
 		public final long id;
@@ -51,15 +46,22 @@ public interface Db extends AutoCloseable {
 		public final Long crawlSeriesId;
 		public final Path path;
 		public final int state;
+		public final long warcFiles;
+		public final long warcSize;
 
-		public Crawl(long id, String name, Long totalDocs, Long totalBytes, Long crawlSeriesId, Path path, int state) {
-			this.id = id;
-			this.name = name;
-			this.totalDocs = totalDocs;
-			this.totalBytes = totalBytes;
-			this.crawlSeriesId = crawlSeriesId;
-			this.path = path;
-			this.state = state;
+
+		public Crawl(ResultSet rs) throws SQLException {
+			String path = rs.getString("path");
+			Integer state = (Integer)rs.getObject("state");
+			id = rs.getLong("id");
+			name = rs.getString("name");
+			totalDocs = (Long)rs.getObject("total_docs");
+			totalBytes = (Long)rs.getObject("total_bytes");
+			crawlSeriesId = (Long)rs.getObject("crawl_series_id");
+			this.path = path != null ? Paths.get(path) : null;
+			this.state = state != null ? state : 0;
+			warcFiles = rs.getLong("warc_files");
+			warcSize = rs.getLong("warc_size");
 		}
 
 		private static final String[] STATE_NAMES = {"Importing"};
@@ -72,81 +74,83 @@ public interface Db extends AutoCloseable {
 	public static class CrawlMapper implements ResultSetMapper<Crawl> {
 		@Override
 		public Crawl map(int index, ResultSet r, StatementContext ctx) throws SQLException {
-			String path = r.getString("path");
-			Integer state = (Integer)r.getObject("state");
-			return new Crawl(
-					r.getLong("id"),
-					r.getString("name"),
-					(Long)r.getObject("total_docs"),
-					(Long)r.getObject("total_bytes"),
-					(Long)r.getObject("crawl_series_id"),
-					path != null ? Paths.get(path) : null,
-					state != null ? state : 0);
+			return new Crawl(r);
 		}
 	}
 
 	@SqlQuery("SELECT * FROM crawl")
-	List<Crawl> listCrawls();
+	public abstract List<Crawl> listCrawls();
 
 	@SqlUpdate("INSERT INTO crawl (name, crawl_series_id) VALUES (:name, :crawl_series_id)")
 	@GetGeneratedKeys
-	long createCrawl(@Bind("name") String name, @Bind("crawl_series_id") Long crawlSeriesId);
+	public abstract long createCrawl(@Bind("name") String name, @Bind("crawl_series_id") Long crawlSeriesId);
 
 	@SqlQuery("SELECT * FROM crawl WHERE id = :id")
-	Crawl findCrawl(@Bind("id") long crawlId);
+	public abstract Crawl findCrawl(@Bind("id") long crawlId);
 
 	@SqlQuery("SELECT crawl.* FROM crawl LEFT JOIN cdx_crawl ON crawl.id = cdx_crawl.crawl_id WHERE cdx_id = :cdx_id")
-	Iterable<Crawl> findCrawlsByCdxId(@Bind("cdx_id") long cdxId);
+	public abstract Iterable<Crawl> findCrawlsByCdxId(@Bind("cdx_id") long cdxId);
 
 	@SqlQuery("SELECT * FROM crawl WHERE crawl_series_id = :crawl_series_id")
-	Iterable<Crawl> findCrawlsByCrawlSeriesId(@Bind("crawl_series_id") long crawlSeriesId);
+	public abstract Iterable<Crawl> findCrawlsByCrawlSeriesId(@Bind("crawl_series_id") long crawlSeriesId);
 
 	@SqlUpdate("UPDATE crawl SET path = :path WHERE id = :id")
-	int updateCrawlPath(@Bind("id") long id, @Bind("path") String path);
+	public abstract int updateCrawlPath(@Bind("id") long id, @Bind("path") String path);
 
 	@SqlQuery("SELECT * FROM crawl LIMIT :limit OFFSET :offset")
-	List<Crawl> paginateCrawls(@Bind("limit") long limit, @Bind("offset") long offset);
+	public abstract List<Crawl> paginateCrawls(@Bind("limit") long limit, @Bind("offset") long offset);
 
 	@SqlQuery("SELECT COUNT(*) FROM crawl")
-	long countCrawls();
+	public abstract long countCrawls();
+
+	@SqlUpdate("UPDATE crawl SET warc_files = (SELECT COALESCE(COUNT(*), 0) FROM warc WHERE warc.crawl_id = crawl.id), warc_size = (SELECT COALESCE(SUM(size), 0) FROM warc WHERE warc.crawl_id = crawl.id)")
+	public abstract int refreshWarcStatsOnCrawls();
+
 
 	public static class CrawlSeries {
 		public final long id;
 		public final String name;
 		public final Path path;
+		public final long warcFiles;
+		public final long warcSize;
 
-		public CrawlSeries(long id, String name, Path path) {
-			this.id = id;
-			this.name = name;
-			this.path = path;
+		public CrawlSeries(ResultSet rs) throws SQLException {
+			id = rs.getLong("id");
+			name = rs.getString("name");
+			path = Paths.get(rs.getString("path"));
+			warcFiles = rs.getLong("warc_files");
+			warcSize = rs.getLong("warc_size");
 		}
 	}
 
 	public static class CrawlSeriesMapper implements ResultSetMapper<CrawlSeries> {
 		@Override
 		public CrawlSeries map(int index, ResultSet r, StatementContext ctx) throws SQLException {
-			return new CrawlSeries(r.getLong("id"), r.getString("name"), Paths.get(r.getString("path")));
+			return new CrawlSeries(r);
 		}
 	}
 
 	@SqlQuery("SELECT * FROM crawl_series WHERE id = :id")
-	CrawlSeries findCrawlSeriesById(@Bind("id") long crawlSeriesId);
+	public abstract CrawlSeries findCrawlSeriesById(@Bind("id") long crawlSeriesId);
 
 	@SqlQuery("SELECT * FROM crawl_series ORDER BY name")
-	List<CrawlSeries> listCrawlSeries();
+	public abstract List<CrawlSeries> listCrawlSeries();
 
 	@SqlQuery("COUNT(*) FROM crawl_series")
-	long countCrawlSeries();
+	public abstract long countCrawlSeries();
 
 	@SqlQuery("SELECT * FROM crawl_series ORDER BY name LIMIT :limit OFFSET :offset")
-	List<CrawlSeries> paginateCrawlSeries(@Bind("limit") long limit, @Bind("offset") long offset);
+	public abstract List<CrawlSeries> paginateCrawlSeries(@Bind("limit") long limit, @Bind("offset") long offset);
 
 	@SqlUpdate("INSERT INTO crawl_series (name, path) VALUES (:name, :path)")
 	@GetGeneratedKeys
-	long createCrawlSeries(@Bind("name") String name, @Bind("path") String path);
+	public abstract long createCrawlSeries(@Bind("name") String name, @Bind("path") String path);
 
 	@SqlUpdate("UPDATE crawl_series SET name = :name, path = :path WHERE id = :id")
-	int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path);
+	public abstract int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path);
+
+	@SqlUpdate("UPDATE crawl_series SET warc_files = (SELECT COALESCE(SUM(warc_files), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), warc_size = (SELECT COALESCE(SUM(warc_size), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id)")
+	public abstract int refreshWarcStatsOnCrawlSeries();
 
 	public static class Warc {
 		public final long id;
@@ -156,13 +160,13 @@ public interface Db extends AutoCloseable {
 		public final long cdxIndexed;
 		public final long solrIndexed;
 
-		public Warc(ResultSet resultSet) throws SQLException {
-			id = resultSet.getLong("id");
-			crawlId = resultSet.getLong("crawl_id");
-			path = Paths.get(resultSet.getString("path"));
-			size = resultSet.getLong("size");
-			cdxIndexed = resultSet.getLong("cdx_indexed");
-			solrIndexed = resultSet.getLong("solr_indexed");
+		public Warc(ResultSet rs) throws SQLException {
+			id = rs.getLong("id");
+			crawlId = rs.getLong("crawl_id");
+			path = Paths.get(rs.getString("path"));
+			size = rs.getLong("size");
+			cdxIndexed = rs.getLong("cdx_indexed");
+			solrIndexed = rs.getLong("solr_indexed");
 		}
 	}
 
@@ -173,36 +177,45 @@ public interface Db extends AutoCloseable {
 		}
 	}
 
+	@Transaction
+	public long insertWarc(long crawlId, String path, long size) {
+		incrementWarcStatsForCrawl(crawlId, 1, size);
+		incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 1, size);
+		return insertWarcWithoutRollup(crawlId, path, size);
+	}
+
+	@SqlUpdate("UPDATE crawl_series SET warc_files = warc_files + :warc_files,  warc_size = warc_size + :warc_size WHERE id = (SELECT crawl_series_id FROM crawl WHERE crawl.id = :crawl_id)")
+	public abstract void incrementWarcStatsForCrawlSeriesByCrawlId(@Bind("crawl_id") long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
+
+	@SqlUpdate("UPDATE crawl SET warc_files = warc_files + :warc_files, warc_size = warc_size + :warc_size")
+	public abstract void incrementWarcStatsForCrawl(long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
+
 	@SqlUpdate("INSERT INTO warc (crawl_id, path, size, cdx_indexed) VALUES (:crawlId, :path, :size, 0)")
 	@GetGeneratedKeys
-	long insertWarc(@Bind("crawlId") long crawlId, @Bind("path") String path, @Bind("size") long size);
+	public abstract long insertWarcWithoutRollup(@Bind("crawlId") long crawlId, @Bind("path") String path, @Bind("size") long size);
 
 	@SqlQuery("SELECT * FROM warc")
-	List<Warc> listWarcs();
+	public abstract List<Warc> listWarcs();
 
 	@SqlQuery("SELECT * FROM warc WHERE cdx_indexed = 0")
-	List<Warc> findWarcsToCdxIndex();
+	public abstract List<Warc> findWarcsToCdxIndex();
 
     @SqlQuery("SELECT * FROM warc WHERE solr_indexed = 0")
-    List<Warc> findWarcsToSolrIndex();
+	public abstract List<Warc> findWarcsToSolrIndex();
 
 	@SqlUpdate("UPDATE warc SET cdx_indexed = :timestamp WHERE id = :id")
-	int updateWarcCdxIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
+	public abstract int updateWarcCdxIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
 
     @SqlUpdate("UPDATE warc SET solr_indexed = :timestamp WHERE id = :id")
-    int updateWarcSolrIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
+	public abstract int updateWarcSolrIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
 
 	@SqlUpdate("UPDATE warc SET size = :size WHERE id = :id")
-	int updateWarcSize(@Bind("id") long warcId, @Bind("size") long size);
-
-	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it")
-	long countWarcsInCrawl(@Bind long crawlId);
+	public abstract int updateWarcSize(@Bind("id") long warcId, @Bind("size") long size);
 
 	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND cdx_indexed = 0")
-	long countWarcsToBeCdxIndexedInCrawl(@Bind long crawlId);
+	public abstract long countWarcsToBeCdxIndexedInCrawl(@Bind long crawlId);
 
 	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND solr_indexed = 0")
-	long countWarcsToBeSolrIndexedInCrawl(@Bind long crawlId);
-
+	public abstract long countWarcsToBeSolrIndexedInCrawl(@Bind long crawlId);
 
 }

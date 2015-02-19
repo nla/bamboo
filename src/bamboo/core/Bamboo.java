@@ -7,10 +7,8 @@ import bamboo.task.SolrIndexer;
 import bamboo.task.Taskmaster;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import static droute.Response.render;
@@ -63,13 +61,22 @@ public class Bamboo implements AutoCloseable {
         new SolrIndexer(config, dbPool).run();
     }
 
-    public void refreshWarcSizes() throws IOException {
+    public void refreshWarcStats() throws IOException {
+        try (Db db = dbPool.take()) {
+            db.refreshWarcStatsOnCrawls();
+            db.refreshWarcStatsOnCrawlSeries();
+        }
+    }
+
+    public void refreshWarcStatsFs() throws IOException {
         try (Db db = dbPool.take()) {
             for (Db.Warc warc : db.listWarcs()) {
                 long size = Files.size(warc.path);
                 System.out.println(warc.size + " -> " + size + " " + warc.id + " " + warc.path);
                 db.updateWarcSize(warc.id, size);
             }
+            db.refreshWarcStatsOnCrawls();
+            db.refreshWarcStatsOnCrawlSeries();
         }
     }
 
@@ -92,8 +99,11 @@ public class Bamboo implements AutoCloseable {
             case "solr-indexer":
                 bamboo.runSolrIndexer();
                 break;
-            case "refresh-warc-sizes":
-                bamboo.refreshWarcSizes();
+            case "refresh-warc-stats":
+                bamboo.refreshWarcStats();
+                break;
+            case "refresh-warc-stats-fs":
+                bamboo.refreshWarcStatsFs();
                 break;
             default:
                 usage();
@@ -107,7 +117,8 @@ public class Bamboo implements AutoCloseable {
         System.out.println("  cdx-indexer                      - Run the CDX indexer");
         System.out.println("  import <jobName> <crawlSeriesId> - Import a crawl from Heritrix");
         System.out.println("  insert-warc <crawl-id> <paths>   - Register WARCs with a crawl");
-        System.out.println("  refresh-warc-sizes               - Refill warc sizes in database based on disk");
+        System.out.println("  refresh-warc-stats               - Refresh warc stats tables");
+        System.out.println("  refresh-warc-stats-fs            - Refresh warc stats tables based on disk");
         System.exit(1);
     }
 }
