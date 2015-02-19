@@ -1,5 +1,8 @@
 [@page title="Import Crawl"]
 
+<div class="alert alert-danger"><b>Not functional yet!</b> Check with Alex before using this.
+</div>
+
 <form method="POST">
     <input name="csrfToken" value="${csrfToken}" type="hidden">
     <label for="heritrixJob">Heritrix Job:</label>
