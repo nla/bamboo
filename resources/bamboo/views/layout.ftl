@@ -134,3 +134,13 @@
         </ul>
     </nav>
 [/#macro]
+
+[#macro progress now max=100 min=0]
+<div class="progress">
+    <div class="progress-bar progress-bar-striped" role="progressbar" aria-valuenow="${now}" aria-valuemin="0" aria-valuemax="${max}" style="width: ${100 * now / max}%">
+        ${now} / ${max}
+        <span class="sr-only">${100 * now / max}% Complete</span>
+
+    </div>
+</div>
+[/#macro]

@@ -20,7 +20,7 @@ public interface Db extends AutoCloseable {
 
 	void close();
 
-    public static class Collection {
+	public static class Collection {
 		public final long id;
 		public final String name;
 
@@ -152,27 +152,33 @@ public interface Db extends AutoCloseable {
 		public final long id;
 		public final long crawlId;
 		public final Path path;
+		public final long size;
 		public final long cdxIndexed;
+		public final long solrIndexed;
 
-		public Warc(long id, long crawlId, Path path, long cdxIndexed) {
-			this.id = id;
-			this.crawlId = crawlId;
-			this.path = path;
-			this.cdxIndexed = cdxIndexed;
+		public Warc(ResultSet resultSet) throws SQLException {
+			id = resultSet.getLong("id");
+			crawlId = resultSet.getLong("crawl_id");
+			path = Paths.get(resultSet.getString("path"));
+			size = resultSet.getLong("size");
+			cdxIndexed = resultSet.getLong("cdx_indexed");
+			solrIndexed = resultSet.getLong("solr_indexed");
 		}
 	}
 
 	public static class WarcMapper implements ResultSetMapper<Warc> {
 		@Override
 		public Warc map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
-			return new Warc(resultSet.getLong("id"), resultSet.getLong("crawl_id"),
-					Paths.get(resultSet.getString("path")), resultSet.getLong("cdx_indexed"));
+			return new Warc(resultSet);
 		}
 	}
 
-	@SqlUpdate("INSERT INTO warc (crawl_id, path, cdx_indexed) VALUES (:crawlId, :path, 0)")
+	@SqlUpdate("INSERT INTO warc (crawl_id, path, size, cdx_indexed) VALUES (:crawlId, :path, :size, 0)")
 	@GetGeneratedKeys
-	long insertWarc(@Bind("crawlId") long crawlId, @Bind("path") String path);
+	long insertWarc(@Bind("crawlId") long crawlId, @Bind("path") String path, @Bind("size") long size);
+
+	@SqlQuery("SELECT * FROM warc")
+	List<Warc> listWarcs();
 
 	@SqlQuery("SELECT * FROM warc WHERE cdx_indexed = 0")
 	List<Warc> findWarcsToCdxIndex();
@@ -181,8 +187,22 @@ public interface Db extends AutoCloseable {
     List<Warc> findWarcsToSolrIndex();
 
 	@SqlUpdate("UPDATE warc SET cdx_indexed = :timestamp WHERE id = :id")
-	int setWarcCdxIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
+	int updateWarcCdxIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
 
     @SqlUpdate("UPDATE warc SET solr_indexed = :timestamp WHERE id = :id")
-    int setWarcSolrIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
+    int updateWarcSolrIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
+
+	@SqlUpdate("UPDATE warc SET size = :size WHERE id = :id")
+	int updateWarcSize(@Bind("id") long warcId, @Bind("size") long size);
+
+	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it")
+	long countWarcsInCrawl(@Bind long crawlId);
+
+	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND cdx_indexed = 0")
+	long countWarcsToBeCdxIndexedInCrawl(@Bind long crawlId);
+
+	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND solr_indexed = 0")
+	long countWarcsToBeSolrIndexedInCrawl(@Bind long crawlId);
+
+
 }

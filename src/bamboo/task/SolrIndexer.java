@@ -102,7 +102,7 @@ public class SolrIndexer {
                 solr.add(batch, COMMIT_WITHIN_MS);
             }
             try (Db db = dbPool.take()) {
-                db.setWarcSolrIndexed(warc.id, System.currentTimeMillis());
+                db.updateWarcSolrIndexed(warc.id, System.currentTimeMillis());
             }
             System.out.println(new Date() + " Finished Solr indexing " + warc.id + " " + warc.path);
         } catch (IOException e) {

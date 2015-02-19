@@ -1,0 +1,1 @@
+ALTER TABLE warc ADD size bigint(20) NOT NULL DEFAULT 0;

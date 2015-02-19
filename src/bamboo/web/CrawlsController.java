@@ -37,7 +37,12 @@ public class CrawlsController {
             if (crawl == null) {
                 return notFound("No such crawl: " + crawlId);
             }
-            return render("crawls/show.ftl", "crawl", crawl);
+            return render("crawls/show.ftl",
+                    "crawl", crawl,
+                    "warcCount", db.countWarcsInCrawl(crawlId),
+                    "warcsToBeCdxIndexed", db.countWarcsToBeCdxIndexedInCrawl(crawlId),
+                    "warcsToBeSolrIndexed", db.countWarcsToBeSolrIndexedInCrawl(crawlId)
+                    );
         }
     }
 

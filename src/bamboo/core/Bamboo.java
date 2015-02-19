@@ -8,6 +8,8 @@ import bamboo.task.Taskmaster;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -45,9 +47,10 @@ public class Bamboo implements AutoCloseable {
         return taskmaster.launch(importJob);
     }
 
-    public void insertWarc(long crawlId, String path) {
+    public void insertWarc(long crawlId, String path) throws IOException {
         try (Db db = dbPool.take()) {
-            long warcId = db.insertWarc(crawlId, path);
+            long size = Files.size(Paths.get(path));
+            long warcId = db.insertWarc(crawlId, path, size);
             System.out.println("Registered WARC " + warcId);
         }
     }
@@ -58,6 +61,16 @@ public class Bamboo implements AutoCloseable {
 
     public void runSolrIndexer() throws Exception {
         new SolrIndexer(config, dbPool).run();
+    }
+
+    public void refreshWarcSizes() throws IOException {
+        try (Db db = dbPool.take()) {
+            for (Db.Warc warc : db.listWarcs()) {
+                long size = Files.size(warc.path);
+                System.out.println(warc.size + " -> " + size + " " + warc.id + " " + warc.path);
+                db.updateWarcSize(warc.id, size);
+            }
+        }
     }
 
     public static void main(String args[]) throws Exception {
@@ -79,6 +92,9 @@ public class Bamboo implements AutoCloseable {
             case "solr-indexer":
                 bamboo.runSolrIndexer();
                 break;
+            case "refresh-warc-sizes":
+                bamboo.refreshWarcSizes();
+                break;
             default:
                 usage();
         }
@@ -91,6 +107,7 @@ public class Bamboo implements AutoCloseable {
         System.out.println("  cdx-indexer                      - Run the CDX indexer");
         System.out.println("  import <jobName> <crawlSeriesId> - Import a crawl from Heritrix");
         System.out.println("  insert-warc <crawl-id> <paths>   - Register WARCs with a crawl");
+        System.out.println("  refresh-warc-sizes               - Refill warc sizes in database based on disk");
         System.exit(1);
     }
 }

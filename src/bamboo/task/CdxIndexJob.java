@@ -35,7 +35,7 @@ public class CdxIndexJob implements Taskmaster.Job {
                     try (Db db2 = dbPool.take()) {
                         System.out.println("CDX indexing " + warc.id + " " + warc.path);
                         buildCdx(warc.path);
-                        db2.setWarcCdxIndexed(warc.id, System.currentTimeMillis());
+                        db2.updateWarcCdxIndexed(warc.id, System.currentTimeMillis());
                         System.out.println("Finished CDX indexing " + warc.id + " " + warc.path);
                     } catch (Exception e) {
                         e.printStackTrace();
