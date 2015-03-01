@@ -17,4 +17,7 @@
     <tr><th class="col-md-2">CDX Indexing</th><td>[@indexingProgress warcsToBeCdxIndexed /]</td></tr>
     <tr><th class="col-md-2">Solr Indexing</th><td>[@indexingProgress warcsToBeSolrIndexed /]</td></tr>
 </table>
+
+<!-- <a class="btn btn-primary" href="crawls/${crawl.id}/edit">Edit Crawl</a> -->
+
 [/@page]

@@ -10,10 +10,9 @@
 <div id="dummy-chart" style="width: 400px; height: 400px;"></div>
 
 <h2>Collections</h2>
-<div class="alert alert-danger"><b>TODO:</b> Collections are not functional yet</div>
 <ul>
     [#list collections as collection]
-        <li><a href="collection/${collection.id}">${collection.name}</a></li>
+        <li><a href="collections/${collection.id}">${collection.name}</a></li>
     [/#list]
 </ul>
 

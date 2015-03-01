@@ -40,7 +40,7 @@
         <div class="col-sm-3 col-md-2 sidebar">
             <ul class="nav nav-sidebar">
                 <li><a href="#">Overview</a></li>
-                <li><a href="#">Collections (TODO)</a></li>
+                <li><a href="#">Collections</a></li>
                 <li><a href="series">Crawl Series</a></li>
                 <li><a href="crawls">Crawls</a></li>
             </ul>

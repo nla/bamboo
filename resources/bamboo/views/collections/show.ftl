@@ -1,7 +1,10 @@
 [@page title="${collection.name}"]
 
-<h2>Crawls</h2>
+<table class="table">
+    <tr><th class="col-md-2">CDX URL</th><td>${collection.cdxUrl!"None"}</td></tr>
+    <tr><th class="col-md-2">Solr URL</th><td>${collection.solrUrl!"None"}</td></tr>
+</table>
 
-[#include "/crawls/_list.ftl"]
+<a href="collections/${collection.id}/edit" class="btn btn-default">Edit</a>
 
 [/@page]

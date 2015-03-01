@@ -8,6 +8,10 @@ import droute.Handler;
 import droute.Request;
 import droute.Response;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import static droute.Response.*;
 import static droute.Route.*;
 
@@ -54,7 +58,8 @@ public class SeriesController {
             }
             return render("series/show.ftl",
                     "series", series,
-                    "crawls", db.findCrawlsByCrawlSeriesId(seriesId));
+                    "crawls", db.findCrawlsByCrawlSeriesId(seriesId),
+                    "collections", db.listCollectionsForCrawlSeries(seriesId));
         }
     }
 
@@ -65,17 +70,31 @@ public class SeriesController {
             if (series == null) {
                 return notFound("No such crawl series: " + seriesId);
             }
-            return render("series/edit.ftl", "series", series, "csrfToken", Csrf.token(request));
+            return render("series/edit.ftl",
+                    "series", series,
+                    "collections", db.listCollectionsForCrawlSeries(seriesId),
+                    "allCollections", db.listCollections(),
+                    "csrfToken", Csrf.token(request));
         }
     }
 
     Response update(Request request) {
         long seriesId = Long.parseLong(request.urlParam("id"));
+        List<Long> collectionIds = request.formParams().getOrDefault("collection.id", Collections.emptyList())
+                .stream().map(Long::parseLong).collect(Collectors.toList());
+        List<String> collectionUrlFilters = request.formParams().getOrDefault("collection.urlFilters", Collections.emptyList());
+
+        if (collectionIds.size() != collectionUrlFilters.size()) {
+            return response(400, "collection.id and collection.urlFilters mismatch");
+        }
+
         try (Db db = bamboo.dbPool.take()) {
-            if (db.updateCrawlSeries(seriesId, request.formParam("name"), request.formParam("path")) < 1) {
+            int rows = db.updateCrawlSeries(seriesId, request.formParam("name"), request.formParam("path"),
+                    collectionIds, collectionUrlFilters);
+            if (rows == 0) {
                 return notFound("No such crawl series: " + seriesId);
             }
-            return seeOther(request.contextUri().resolve("series/" + seriesId).toString());
         }
+        return seeOther(request.contextUri().resolve("series/" + seriesId).toString());
     }
 }

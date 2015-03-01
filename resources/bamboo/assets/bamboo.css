@@ -71,3 +71,8 @@ body {
 .main .page-header {
   margin-top: 0;
 }
+
+#collectionsTable textarea {
+    width: 100%;
+    height: 180px;
+}

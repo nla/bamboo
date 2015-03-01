@@ -3,6 +3,7 @@ package bamboo.core;
 import org.skife.jdbi.v2.*;
 import org.skife.jdbi.v2.sqlobject.*;
 import org.skife.jdbi.v2.sqlobject.Transaction;
+import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import java.nio.file.Path;
@@ -10,33 +11,66 @@ import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Set;
 
-public abstract class Db implements AutoCloseable {
+public abstract class Db implements AutoCloseable, Transactional {
 
 	public abstract  void close();
 
 	public static class Collection {
 		public final long id;
 		public final String name;
+		public final String cdxUrl;
+		public final String solrUrl;
 
-		public Collection(long id, String name) {
-			this.id = id;
-			this.name = name;
+		public Collection(ResultSet rs) throws SQLException {
+			id = rs.getLong("id");
+			name = rs.getString("name");
+			cdxUrl = rs.getString("cdx_url");
+			solrUrl = rs.getString("solr_url");
 		}
 	}
 
 	public static class CollectionMapper implements ResultSetMapper<Collection> {
 		@Override
-		public Collection map(int index, ResultSet r, StatementContext ctx) throws SQLException {
-			return new Collection(r.getLong("id"), r.getString("name"));
+		public Collection map(int index, ResultSet rs, StatementContext ctx) throws SQLException {
+			return new Collection(rs);
 		}
 	}
 
-	@SqlQuery("SELECT * FROM collection")
+	public static class CollectionWithFilters extends Collection {
+		public final String urlFilters;
+
+		public CollectionWithFilters(ResultSet rs) throws SQLException {
+			super(rs);
+			urlFilters = rs.getString("url_filters");
+		}
+	}
+
+	public static class CollectionWithFiltersMapper implements ResultSetMapper<CollectionWithFilters> {
+		@Override
+		public CollectionWithFilters map(int index, ResultSet rs, StatementContext ctx) throws SQLException {
+			return new CollectionWithFilters(rs);
+		}
+	}
+
+	@SqlQuery("SELECT * FROM collection ORDER BY name")
 	public abstract Iterable<Collection> listCollections();
+
+	@SqlQuery("SELECT collection.*, collection_series.url_filters FROM collection_series LEFT JOIN collection ON collection.id = collection_id WHERE crawl_series_id = :it")
+	public abstract List<CollectionWithFilters> listCollectionsForCrawlSeries(@Bind long crawlSeriesId);
+
+	@SqlUpdate("DELETE FROM collection_series WHERE crawl_series_id = :it")
+	public abstract void removeCrawlSeriesFromAllCollections(@Bind long crawlSeriesId);
+
+	@SqlBatch("INSERT INTO collection_series (crawl_series_id, collection_id, url_filters) VALUES (:crawl_series_id, :collection_id, :url_filters)")
+	public abstract void addCrawlSeriesToCollections(@Bind("crawl_series_id") long crawlSeriesId, @Bind("collection_id") List<Long> collectionIds, @Bind("url_filters") List<String> urlFilters);
 
 	@SqlQuery("SELECT * FROM collection WHERE id = :id")
 	public abstract  Collection findCollection(@Bind("id") long id);
+
+	@SqlUpdate("UPDATE collection SET name = :name, cdx_url = :cdxUrl, solr_url = :solrUrl WHERE id = :id")
+	public abstract int updateCollection(@Bind("id") long collectionId, @Bind("name")  String name, @Bind("cdxUrl") String cdxUrl, @Bind("solrUrl")  String solrUrl);
 
 	public static class Crawl {
 		public final long id;
@@ -106,7 +140,6 @@ public abstract class Db implements AutoCloseable {
 	@SqlUpdate("UPDATE crawl SET warc_files = (SELECT COALESCE(COUNT(*), 0) FROM warc WHERE warc.crawl_id = crawl.id), warc_size = (SELECT COALESCE(SUM(size), 0) FROM warc WHERE warc.crawl_id = crawl.id)")
 	public abstract int refreshWarcStatsOnCrawls();
 
-
 	public static class CrawlSeries {
 		public final long id;
 		public final String name;
@@ -148,6 +181,16 @@ public abstract class Db implements AutoCloseable {
 
 	@SqlUpdate("UPDATE crawl_series SET name = :name, path = :path WHERE id = :id")
 	public abstract int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path);
+
+	@Transaction
+	public int updateCrawlSeries(long seriesId, String name, String path, List<Long> collectionIds, List<String> collectionUrlFilters) {
+		int rows = updateCrawlSeries(seriesId, name, path);
+		if (rows > 0) {
+			removeCrawlSeriesFromAllCollections(seriesId);
+			addCrawlSeriesToCollections(seriesId, collectionIds, collectionUrlFilters);
+		}
+		return rows;
+	}
 
 	@SqlUpdate("UPDATE crawl_series SET warc_files = (SELECT COALESCE(SUM(warc_files), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), warc_size = (SELECT COALESCE(SUM(warc_size), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id)")
 	public abstract int refreshWarcStatsOnCrawlSeries();

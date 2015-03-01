@@ -6,6 +6,7 @@ import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
+import org.archive.url.SURT;
 
 import java.io.*;
 import java.net.HttpURLConnection;

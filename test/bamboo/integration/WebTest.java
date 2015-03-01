@@ -5,6 +5,7 @@ import bamboo.web.Webapp;
 import com.gargoylesoftware.htmlunit.*;
 import com.gargoylesoftware.htmlunit.util.NameValuePair;
 import droute.Handler;
+import droute.MultiMap;
 import droute.Request;
 import droute.Response;
 import net.sourceforge.jwebunit.htmlunit.HtmlUnitTestingEngineImpl;
@@ -22,9 +23,9 @@ public class WebTest {
 
     public static class HtmlUnitRequest implements Request {
         WebRequest request;
-        Map<String,String> params = new HashMap<>();
-        Map<String,String> urlParams = new HashMap<>();
-        Map<String,String> queryParams;
+        MultiMap params = new MultiMap();
+        MultiMap urlParams = new MultiMap();
+        MultiMap queryParams;
 
         HtmlUnitRequest(WebRequest request) {
             this.request = request;
@@ -67,22 +68,22 @@ public class WebTest {
         }
 
         @Override
-        public Map<String, String> params() {
+        public MultiMap params() {
             return decodeParameters(uri().getRawQuery());
         }
 
         @Override
-        public Map<String, String> urlParams() {
+        public MultiMap urlParams() {
             return urlParams;
         }
 
         @Override
-        public Map<String, String> queryParams() {
+        public MultiMap queryParams() {
             return queryParams;
         }
 
         @Override
-        public Map<String, String> formParams() {
+        public MultiMap formParams() {
             return null;
         }
 
@@ -128,8 +129,8 @@ public class WebTest {
          * @param queryString a query string pulled from the URL.
          * @return a map of <code>String</code> (parameter name) to <code>List&lt;String&gt;</code> (a list of the values supplied).
          */
-        protected Map<String, String> decodeParameters(String queryString) {
-            Map<String,String> parms = new HashMap<>();
+        protected MultiMap decodeParameters(String queryString) {
+            MultiMap parms = new MultiMap();
             if (queryString != null) {
                 StringTokenizer st = new StringTokenizer(queryString, "&");
                 while (st.hasMoreTokens()) {

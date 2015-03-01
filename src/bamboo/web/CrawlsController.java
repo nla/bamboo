@@ -3,11 +3,17 @@ package bamboo.web;
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
 import bamboo.util.Pager;
+import droute.Csrf;
 import droute.Handler;
 import droute.Request;
 import droute.Response;
 
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
 import static droute.Response.*;
+import static droute.Response.response;
 import static droute.Route.*;
 
 public class CrawlsController {
@@ -15,6 +21,8 @@ public class CrawlsController {
     public Handler routes = routes(
             GET("/crawls", this::index),
             GET("/crawls/:id", this::show, "id", "[0-9]+"),
+            GET("/crawls/:id/edit", this::edit, "id", "[0-9]+"),
+            POST("/crawls/:id/edit", this::update, "id", "[0-9]+"),
             POST("/crawls/:id/buildcdx", this::buildCdx, "id", "[0-9]+"));
 
     public CrawlsController(Bamboo bamboo) {
@@ -44,6 +52,27 @@ public class CrawlsController {
                     "warcsToBeSolrIndexed", db.countWarcsToBeSolrIndexedInCrawl(crawlId)
 
                     );
+        }
+    }
+
+    Response edit(Request request) {
+        long crawlId = Long.parseLong(request.urlParam("id"));
+        try (Db db = bamboo.dbPool.take()) {
+            Db.Crawl crawl = db.findCrawl(crawlId);
+            if (crawl == null) {
+                return notFound("No such crawl: " + crawlId);
+            }
+            return render("crawls/edit.ftl",
+                    "crawl", crawl,
+                    "csrfToken", Csrf.token(request)
+            );
+        }
+    }
+
+    Response update(Request request) {
+        long crawlId = Long.parseLong(request.urlParam("id"));
+        try (Db db = bamboo.dbPool.take()) {
+            return seeOther(request.contextUri().resolve("crawls/" + crawlId).toString());
         }
     }
 
