@@ -50,7 +50,6 @@ public class CrawlsController {
                     "series", db.findCrawlSeriesById(crawl.crawlSeriesId),
                     "warcsToBeCdxIndexed", db.countWarcsToBeCdxIndexedInCrawl(crawlId),
                     "warcsToBeSolrIndexed", db.countWarcsToBeSolrIndexedInCrawl(crawlId)
-
                     );
         }
     }

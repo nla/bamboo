@@ -150,10 +150,6 @@
                     <artifactId>pig</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>org.gnu.inet</groupId>
-                    <artifactId>libidn</artifactId>
-                </exclusion>
-                <exclusion>
                     <groupId>org.apache.httpcomponents</groupId>
                     <artifactId>httpcore</artifactId>
                 </exclusion>

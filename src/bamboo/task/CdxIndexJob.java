@@ -2,6 +2,7 @@ package bamboo.task;
 
 import bamboo.core.Db;
 import bamboo.core.DbPool;
+import bamboo.util.SurtFilter;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.ArchiveRecord;
@@ -14,14 +15,14 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class CdxIndexJob implements Taskmaster.Job {
     final private DbPool dbPool;
-    final private URL cdxServer = getCdxServerUrl();
 
     public CdxIndexJob(DbPool dbPool) {
         this.dbPool = dbPool;
@@ -29,18 +30,15 @@ public class CdxIndexJob implements Taskmaster.Job {
 
     @Override
     public void run(Taskmaster.IProgressMonitor progress) throws IOException {
-        ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        int threads = 1; // Runtime.getRuntime().availableProcessors()
+        ExecutorService threadPool = Executors.newFixedThreadPool(threads);
         try (Db db = dbPool.take()) {
             for (Db.Warc warc : db.findWarcsToCdxIndex()) {
                 threadPool.submit(() -> {
-                    try (Db db2 = dbPool.take()) {
-                        System.out.println("CDX indexing " + warc.id + " " + warc.path);
-                        buildCdx(warc.path);
-                        db2.updateWarcCdxIndexed(warc.id, System.currentTimeMillis());
-                        System.out.println("Finished CDX indexing " + warc.id + " " + warc.path);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        throw new RuntimeException(e);
+                    try {
+                        indexWarc(warc);
+                    } catch (Throwable t) {
+                        t.printStackTrace();
                     }
                 });
             }
@@ -53,57 +51,114 @@ public class CdxIndexJob implements Taskmaster.Job {
         }
     }
 
-    private static URL getCdxServerUrl() {
-        String cdxUrl = System.getenv("BAMBOO_CDX_URL");
-        if (cdxUrl == null) {
-            throw new IllegalStateException("Environment variable BAMBOO_CDX_URL must be set");
+    private void indexWarc(Db.Warc warc) throws IOException {
+        System.out.println("\nCDX indexing " + warc.id + " " + warc.path);
+        Db.Crawl crawl;
+        List<CdxBuffer> buffers = new ArrayList<>();
+
+        // fetch the list of collections from the database
+        try (Db db = dbPool.take()) {
+            crawl = db.findCrawl(warc.crawlId);
+            for (Db.CollectionWithFilters collection: db.listCollectionsForCrawlSeries(crawl.crawlSeriesId)) {
+                buffers.add(new CdxBuffer(collection));
+            }
         }
-        try {
-            return new URL(cdxUrl);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
+
+        // parse the warc file
+        Stats stats = writeCdx(warc.path, buffers);
+
+        // submit the records to each collection
+        for (CdxBuffer buffer: buffers) {
+            buffer.submit();
         }
+
+        // update the database
+        try (Db db = dbPool.take()) {
+            db.inTransaction((t, s) -> {
+                db.updateWarcCdxIndexed(warc.id, System.currentTimeMillis(), stats.records, stats.bytes);
+                db.incrementRecordStatsForCrawl(warc.crawlId, stats.records, stats.bytes);
+                if (crawl.crawlSeriesId != null) {
+                    db.incrementRecordStatsForCrawlSeries(crawl.crawlSeriesId, stats.records, stats.bytes);
+                }
+                for (CdxBuffer buffer: buffers) {
+                    db.incrementRecordStatsForCollection(buffer.collection.id, buffer.stats.records, buffer.stats.bytes);
+                }
+                return null;
+            });
+        }
+        System.out.println("Finished CDX indexing " + warc.id + " " + warc.path + " (" + stats.records + " records with " + stats.bytes + " bytes)");
     }
 
-    private void buildCdx(Path warc) throws IOException {
-        StringWriter sw = new StringWriter();
-        sw.write(" CDX N b a m s k r M S V g\n");
-        writeCdx(warc, sw);
-        byte[] data = sw.toString().getBytes(StandardCharsets.UTF_8);
+    private static class CdxBuffer {
+        final Db.Collection collection;
+        final URL cdxServer;
+        final SurtFilter filter;
+        final StringWriter buf = new StringWriter().append(" CDX N b a m s k r M S V g\n");
+        final Stats stats = new Stats();
 
-        HttpURLConnection conn = (HttpURLConnection) cdxServer.openConnection();
-        conn.setRequestMethod("POST");
-        conn.addRequestProperty("Content-Type", "text/plain");
-        conn.setFixedLengthStreamingMode(data.length);
-        conn.setDoOutput(true);
-
-        try (OutputStream out = conn.getOutputStream()) {
-            out.write(data);
-            out.flush();
+        CdxBuffer(Db.CollectionWithFilters collection) throws MalformedURLException {
+            this.collection = collection;
+            cdxServer = new URL(collection.cdxUrl);
+            filter = new SurtFilter(collection.urlFilters);
         }
 
-        try (BufferedReader rdr = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
-            String output = rdr.readLine();
-            int status = conn.getResponseCode();
-            if (status != 200) {
-                throw new RuntimeException("Indexing failed: " + output);
+        void append(String surt, long recordLength, String cdxLine) {
+            if (filter.accepts(surt)) {
+                buf.append(cdxLine);
+                stats.update(recordLength);
+            }
+        }
+
+        void submit() throws IOException {
+            byte[] data = buf.toString().getBytes(StandardCharsets.UTF_8);
+            HttpURLConnection conn = (HttpURLConnection) cdxServer.openConnection();
+            conn.setRequestMethod("POST");
+            conn.addRequestProperty("Content-Type", "text/plain");
+            conn.setFixedLengthStreamingMode(data.length);
+            conn.setDoOutput(true);
+
+            try (OutputStream out = conn.getOutputStream()) {
+                out.write(data);
+                out.flush();
+            }
+
+            try (BufferedReader rdr = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+                String output = rdr.readLine();
+                int status = conn.getResponseCode();
+                if (status != 200) {
+                    throw new RuntimeException("Indexing failed: " + output);
+                }
             }
         }
     }
 
-    private static void writeCdx(Path warc, Writer out) {
+    private static class Stats {
+        long records = 0;
+        long bytes = 0;
+
+        void update(long recordLength) {
+            records += 1;
+            bytes += recordLength;
+        }
+    }
+
+    private static Stats writeCdx(Path warc, List<CdxBuffer> buffers) throws IOException {
+        Stats stats = new Stats();
         String filename = warc.getFileName().toString();
         try (ArchiveReader reader = ArchiveReaderFactory.get(warc.toFile())) {
             for (ArchiveRecord record : reader) {
                 String cdxLine = formatCdxLine(filename, record);
                 if (cdxLine != null) {
-                    out.write(cdxLine);
+                    long recordLength = record.getHeader().getContentLength();
+                    stats.update(recordLength);
+                    String surt = SURT.toSURT(Warcs.getCleanUrl(record.getHeader()));
+                    for (CdxBuffer buffer : buffers) {
+                        buffer.append(surt, recordLength, cdxLine);
+                    }
                 }
             }
-
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
+        return stats;
     }
 
     private static String formatCdxLine(String filename, ArchiveRecord record) throws IOException {
@@ -139,8 +194,4 @@ public class CdxIndexJob implements Taskmaster.Job {
         return s;
     }
 
-    public static void main(String args[]) {
-        BufferedWriter out = new BufferedWriter(new OutputStreamWriter(System.out));
-        writeCdx(Paths.get(args[0]), out);
-    }
 }

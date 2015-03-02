@@ -7,6 +7,9 @@ import droute.*;
 import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.Configuration;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
 import static bamboo.util.Parsing.parseLongOrDefault;
 import static droute.Response.*;
 import static droute.Route.*;
@@ -18,7 +21,6 @@ public class Webapp implements Handler, AutoCloseable {
             resources("/webjars", "META-INF/resources/webjars"),
             resources("/assets", "bamboo/assets"),
             GET("/", this::index),
-            POST("/cdx/:id/calcstats", this::calcCdxStats, "id", "[0-9]+"),
             GET("/import", this::showImportForm),
             POST("/import", this::performImport),
             GET("/tasks", this::showTasks),
@@ -37,7 +39,24 @@ public class Webapp implements Handler, AutoCloseable {
         beansWrapper.setExposeFields(true);
         fremarkerConfig.setObjectWrapper(beansWrapper);
         Handler handler = new FreeMarkerHandler(fremarkerConfig, routes);
-        this.handler = Csrf.protect(handler);
+        handler = Csrf.protect(handler);
+        this.handler = errorHandler(handler);
+    }
+
+    /**
+     * Dump a copy of the stack trace to the client on uncaught exceptions.
+     */
+    private static Handler errorHandler(Handler handler) {
+        return request -> {
+            try {
+                return handler.handle(request);
+            } catch (Throwable t) {
+                StringWriter out = new StringWriter();
+                t.printStackTrace();
+                t.printStackTrace(new PrintWriter(out));
+                return response(500, "Internal Server Error\n\n" + out.toString());
+            }
+        };
     }
 
     Response index(Request request) {
@@ -46,20 +65,6 @@ public class Webapp implements Handler, AutoCloseable {
                     "seriesList", db.listCrawlSeries(),
                     "collections", db.listCollections());
         }
-    }
-
-    Response calcCdxStats(Request request) {
-/*        long id = Long.parseLong(request.param("id"));
-        try (Db db = bamboo.dbPool.take()) {
-            Db.Cdx cdx = db.findCdx(id);
-            if (cdx == null) {
-                return response(404, "No such CDX: " + id);
-            }
-            bamboo.taskmaster.launch(new CdxStatsJob(Paths.get(cdx.path)));
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed to launch calcstats job for CDX " + id, e);
-        }*/
-        return seeOther(request.contextUri().resolve("tasks").toString());
     }
 
     Response showCollection(Request request) {

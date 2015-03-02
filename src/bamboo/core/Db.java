@@ -17,17 +17,30 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	public abstract  void close();
 
+	@SqlUpdate("UPDATE crawl SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
+	public abstract int incrementRecordStatsForCrawl(@Bind("id") long crawlId, @Bind("records") long records, @Bind("bytes") long bytes);
+
+	@SqlUpdate("UPDATE crawl_series SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
+	public abstract int incrementRecordStatsForCrawlSeries(@Bind("id") long crawlSeriesId, @Bind("records") long records, @Bind("bytes") long bytes);
+
+	@SqlUpdate("UPDATE collection SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
+	public abstract int incrementRecordStatsForCollection(@Bind("id") long collectionId, @Bind("records") long records, @Bind("bytes") long bytes);
+
 	public static class Collection {
 		public final long id;
 		public final String name;
 		public final String cdxUrl;
 		public final String solrUrl;
+		public final long records;
+		public final long recordBytes;
 
 		public Collection(ResultSet rs) throws SQLException {
 			id = rs.getLong("id");
 			name = rs.getString("name");
 			cdxUrl = rs.getString("cdx_url");
 			solrUrl = rs.getString("solr_url");
+			records = rs.getLong("records");
+			recordBytes = rs.getLong("record_bytes");
 		}
 	}
 
@@ -82,7 +95,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 		public final int state;
 		public final long warcFiles;
 		public final long warcSize;
-
+		public final long records;
+		public final long recordBytes;
 
 		public Crawl(ResultSet rs) throws SQLException {
 			String path = rs.getString("path");
@@ -96,6 +110,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 			this.state = state != null ? state : 0;
 			warcFiles = rs.getLong("warc_files");
 			warcSize = rs.getLong("warc_size");
+			records = rs.getLong("records");
+			recordBytes = rs.getLong("record_bytes");
 		}
 
 		private static final String[] STATE_NAMES = {"Importing"};
@@ -146,6 +162,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 		public final Path path;
 		public final long warcFiles;
 		public final long warcSize;
+		public final long records;
+		public final long recordBytes;
 
 		public CrawlSeries(ResultSet rs) throws SQLException {
 			id = rs.getLong("id");
@@ -153,6 +171,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 			path = Paths.get(rs.getString("path"));
 			warcFiles = rs.getLong("warc_files");
 			warcSize = rs.getLong("warc_size");
+			records = rs.getLong("records");
+			recordBytes = rs.getLong("record_bytes");
 		}
 	}
 
@@ -202,6 +222,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 		public final long size;
 		public final long cdxIndexed;
 		public final long solrIndexed;
+		public final long records;
+		public final long recordBytes;
 
 		public Warc(ResultSet rs) throws SQLException {
 			id = rs.getLong("id");
@@ -210,6 +232,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 			size = rs.getLong("size");
 			cdxIndexed = rs.getLong("cdx_indexed");
 			solrIndexed = rs.getLong("solr_indexed");
+			records = rs.getLong("records");
+			recordBytes = rs.getLong("record_bytes");
 		}
 	}
 
@@ -246,8 +270,8 @@ public abstract class Db implements AutoCloseable, Transactional {
     @SqlQuery("SELECT * FROM warc WHERE solr_indexed = 0")
 	public abstract List<Warc> findWarcsToSolrIndex();
 
-	@SqlUpdate("UPDATE warc SET cdx_indexed = :timestamp WHERE id = :id")
-	public abstract int updateWarcCdxIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
+	@SqlUpdate("UPDATE warc SET cdx_indexed = :timestamp, records = :records, record_bytes = :record_bytes WHERE id = :id")
+	public abstract int updateWarcCdxIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp, @Bind("records") long records, @Bind("record_bytes") long recordBytes);
 
     @SqlUpdate("UPDATE warc SET solr_indexed = :timestamp WHERE id = :id")
 	public abstract int updateWarcSolrIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);

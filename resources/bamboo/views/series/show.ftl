@@ -1,8 +1,12 @@
 [@page title="Series: ${series.name}"]
 
 <table class="table">
-    <tr><th class="col-md-2">WARC files</th><td>${series.warcFiles} warcs, <abbr title="${series.warcSize} bytes">${si(series.warcSize)}B</abbr> (compressed)</td></tr>
-    <tr><th class="col-md-2">Collections</th>
+    <colgroup>
+        <col class="col-md-2">
+    </colgroup>
+    <tr><th>WARC Records</th><td>${series.records} records, <abbr title="${series.recordBytes} bytes">${si(series.recordBytes)}B</abbr> (uncompressed)</td></tr>
+    <tr><th>WARC Files</th><td>${series.warcFiles} warcs, <abbr title="${series.warcSize} bytes">${si(series.warcSize)}B</abbr> (compressed)</td></tr>
+    <tr><th>Collections</th>
         <td>
             <ul>
                 [#list collections as collection]
