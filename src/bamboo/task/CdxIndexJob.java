@@ -30,7 +30,7 @@ public class CdxIndexJob implements Taskmaster.Job {
 
     @Override
     public void run(Taskmaster.IProgressMonitor progress) throws IOException {
-        int threads = 1; // Runtime.getRuntime().availableProcessors()
+        int threads = Runtime.getRuntime().availableProcessors();
         ExecutorService threadPool = Executors.newFixedThreadPool(threads);
         try (Db db = dbPool.take()) {
             for (Db.Warc warc : db.findWarcsToCdxIndex()) {
