@@ -122,6 +122,7 @@ public class
         List<SolrInputDocument> batch = new ArrayList<>();
         try (ArchiveReader reader = ArchiveReaderFactory.get(warc.path.toFile())) {
             for (ArchiveRecord record : reader) {
+                if (record.getHeader().getUrl() == null) continue;
                 String surt = SURT.toSURT(Warcs.getCleanUrl(record.getHeader()));
                 if (surt == null || !anyFilterAccepts(solrs, surt)) {
                     continue; // skip indexing records we're not going to accept anyway
