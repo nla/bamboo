@@ -17,7 +17,6 @@ import de.l3s.boilerpipe.sax.BoilerpipeSAXInput;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.common.SolrInputDocument;
 import org.archive.io.ArchiveReader;
@@ -96,6 +95,15 @@ public class
         }
     }
 
+    boolean anyFilterAccepts(List<Solr> solrs, String surt) {
+        for (Solr solr : solrs) {
+            if (solr.filter.accepts(surt)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void indexWarc(Db.Warc warc) {
         System.out.println(new Date() +  " Solr indexing " + warc.id + " " + warc.path);
 
@@ -114,10 +122,14 @@ public class
         List<SolrInputDocument> batch = new ArrayList<>();
         try (ArchiveReader reader = ArchiveReaderFactory.get(warc.path.toFile())) {
             for (ArchiveRecord record : reader) {
+                String surt = SURT.toSURT(Warcs.getCleanUrl(record.getHeader()));
+                if (surt == null || !anyFilterAccepts(solrs, surt)) {
+                    continue; // skip indexing records we're not going to accept anyway
+                }
+
                 SolrInputDocument doc = makeDoc(record);
                 if (doc == null) continue;
 
-                String surt = SURT.toSURT(Warcs.getCleanUrl(record.getHeader()));
                 for (Solr solr : solrs) {
                     solr.add(surt, doc);
                 }
