@@ -3,6 +3,7 @@ package bamboo.task;
 import bamboo.core.Config;
 import bamboo.core.Db;
 import bamboo.core.DbPool;
+import bamboo.util.SurtFilter;
 import com.google.common.net.InternetDomainName;
 import com.itextpdf.text.exceptions.InvalidPdfException;
 import com.itextpdf.text.pdf.PdfReader;
@@ -23,6 +24,7 @@ import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
+import org.archive.url.SURT;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
@@ -41,7 +43,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
-public class SolrIndexer {
+public class
+        SolrIndexer {
 
     static int MAX_DOC_SIZE = 0x100000;
     static int COMMIT_WITHIN_MS = 300000;
@@ -53,15 +56,6 @@ public class SolrIndexer {
     public SolrIndexer(Config config, DbPool dbPool) {
         this.config = config;
         this.dbPool = dbPool;
-        String solrUrl = System.getenv("BAMBOO_SOLR_URL");
-        String solrZoo = System.getenv("BAMBOO_SOLR_ZOO");
-        if (solrUrl != null) {
-            solr = new HttpSolrServer(solrUrl);
-        } else if (solrZoo != null) {
-            solr = new CloudSolrServer(solrZoo);
-        } else {
-            throw new IllegalStateException("BAMBOO_SOLR_URL or BAMBOO_SOLR_ZOO env var must be set");
-        }
     }
 
     public void run() {
@@ -84,22 +78,49 @@ public class SolrIndexer {
         }
     }
 
+    static class Solr {
+        private final SurtFilter filter;
+        private final SolrServer server;
+        private final Db.Collection collection;
+
+        public Solr(Db.CollectionWithFilters collection) {
+            this.collection = collection;
+            server = new HttpSolrServer(collection.solrUrl);
+            filter = new SurtFilter(collection.urlFilters);
+        }
+
+        public void add(String surt, SolrInputDocument doc) throws IOException, SolrServerException {
+            if (filter.accepts(surt)) {
+                server.add(doc, COMMIT_WITHIN_MS);
+            }
+        }
+    }
+
     void indexWarc(Db.Warc warc) {
         System.out.println(new Date() +  " Solr indexing " + warc.id + " " + warc.path);
+
+        List<Solr> solrs = new ArrayList<>();
+
+        try (Db db = dbPool.take()) {
+            Db.Crawl crawl = db.findCrawl(warc.crawlId);
+            List<Db.CollectionWithFilters> collections = db.listCollectionsForCrawlSeries(crawl.crawlSeriesId);
+            for (Db.CollectionWithFilters collection : collections) {
+                if (collection.solrUrl != null && !collection.solrUrl.isEmpty()) {
+                    solrs.add(new Solr(collection));
+                }
+            }
+        }
+
         List<SolrInputDocument> batch = new ArrayList<>();
         try (ArchiveReader reader = ArchiveReaderFactory.get(warc.path.toFile())) {
             for (ArchiveRecord record : reader) {
                 SolrInputDocument doc = makeDoc(record);
-                if (doc != null) {
-                    batch.add(doc);
+                if (doc == null) continue;
+
+                String surt = SURT.toSURT(Warcs.getCleanUrl(record.getHeader()));
+                for (Solr solr : solrs) {
+                    solr.add(surt, doc);
                 }
-                if (batch.size() > 4) {
-                    solr.add(batch, COMMIT_WITHIN_MS);
-                    batch.clear();
-                }
-            }
-            if (!batch.isEmpty()) {
-                solr.add(batch, COMMIT_WITHIN_MS);
             }
             try (Db db = dbPool.take()) {
                 db.updateWarcSolrIndexed(warc.id, System.currentTimeMillis());
