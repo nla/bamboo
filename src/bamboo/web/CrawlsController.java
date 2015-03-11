@@ -49,7 +49,8 @@ public class CrawlsController {
                     "crawl", crawl,
                     "series", db.findCrawlSeriesById(crawl.crawlSeriesId),
                     "warcsToBeCdxIndexed", db.countWarcsToBeCdxIndexedInCrawl(crawlId),
-                    "warcsToBeSolrIndexed", db.countWarcsToBeSolrIndexedInCrawl(crawlId)
+                    "warcsToBeSolrIndexed", db.countWarcsToBeSolrIndexedInCrawl(crawlId),
+                    "corruptWarcs", db.countCorruptWarcsInCrawl(crawlId)
                     );
         }
     }

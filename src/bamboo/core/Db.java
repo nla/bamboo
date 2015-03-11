@@ -264,10 +264,10 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlQuery("SELECT * FROM warc")
 	public abstract List<Warc> listWarcs();
 
-	@SqlQuery("SELECT * FROM warc WHERE cdx_indexed = 0")
+	@SqlQuery("SELECT * FROM warc WHERE cdx_indexed = 0 AND corrupt = 0")
 	public abstract List<Warc> findWarcsToCdxIndex();
 
-    @SqlQuery("SELECT * FROM warc WHERE solr_indexed = 0")
+    @SqlQuery("SELECT * FROM warc WHERE solr_indexed = 0 AND corrupt = 0")
 	public abstract List<Warc> findWarcsToSolrIndex();
 
 	@SqlUpdate("UPDATE warc SET cdx_indexed = :timestamp, records = :records, record_bytes = :record_bytes WHERE id = :id")
@@ -279,10 +279,19 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("UPDATE warc SET size = :size WHERE id = :id")
 	public abstract int updateWarcSize(@Bind("id") long warcId, @Bind("size") long size);
 
-	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND cdx_indexed = 0")
+	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND cdx_indexed = 0 AND corrupt = 0")
 	public abstract long countWarcsToBeCdxIndexedInCrawl(@Bind long crawlId);
 
-	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND solr_indexed = 0")
+	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND solr_indexed = 0 AND corrupt = 0")
 	public abstract long countWarcsToBeSolrIndexedInCrawl(@Bind long crawlId);
+
+	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND corrupt <> 0")
+	public abstract long countCorruptWarcsInCrawl(@Bind long crawlId);
+
+	@SqlUpdate("UPDATE warc SET corrupt = :corrupt WHERE id = :id")
+	public abstract int updateWarcCorrupt(@Bind("id") long warcId, @Bind("corrupt") int corrupt);
+
+	public static final int GZIP_CORRUPT = 1;
+	public static final int WARC_CORRUPT = 2;
 
 }

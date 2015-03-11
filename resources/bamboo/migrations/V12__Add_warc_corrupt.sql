@@ -1,0 +1,1 @@
+ALTER TABLE warc ADD corrupt integer NOT NULL DEFAULT 0;

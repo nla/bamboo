@@ -20,11 +20,12 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.ZipException;
 
-public class CdxIndexJob implements Taskmaster.Job {
+public class CdxIndexer implements Taskmaster.Job {
     final private DbPool dbPool;
 
-    public CdxIndexJob(DbPool dbPool) {
+    public CdxIndexer(DbPool dbPool) {
         this.dbPool = dbPool;
     }
 
@@ -65,7 +66,28 @@ public class CdxIndexJob implements Taskmaster.Job {
         }
 
         // parse the warc file
-        Stats stats = writeCdx(warc.path, buffers);
+        Stats stats;
+        try {
+            stats = writeCdx(warc.path, buffers);
+        } catch (RuntimeException e) {
+            if (e.getCause() != null && e.getCause() instanceof ZipException) {
+                try (Db db = dbPool.take()) {
+                    db.updateWarcCorrupt(warc.id, Db.GZIP_CORRUPT);
+                    return;
+                }
+            } else {
+                throw e;
+            }
+        } catch (IOException e) {
+            if (e.getMessage().endsWith(" is not a WARC file.")) {
+                try (Db db = dbPool.take()) {
+                    db.updateWarcCorrupt(warc.id, Db.WARC_CORRUPT);
+                    return;
+                }
+            } else {
+                throw e;
+            }
+        }
 
         // submit the records to each collection
         for (CdxBuffer buffer: buffers) {
@@ -191,7 +213,7 @@ public class CdxIndexJob implements Taskmaster.Job {
         if (s == null) {
             return "-";
         }
-        return s;
+        return s.replace(" ", "%20").replace("\n", "%0A").replace("\r", "%0D");
     }
 
 }

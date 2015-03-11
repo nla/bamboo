@@ -1,7 +1,7 @@
 package bamboo.core;
 
 import bamboo.io.HeritrixJob;
-import bamboo.task.CdxIndexJob;
+import bamboo.task.CdxIndexer;
 import bamboo.task.ImportJob;
 import bamboo.task.SolrIndexer;
 import bamboo.task.Taskmaster;
@@ -54,7 +54,7 @@ public class Bamboo implements AutoCloseable {
     }
 
     public void runCdxIndexer() throws Exception {
-        taskmaster.launch(new CdxIndexJob(dbPool)).get();
+        taskmaster.launch(new CdxIndexer(dbPool)).get();
     }
 
     public void runSolrIndexer() throws Exception {
