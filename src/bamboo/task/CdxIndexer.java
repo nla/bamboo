@@ -78,6 +78,11 @@ public class CdxIndexer implements Taskmaster.Job {
             } else {
                 throw e;
             }
+        } catch (ZipException e) {
+            try (Db db = dbPool.take()) {
+                db.updateWarcCorrupt(warc.id, Db.GZIP_CORRUPT);
+                return;
+            }
         } catch (IOException e) {
             if (e.getMessage().endsWith(" is not a WARC file.")) {
                 try (Db db = dbPool.take()) {
