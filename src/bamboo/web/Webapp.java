@@ -26,6 +26,7 @@ public class Webapp implements Handler, AutoCloseable {
             GET("/tasks", this::showTasks),
             new CollectionsController(bamboo).routes,
             new CrawlsController(bamboo).routes,
+            new JobsController(bamboo).routes,
             new SeriesController(bamboo).routes,
             new TasksController(bamboo).routes,
             notFoundHandler("404. Alas, there is nothing here."));

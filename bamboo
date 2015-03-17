@@ -1,2 +1,2 @@
 #!/bin/sh
-BAMBOO_DB_URL=jdbc:h2:/var/tmp/bamboodb BAMBOO_CDX_URL=http://127.0.0.1:8081/xmlquery exec java -jar target/bamboo-0.1.0.jar "$@"
+BAMBOO_DB_URL=jdbc:h2:/var/tmp/bamboodb exec java -cp resources:target/classes:target/bamboo-0.1.0.jar "$@"

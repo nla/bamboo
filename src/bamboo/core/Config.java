@@ -28,4 +28,8 @@ public class Config {
     public Path getHeritrixJobs() {
         return Paths.get(getEnv("HERITRIX_JOBS", "/heritrix/jobs"));
     }
+
+    public String getHeritrixUrl() {
+        return getEnv("HERITRIX_URL", "https://127.0.0.1:8443");
+    }
 }
