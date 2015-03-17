@@ -30,6 +30,7 @@ import org.xml.sax.SAXException;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.BufferOverflowException;
 import java.nio.CharBuffer;
@@ -161,6 +162,7 @@ public class
         if (!Warcs.isResponseRecord(warcHeader)) return null;
 
         String url = Warcs.getCleanUrl(warcHeader);
+        String site = topPrivateDomain(url);
         HttpHeader httpHeader = HttpHeader.parse(record, url);
         if (httpHeader == null || httpHeader.status < 200 || httpHeader.status > 299) {
             return null;
@@ -172,22 +174,16 @@ public class
         if (contentType == null) {
             return null;
         }
-
+        
         SolrInputDocument doc = new SolrInputDocument();
-        doc.addField("id", url + " " + arcDate);
+        String shardKey = site;
+        doc.addField("id", shardKey + "!" + url + " " + arcDate);
         doc.addField("url", url);
         doc.addField("length", warcHeader.getContentLength());
         doc.addField("code", httpHeader.status);
         Instant instant = LocalDateTime.parse(arcDate, Warcs.arcDateFormat).atOffset(ZoneOffset.UTC).toInstant();
         doc.addField("date", Date.from(instant));
-        String host = new URL(url).getHost();
-        try {
-            InternetDomainName domain = InternetDomainName.from(host);
-            doc.addField("site", domain.topPrivateDomain().toString());
-        } catch (IllegalStateException | IllegalArgumentException e) {
-            // IP addresses, hosts which don't have a known TLD etc
-            doc.addField("site", WWW_PREFIX.matcher(host).replaceFirst(""));
-        }
+        doc.addField("site", site);
         doc.addField("type", contentType);
 
         String digest = (String) warcHeader.getHeaderValue("WARC-Payload-Digest");
@@ -204,6 +200,17 @@ public class
             return extractPdfContent(record, doc);
         } else {
             return null; // unknown type
+        }
+    }
+
+    private static String topPrivateDomain(String url) throws MalformedURLException {
+        String host = new URL(url).getHost();
+        try {
+            InternetDomainName domain = InternetDomainName.from(host);
+            return domain.topPrivateDomain().toString();
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            // IP addresses, hosts which don't have a known TLD etc
+            return WWW_PREFIX.matcher(host).replaceFirst("");
         }
     }
 
