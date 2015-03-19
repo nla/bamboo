@@ -43,8 +43,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
-public class
-        SolrIndexer {
+public class SolrIndexer {
 
     static int MAX_DOC_SIZE = 0x100000;
     static int COMMIT_WITHIN_MS = 300000;
@@ -174,7 +173,7 @@ public class
         if (contentType == null) {
             return null;
         }
-        
+
         SolrInputDocument doc = new SolrInputDocument();
         String shardKey = site;
         doc.addField("id", shardKey + "!" + url + " " + arcDate);
