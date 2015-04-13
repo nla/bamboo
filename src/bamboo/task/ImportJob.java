@@ -85,13 +85,17 @@ public class ImportJob implements Taskmaster.Job {
 		for (Path src : warcs) {
 			Path destDir = destRoot.resolve(String.format("%03d", i++ / 1000));
 			Path dest = destDir.resolve(src.getFileName());
-			if (Files.exists(dest) && Files.size(dest) == Files.size(src)) {
+			long size = Files.size(src);
+			if (Files.exists(dest) && Files.size(dest) == size) {
 				continue;
 			}
 			if (!Files.exists(destDir)) {
 				Files.createDirectory(destDir);
 			}
 			Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
+			try (Db db = dbPool.take()) {
+				db.insertWarc(crawlId, dest.toString(), size);
+			}
 		}
 	}
 
