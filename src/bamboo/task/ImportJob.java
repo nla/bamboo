@@ -94,7 +94,7 @@ public class ImportJob implements Taskmaster.Job {
 			}
 			Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
 			try (Db db = dbPool.take()) {
-				db.insertWarc(crawlId, dest.toString(), size);
+				db.insertWarc(crawlId, dest.toString(), dest.getFileName().toString(), size);
 			}
 		}
 	}

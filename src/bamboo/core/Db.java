@@ -224,6 +224,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 		public final long solrIndexed;
 		public final long records;
 		public final long recordBytes;
+		public final String filename;
 
 		public Warc(ResultSet rs) throws SQLException {
 			id = rs.getLong("id");
@@ -234,6 +235,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 			solrIndexed = rs.getLong("solr_indexed");
 			records = rs.getLong("records");
 			recordBytes = rs.getLong("record_bytes");
+			filename = rs.getString("filename");
 		}
 	}
 
@@ -245,10 +247,10 @@ public abstract class Db implements AutoCloseable, Transactional {
 	}
 
 	@Transaction
-	public long insertWarc(long crawlId, String path, long size) {
+	public long insertWarc(long crawlId, String path, String filename, long size) {
 		incrementWarcStatsForCrawl(crawlId, 1, size);
 		incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 1, size);
-		return insertWarcWithoutRollup(crawlId, path, size);
+		return insertWarcWithoutRollup(crawlId, path, filename, size);
 	}
 
 	@SqlUpdate("UPDATE crawl_series SET warc_files = warc_files + :warc_files,  warc_size = warc_size + :warc_size WHERE id = (SELECT crawl_series_id FROM crawl WHERE crawl.id = :crawl_id)")
@@ -257,12 +259,18 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("UPDATE crawl SET warc_files = warc_files + :warc_files, warc_size = warc_size + :warc_size")
 	public abstract void incrementWarcStatsForCrawl(long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
 
-	@SqlUpdate("INSERT INTO warc (crawl_id, path, size, cdx_indexed) VALUES (:crawlId, :path, :size, 0)")
+	@SqlUpdate("INSERT INTO warc (crawl_id, path, filename, size, cdx_indexed) VALUES (:crawlId, :path, :filename, :size, 0)")
 	@GetGeneratedKeys
-	public abstract long insertWarcWithoutRollup(@Bind("crawlId") long crawlId, @Bind("path") String path, @Bind("size") long size);
+	public abstract long insertWarcWithoutRollup(@Bind("crawlId") long crawlId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size);
 
 	@SqlQuery("SELECT * FROM warc")
 	public abstract List<Warc> listWarcs();
+
+	@SqlQuery("SELECT * FROM warc WHERE id = :warcId")
+	public abstract Warc findWarc(@Bind("warcId") long warcId);
+
+	@SqlQuery("SELECT * FROM warc WHERE filename = :filename")
+	public abstract Warc findWarcByFilename(@Bind("filename") String filename);
 
 	@SqlQuery("SELECT * FROM warc WHERE cdx_indexed = 0 AND corrupt = 0")
 	public abstract List<Warc> findWarcsToCdxIndex();

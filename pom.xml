@@ -212,5 +212,18 @@
             <version>3.2</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>au.gov.nla</groupId>
+            <artifactId>doss</artifactId>
+            <version>1.0.1</version>
+        </dependency>
     </dependencies>
+
+    <repositories>
+        <repository>
+            <id>nla-public-releases</id>
+            <url>http://maven.nla.gov.au/releases</url>
+        </repository>
+    </repositories>
 </project>

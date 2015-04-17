@@ -29,6 +29,7 @@ public class Webapp implements Handler, AutoCloseable {
             new JobsController(bamboo).routes,
             new SeriesController(bamboo).routes,
             new TasksController(bamboo).routes,
+            new WarcsController(bamboo).routes,
             notFoundHandler("404. Alas, there is nothing here."));
 
     final Handler handler;

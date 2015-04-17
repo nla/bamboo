@@ -32,4 +32,8 @@ public class Config {
     public String getHeritrixUrl() {
         return getEnv("HERITRIX_URL", "https://127.0.0.1:8443");
     }
+
+    public Path getDossHome() {
+        return Paths.get(getEnv("DOSS_HOME", "/tmp/doss-home"));
+    }
 }

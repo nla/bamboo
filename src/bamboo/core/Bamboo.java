@@ -5,9 +5,12 @@ import bamboo.task.CdxIndexer;
 import bamboo.task.ImportJob;
 import bamboo.task.SolrIndexer;
 import bamboo.task.Taskmaster;
+import doss.BlobStore;
+import doss.local.LocalBlobStore;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.Future;
 
@@ -18,16 +21,21 @@ public class Bamboo implements AutoCloseable {
     public final Config config;
     public final DbPool dbPool;
     public final Taskmaster taskmaster = new Taskmaster();
+    public final BlobStore blobStore;
 
     public Bamboo(Config config, DbPool dbPool) {
         this.config = config;
         this.dbPool = dbPool;
+        //blobStore = LocalBlobStore.open(config.getDossHome());
+        blobStore = null; // coming soon
     }
 
     public Bamboo() {
         config = new Config();
         dbPool = new DbPool(config);
         dbPool.migrate();
+        //blobStore = LocalBlobStore.open(config.getDossHome());
+        blobStore = null; // coming soon
     }
 
     @Override
@@ -47,8 +55,9 @@ public class Bamboo implements AutoCloseable {
 
     public void insertWarc(long crawlId, String path) throws IOException {
         try (Db db = dbPool.take()) {
-            long size = Files.size(Paths.get(path));
-            long warcId = db.insertWarc(crawlId, path, size);
+            Path p = Paths.get(path);
+            long size = Files.size(p);
+            long warcId = db.insertWarc(crawlId, path, p.getFileName().toString(), size);
             System.out.println("Registered WARC " + warcId);
         }
     }
