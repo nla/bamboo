@@ -93,17 +93,17 @@
         <dependency>
             <groupId>org.meshy.droute</groupId>
             <artifactId>droute-shotgun</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.0.2-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.meshy.droute</groupId>
             <artifactId>droute-nanohttpd</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.0.2-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.meshy.droute</groupId>
             <artifactId>droute-freemarker</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.0.2-SNAPSHOT</version>
         </dependency>
 
         <dependency>
