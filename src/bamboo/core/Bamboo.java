@@ -5,6 +5,7 @@ import bamboo.task.CdxIndexer;
 import bamboo.task.ImportJob;
 import bamboo.task.SolrIndexer;
 import bamboo.task.Taskmaster;
+import bamboo.web.Main;
 import doss.BlobStore;
 import doss.local.LocalBlobStore;
 
@@ -12,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.concurrent.Future;
 
 import static droute.Response.render;
@@ -114,6 +116,9 @@ public class Bamboo implements AutoCloseable {
             case "refresh-warc-stats-fs":
                 bamboo.refreshWarcStatsFs();
                 break;
+            case "server":
+                Main.main(Arrays.copyOfRange(args, 1, args.length));
+                break;
             default:
                 usage();
         }
@@ -128,6 +133,7 @@ public class Bamboo implements AutoCloseable {
         System.out.println("  insert-warc <crawl-id> <paths>   - Register WARCs with a crawl");
         System.out.println("  refresh-warc-stats               - Refresh warc stats tables");
         System.out.println("  refresh-warc-stats-fs            - Refresh warc stats tables based on disk");
+        System.out.println("  server                           - Run web server");
         System.exit(1);
     }
 }
