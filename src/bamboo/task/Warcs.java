@@ -22,7 +22,7 @@ public class Warcs {
         String warcType = (String)h.getHeaderValue("WARC-Type");
         if (warcType != null && !warcType.equals("response"))
             return false;
-        if (h.getUrl().startsWith("dns:") || h.getUrl().startsWith("filedesc:"))
+        if (h.getUrl().startsWith("dns:") || h.getUrl().startsWith("filedesc:") || h.getUrl().startsWith("whois:"))
             return false;
         return true;
     }
