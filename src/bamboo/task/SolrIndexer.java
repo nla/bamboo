@@ -45,8 +45,8 @@ import java.util.regex.Pattern;
 
 public class SolrIndexer {
 
-    static int MAX_DOC_SIZE = 0x100000;
-    static int COMMIT_WITHIN_MS = 300000;
+    static final int MAX_DOC_SIZE = 0x100000;
+    static final int COMMIT_WITHIN_MS = 300000;
 
     private final Config config;
     private final DbPool dbPool;
@@ -145,9 +145,6 @@ public class SolrIndexer {
         } catch (RuntimeException e) {
             e.printStackTrace();
             throw e;
-        } catch (SolrServerException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
         } catch (Throwable e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -193,12 +190,13 @@ public class SolrIndexer {
             doc.addField("sha1", digest);
         }
 
-        if (contentType.equals("text/html")) {
-            return extractHtmlContent(record, doc);
-        } else if (contentType.equals("application/pdf")) {
-            return extractPdfContent(record, doc);
-        } else {
-            return null; // unknown type
+        switch (contentType) {
+            case "text/html":
+                return extractHtmlContent(record, doc);
+            case "application/pdf":
+                return extractPdfContent(record, doc);
+            default:
+                return null; // unknown type
         }
     }
 
@@ -236,7 +234,7 @@ public class SolrIndexer {
                 for (int i = 1; i <= pdfReader.getNumberOfPages(); ++i) {
                     TextExtractionStrategy strategy = pdfParser.processContent(i,
                             new SimpleTextExtractionStrategy());
-                    buf.append((CharSequence) strategy.getResultantText());
+                    buf.append(strategy.getResultantText());
                     buf.append(' ');
                 }
             } catch (BufferOverflowException e) {
@@ -252,8 +250,8 @@ public class SolrIndexer {
     }
 
     public static void main(String args[]) {
-        for (int i = 0; i < args.length; i++) {
-            try (ArchiveReader reader = ArchiveReaderFactory.get(args[i])) {
+        for (String arg : args) {
+            try (ArchiveReader reader = ArchiveReaderFactory.get(arg)) {
                 for (ArchiveRecord record : reader) {
                     SolrInputDocument doc = makeDoc(record);
                     if (doc != null) {

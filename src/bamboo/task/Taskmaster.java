@@ -10,8 +10,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class Taskmaster {
-    private ExecutorService threadPool = Executors.newWorkStealingPool();
-    private List<Job> jobs = new ArrayList<>();
+    private final ExecutorService threadPool = Executors.newWorkStealingPool();
+    private final List<Job> jobs = new ArrayList<>();
 
     public Future<?> launch(Job job) {
         return threadPool.submit(() -> {
@@ -28,11 +28,11 @@ public class Taskmaster {
         });
     }
 
-    public static interface Job {
+    public interface Job {
         void run(IProgressMonitor progress) throws IOException;
     }
 
-    public static interface IProgressMonitor {
+    public interface IProgressMonitor {
         void begin(String name);
         void progress(int completeness);
         void finish();

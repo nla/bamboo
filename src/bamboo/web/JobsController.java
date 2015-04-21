@@ -9,20 +9,13 @@ import droute.Response;
 import org.apache.commons.io.FileUtils;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static droute.Route.GET;
-import static droute.Route.POST;
-import static droute.Route.routes;
 
 import static droute.Response.*;
-import static droute.Response.response;
 import static droute.Route.*;
 
 public class JobsController {
     final Bamboo bamboo;
-    public Handler routes = routes(
+    public final Handler routes = routes(
             GET("/jobs", this::index),
             POST("/jobs/:job/delete", this::delete));
 

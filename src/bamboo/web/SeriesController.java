@@ -17,7 +17,7 @@ import static droute.Route.*;
 
 public class SeriesController {
     final Bamboo bamboo;
-    public Handler routes = routes(
+    public final Handler routes = routes(
             GET("/series", this::index),
             GET("/series/new", this::newForm),
             POST("/series/new", this::createSeries),

@@ -23,15 +23,19 @@ public class Main {
         String host = null;
         boolean inheritSocket = false;
         for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("-p")) {
-                port = Integer.parseInt(args[++i]);
-            } else if (args[i].equals("-b")) {
-                host = args[++i];
-            } else if (args[i].equals("-i")) {
-                inheritSocket = true;
-            } else {
-                usage();
-                System.exit(1);
+            switch (args[i]) {
+                case "-p":
+                    port = Integer.parseInt(args[++i]);
+                    break;
+                case "-b":
+                    host = args[++i];
+                    break;
+                case "-i":
+                    inheritSocket = true;
+                    break;
+                default:
+                    usage();
+                    System.exit(1);
             }
         }
         Handler handler = new ShotgunHandler("bamboo.web.Webapp");

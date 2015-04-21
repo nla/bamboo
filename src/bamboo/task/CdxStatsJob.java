@@ -4,7 +4,6 @@ import org.apache.commons.io.input.CountingInputStream;
 
 import java.io.*;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
@@ -17,7 +16,6 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.zip.GZIPInputStream;
 
 import static java.nio.file.StandardOpenOption.READ;
@@ -25,7 +23,7 @@ import static java.nio.file.StandardOpenOption.READ;
 public class CdxStatsJob  {
     final Path cdxPath;
     final static long taskSize = 8 * 1024 * 1024;
-    List<CdxStatsTask> tasks = new ArrayList<>();
+    final List<CdxStatsTask> tasks = new ArrayList<>();
 
     public CdxStatsJob(Path cdxPath) throws IOException {
         this.cdxPath = cdxPath;
@@ -50,12 +48,10 @@ public class CdxStatsJob  {
                     totalBytes += task.totalBytes;
                     totalRecords += task.goodRecords;
                 }
-            } catch (IOException e) {
+            } catch (IOException | ExecutionException e) {
                 e.printStackTrace();
             } catch (InterruptedException e) {
                 /* shutdown */
-            } catch (ExecutionException e) {
-                e.printStackTrace();
             }
         });
     }
@@ -93,7 +89,7 @@ public class CdxStatsJob  {
         long goodRecords = 0;
         long totalBytes = 0;
         long cdxBytesRead = 0;
-        Map<String,String> pathIndex;
+        final Map<String,String> pathIndex;
 
         public CdxStatsTask(Map<String, String> pathIndex, Path cdxPath, long start, long length) {
             this.pathIndex = pathIndex;

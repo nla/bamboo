@@ -16,7 +16,7 @@ import static droute.Route.routes;
 
 public class CollectionsController {
     final Bamboo bamboo;
-    public Handler routes = routes(
+    public final Handler routes = routes(
             //GET("/collections", this::index),
             GET("/collections/:id", this::show, "id", "[0-9]+"),
             GET("/collections/:id/edit", this::edit, "id", "[0-9]+"),

@@ -29,7 +29,7 @@ import static droute.Route.routes;
 
 public class WarcsController {
     final Bamboo bamboo;
-    public Handler routes = routes(
+    public final Handler routes = routes(
             GET("/warcs/:id", this::serveById, "id", "[0-9]+"),
             GET("/warcs/:filename", this::serveByFilename, "filename", "[^/]+")
             );
@@ -39,7 +39,7 @@ public class WarcsController {
     }
 
     static class Range {
-        static Pattern BYTES_SPEC_PATTERN = Pattern.compile("([0-9]+)?-([0-9]+)?");
+        static final Pattern BYTES_SPEC_PATTERN = Pattern.compile("([0-9]+)?-([0-9]+)?");
 
         final long start, length, total;
 

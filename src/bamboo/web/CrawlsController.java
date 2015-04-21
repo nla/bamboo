@@ -8,17 +8,12 @@ import droute.Handler;
 import droute.Request;
 import droute.Response;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
 import static droute.Response.*;
-import static droute.Response.response;
 import static droute.Route.*;
 
 public class CrawlsController {
     final Bamboo bamboo;
-    public Handler routes = routes(
+    public final Handler routes = routes(
             GET("/crawls", this::index),
             GET("/crawls/:id", this::show, "id", "[0-9]+"),
             GET("/crawls/:id/edit", this::edit, "id", "[0-9]+"),

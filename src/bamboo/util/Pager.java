@@ -22,7 +22,7 @@ public class Pager<T> {
         items = query.paginate(pageSize, offset);
     }
 
-    public static interface PaginationQuery<T> {
+    public interface PaginationQuery<T> {
         List<T> paginate(long limit, long offset);
     }
 }

@@ -68,7 +68,7 @@ public class HeritrixJob {
     }
 
     public static class Launch {
-        Path dir;
+        final Path dir;
 
         Launch(Path dir) {
             this.dir = dir;
