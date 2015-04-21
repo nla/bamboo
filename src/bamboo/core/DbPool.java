@@ -1,6 +1,5 @@
 package bamboo.core;
 
-import bamboo.util.H2Functions;
 import com.googlecode.flyway.core.Flyway;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -33,7 +32,7 @@ public class DbPool implements Closeable {
 
     public void migrate() {
         if (ds.getJdbcUrl().startsWith("jdbc:h2:")) {
-            registerMysqlCompatibilityFunctionsWithH2();
+            DbH2Compat.register(ds);
         }
         Flyway flyway = new Flyway();
         flyway.setDataSource(ds);
@@ -44,7 +43,7 @@ public class DbPool implements Closeable {
     private void registerMysqlCompatibilityFunctionsWithH2() {
         try (Connection conn = ds.getConnection();
              Statement stmt = conn.createStatement()) {
-            stmt.execute("CREATE ALIAS IF NOT EXISTS SUBSTRING_INDEX DETERMINISTIC FOR \"" + H2Functions.class.getName() + ".substringIndex\"");
+            stmt.execute("CREATE ALIAS IF NOT EXISTS SUBSTRING_INDEX DETERMINISTIC FOR \"" + DbH2Compat.class.getName() + ".substringIndex\"");
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

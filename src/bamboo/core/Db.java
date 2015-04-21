@@ -1,8 +1,7 @@
 package bamboo.core;
 
-import org.skife.jdbi.v2.*;
+import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.*;
-import org.skife.jdbi.v2.sqlobject.Transaction;
 import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
@@ -11,7 +10,6 @@ import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Set;
 
 public abstract class Db implements AutoCloseable, Transactional {
 

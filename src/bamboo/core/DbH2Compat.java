@@ -1,0 +1,59 @@
+package bamboo.core;
+
+import com.zaxxer.hikari.HikariDataSource;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+/**
+ * User-defined functions for H2 to make it behave more like MySQL.
+ */
+public class DbH2Compat {
+
+    private DbH2Compat() {}
+
+    /**
+     * Create aliaes in a H2 database for the compatibility functions.
+     */
+    public static void register(HikariDataSource dataSource) {
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("CREATE ALIAS IF NOT EXISTS SUBSTRING_INDEX DETERMINISTIC FOR \"" + DbH2Compat.class.getName() + ".substringIndex\"");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Java implementation of MySQL's SUBSTRING_INDEX for use by H2.
+     */
+    public static String substringIndex(String str, String delim, int count) {
+        if (str == null) {
+            return null;
+        }
+        if (count > 0) {
+            int pos = str.indexOf(delim);
+            while (--count > 0 && pos != -1) {
+                pos = str.indexOf(delim, pos + 1);
+            }
+            if (pos == -1) {
+                return str;
+            } else {
+                return str.substring(0, pos);
+            }
+        } else if (count < 0) {
+            int pos = str.lastIndexOf(delim);
+            while (++count < 0 && pos != -1) {
+                pos = str.lastIndexOf(delim, pos - 1);
+            }
+            if (pos == -1) {
+                return str;
+            } else {
+                return str.substring(pos + 1);
+            }
+        } else {
+            return "";
+        }
+    }
+}
