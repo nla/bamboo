@@ -239,7 +239,7 @@ public class SolrIndexer {
                 for (int i = 1; i <= pdfReader.getNumberOfPages(); ++i) {
                     TextExtractionStrategy strategy = pdfParser.processContent(i,
                             new SimpleTextExtractionStrategy());
-                    buf.append(strategy.getResultantText());
+                    buf.append(strategy.getResultantText().replace("\uFFFF", ""));
                     buf.append(' ');
                 }
             } catch (BufferOverflowException e) {
