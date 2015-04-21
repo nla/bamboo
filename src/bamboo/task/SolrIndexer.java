@@ -132,7 +132,12 @@ public class SolrIndexer {
                 if (doc == null) continue;
 
                 for (Solr solr : solrs) {
-                    solr.add(surt, doc);
+                    try {
+                        solr.add(surt, doc);
+                    } catch (RuntimeException e) {
+                        System.err.println("Error indexing " + doc.get("id"));
+                        throw e;
+                    }
                 }
             }
             try (Db db = dbPool.take()) {
