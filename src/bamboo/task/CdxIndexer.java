@@ -17,24 +17,37 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.zip.ZipException;
 
-public class CdxIndexer implements Taskmaster.Job {
+public class CdxIndexer implements Runnable {
     final private DbPool dbPool;
 
     public CdxIndexer(DbPool dbPool) {
         this.dbPool = dbPool;
     }
 
-    @Override
-    public void run(Taskmaster.IProgressMonitor progress) throws IOException {
+    public void run() {
+        while (true) {
+            List<Db.Warc> warcs;
+
+            try (Db db = dbPool.take()) {
+                warcs = db.findWarcsToCdxIndex();
+            }
+
+            if (warcs.isEmpty()) {
+                break;
+            }
+
+            indexWarcs(warcs);
+        }
+    }
+
+    public void indexWarcs(List<Db.Warc> warcs) {
         int threads = Runtime.getRuntime().availableProcessors();
         ExecutorService threadPool = Executors.newFixedThreadPool(threads);
-        try (Db db = dbPool.take()) {
-            for (Db.Warc warc : db.findWarcsToCdxIndex()) {
+        try {
+            for (Db.Warc warc : warcs) {
                 threadPool.submit(() -> {
                     try {
                         indexWarc(warc);
@@ -81,6 +94,11 @@ public class CdxIndexer implements Taskmaster.Job {
         } catch (ZipException e) {
             try (Db db = dbPool.take()) {
                 db.updateWarcCorrupt(warc.id, Db.GZIP_CORRUPT);
+                return;
+            }
+        } catch (FileNotFoundException e) {
+            try (Db db = dbPool.take()) {
+                db.updateWarcCorrupt(warc.id, Db.WARC_MISSING);
                 return;
             }
         } catch (IOException e) {

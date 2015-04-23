@@ -112,7 +112,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 			recordBytes = rs.getLong("record_bytes");
 		}
 
-		private static final String[] STATE_NAMES = {"Importing"};
+		private static final String[] STATE_NAMES = {"Archived", "Importing"};
 
 		public String stateName() {
 			return STATE_NAMES[state];
@@ -126,12 +126,16 @@ public abstract class Db implements AutoCloseable, Transactional {
 		}
 	}
 
+	public static final int ARCHIVED = 0;
+	public static final int IMPORTING = 1;
+	public static final int IMPROT_FAILED = -1;
+
 	@SqlQuery("SELECT * FROM crawl")
 	public abstract List<Crawl> listCrawls();
 
-	@SqlUpdate("INSERT INTO crawl (name, crawl_series_id) VALUES (:name, :crawl_series_id)")
+	@SqlUpdate("INSERT INTO crawl (name, crawl_series_id, state) VALUES (:name, :crawl_series_id, :state)")
 	@GetGeneratedKeys
-	public abstract long createCrawl(@Bind("name") String name, @Bind("crawl_series_id") Long crawlSeriesId);
+	public abstract long createCrawl(@Bind("name") String name, @Bind("crawl_series_id") Long crawlSeriesId, @Bind("state") int state);
 
 	@SqlQuery("SELECT * FROM crawl WHERE id = :id")
 	public abstract Crawl findCrawl(@Bind("id") long crawlId);
@@ -142,8 +146,14 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlQuery("SELECT * FROM crawl WHERE crawl_series_id = :crawl_series_id")
 	public abstract Iterable<Crawl> findCrawlsByCrawlSeriesId(@Bind("crawl_series_id") long crawlSeriesId);
 
+	@SqlQuery("SELECT * FROM crawl WHERE state = :state")
+	public abstract List<Crawl> findCrawlsByState(@Bind("state") int state);
+
 	@SqlUpdate("UPDATE crawl SET path = :path WHERE id = :id")
 	public abstract int updateCrawlPath(@Bind("id") long id, @Bind("path") String path);
+
+	@SqlUpdate("UPDATE crawl SET state = :state WHERE id = :crawlId")
+	public abstract int updateCrawlState(@Bind("crawlId") long crawlId, @Bind("state") int state);
 
 	@SqlQuery("SELECT * FROM crawl LIMIT :limit OFFSET :offset")
 	public abstract List<Crawl> paginateCrawls(@Bind("limit") long limit, @Bind("offset") long offset);
@@ -299,5 +309,6 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	public static final int GZIP_CORRUPT = 1;
 	public static final int WARC_CORRUPT = 2;
+	public static final int WARC_MISSING = 3;
 
 }

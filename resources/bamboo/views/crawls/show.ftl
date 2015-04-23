@@ -10,6 +10,12 @@
     [/#if]
 [/#macro]
 
+[#if crawl.state == 1]
+    <div class="alert alert-info" role="alert">
+        This crawl is currently being imported and the statistics below may be incomplete.
+    </div>
+[/#if]
+
 <table class="table">
     <colgroup>
         <col class="col-md-2">

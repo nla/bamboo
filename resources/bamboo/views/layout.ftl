@@ -45,6 +45,9 @@
                 <li><a href="crawls">Crawls</a></li>
             </ul>
             <ul class="nav nav-sidebar">
+                <li><a href="tasks">Task Manager</a></li>
+            </ul>
+            <ul class="nav nav-sidebar">
                 <li><a href="import">Import Crawl from Heritrix</a></li>
             </ul>
 

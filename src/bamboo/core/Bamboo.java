@@ -2,32 +2,27 @@ package bamboo.core;
 
 import bamboo.io.HeritrixJob;
 import bamboo.task.CdxIndexer;
-import bamboo.task.ImportJob;
 import bamboo.task.SolrIndexer;
 import bamboo.task.Taskmaster;
 import bamboo.web.Main;
 import doss.BlobStore;
-import doss.local.LocalBlobStore;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.concurrent.Future;
-
-import static droute.Response.render;
-import static droute.Response.response;
 
 public class Bamboo implements AutoCloseable {
     public final Config config;
     public final DbPool dbPool;
-    public final Taskmaster taskmaster = new Taskmaster();
+    public final Taskmaster taskmaster;
     public final BlobStore blobStore;
 
     public Bamboo(Config config, DbPool dbPool) {
         this.config = config;
         this.dbPool = dbPool;
+        this.taskmaster = new Taskmaster(config, dbPool);
         //blobStore = LocalBlobStore.open(config.getDossHome());
         blobStore = null; // coming soon
     }
@@ -36,6 +31,7 @@ public class Bamboo implements AutoCloseable {
         config = new Config();
         dbPool = new DbPool(config);
         dbPool.migrate();
+        this.taskmaster = new Taskmaster(config, dbPool);
         //blobStore = LocalBlobStore.open(config.getDossHome());
         blobStore = null; // coming soon
     }
@@ -45,14 +41,14 @@ public class Bamboo implements AutoCloseable {
         dbPool.close();
     }
 
-    public Future<?> importHeritrixCrawl(String jobName, Long crawlSeriesId) {
+    public long importHeritrixCrawl(String jobName, Long crawlSeriesId) {
         HeritrixJob job = HeritrixJob.byName(config.getHeritrixJobs(), jobName);
         long crawlId;
         try (Db db = dbPool.take()) {
-            crawlId = db.createCrawl(jobName, crawlSeriesId);
+            crawlId = db.createCrawl(jobName, crawlSeriesId, Db.IMPORTING);
         }
-        ImportJob importJob = new ImportJob(config, dbPool, crawlId);
-        return taskmaster.launch(importJob);
+        taskmaster.startImporting();
+        return crawlId;
     }
 
     public void insertWarc(long crawlId, String path) throws IOException {
@@ -65,11 +61,11 @@ public class Bamboo implements AutoCloseable {
     }
 
     public void runCdxIndexer() throws Exception {
-        taskmaster.launch(new CdxIndexer(dbPool)).get();
+        new CdxIndexer(dbPool).run();
     }
 
     public void runSolrIndexer() throws Exception {
-        new SolrIndexer(config, dbPool).run();
+        new SolrIndexer(dbPool).run();
     }
 
     public void refreshWarcStats() throws IOException {

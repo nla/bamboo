@@ -23,7 +23,6 @@ public class Webapp implements Handler, AutoCloseable {
             GET("/", this::index),
             GET("/import", this::showImportForm),
             POST("/import", this::performImport),
-            GET("/tasks", this::showTasks),
             new CollectionsController(bamboo).routes,
             new CrawlsController(bamboo).routes,
             new JobsController(bamboo).routes,
@@ -103,10 +102,6 @@ public class Webapp implements Handler, AutoCloseable {
 
             return seeOther(request.contextUri().resolve("crawls").toString());
         }
-    }
-
-    Response showTasks(Request request) {
-        return render("tasks.ftl", "jobs", bamboo.taskmaster.getJobs());
     }
 
     Response showThing(Request request) {

@@ -1,19 +1,23 @@
 package bamboo.task;
 
-import java.io.*;
-import java.nio.file.*;
-import java.nio.file.attribute.PosixFileAttributes;
-import java.util.*;
-import java.util.stream.*;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
-
 import bamboo.core.Config;
 import bamboo.core.Db;
 import bamboo.core.DbPool;
 import bamboo.io.HeritrixJob;
 
-public class ImportJob implements Taskmaster.Job {
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFileAttributes;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+public class ImportJob {
 	final Config config;
 	final DbPool dbPool;
 	final long crawlId;
@@ -27,7 +31,7 @@ public class ImportJob implements Taskmaster.Job {
 		this.crawlId = crawlId;
 	}
 	
-	public void run(Taskmaster.IProgressMonitor progress)  {
+	public void run()  {
 		Db.Crawl crawl;
 		Db.CrawlSeries series;
 
@@ -35,6 +39,9 @@ public class ImportJob implements Taskmaster.Job {
 			crawl = db.findCrawl(crawlId);
 			if (crawl == null)
 				throw new RuntimeException("Crawl " + crawlId + " not found");
+			if (crawl.state != Db.IMPORTING) {
+				return; // sanity check
+			}
 			if (crawl.crawlSeriesId == null)
 				throw new RuntimeException("TODO: implement imports without a series");
 
@@ -42,8 +49,6 @@ public class ImportJob implements Taskmaster.Job {
 			if (series == null)
 				throw new RuntimeException("Couldn't find crawl series " + crawl.crawlSeriesId);
 		}
-
-		progress.begin("Importing '" + crawl.name + "' from Heritrix");
 
 		try {
 			heritrixJob = HeritrixJob.byName(config.getHeritrixJobs(), crawl.name);
@@ -54,7 +59,14 @@ public class ImportJob implements Taskmaster.Job {
 			Files.createDirectory(warcsDir);
 			copyWarcs(heritrixJob.warcs().collect(Collectors.toList()), warcsDir);
 			constructCrawlBundle(heritrixJob.dir(), dest);
+
+			try (Db db = dbPool.take()) {
+				db.updateCrawlState(crawl.id, Db.ARCHIVED);
+			}
 		} catch (IOException e) {
+			try (Db db = dbPool.take()) {
+				db.updateCrawlState(crawl.id, Db.IMPROT_FAILED);
+			}
 			throw new UncheckedIOException(e);
 		}
 	}

@@ -1,6 +1,5 @@
 package bamboo.task;
 
-import bamboo.core.Config;
 import bamboo.core.Db;
 import bamboo.core.DbPool;
 import bamboo.util.SurtFilter;
@@ -34,7 +33,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.BufferOverflowException;
 import java.nio.CharBuffer;
-import java.time.*;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -43,37 +44,47 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
-public class SolrIndexer {
+public class SolrIndexer implements Runnable {
 
     static final int MAX_DOC_SIZE = 0x100000;
     static final int COMMIT_WITHIN_MS = 300000;
 
-    private final Config config;
     private final DbPool dbPool;
     private SolrServer solr;
 
-    public SolrIndexer(Config config, DbPool dbPool) {
-        this.config = config;
+    public SolrIndexer(DbPool dbPool) {
         this.dbPool = dbPool;
     }
 
     public void run() {
-        int threads = Runtime.getRuntime().availableProcessors();
-        String threadSetting = System.getenv("BAMBOO_SOLR_THREADS");
-        if (threadSetting != null) {
-            threads = Integer.parseInt(threadSetting);
+        while (true) {
+            List<Db.Warc> warcs;
+
+            try (Db db = dbPool.take()) {
+                warcs = db.findWarcsToSolrIndex();
+            }
+
+            if (warcs.isEmpty()) {
+                break;
+            }
+
+            indexWarcs(warcs);
         }
+    }
+
+    public void indexWarcs(List<Db.Warc> warcs) {
+        int threads = Runtime.getRuntime().availableProcessors();
         ExecutorService threadPool = Executors.newFixedThreadPool(threads);
-        try (Db db = dbPool.take()) {
-            for (Db.Warc warc : db.findWarcsToSolrIndex()) {
+        try {
+            for (Db.Warc warc : warcs) {
                 threadPool.submit(() -> indexWarc(warc));
             }
-        }
-        threadPool.shutdown();
-        try {
+            threadPool.shutdown();
             threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
+        } finally {
+            threadPool.shutdownNow();
         }
     }
 

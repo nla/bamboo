@@ -4,6 +4,7 @@ import com.googlecode.flyway.core.Flyway;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.skife.jdbi.v2.DBI;
+import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.logging.PrintStreamLog;
 
 import java.io.Closeable;
@@ -27,7 +28,17 @@ public class DbPool implements Closeable {
         dbi.registerMapper(new Db.CrawlSeriesMapper());
         dbi.registerMapper(new Db.WarcMapper());
         dbi.registerMapper(new Db.CollectionWithFiltersMapper());
-        dbi.setSQLLog(new PrintStreamLog());
+        dbi.setSQLLog(new PrintStreamLog() {
+            @Override
+            public void logReleaseHandle(Handle h) {
+                // suppress
+            }
+
+            @Override
+            public void logObtainHandle(long time, Handle h) {
+                // suppress
+            }
+        });
     }
 
     public void migrate() {
