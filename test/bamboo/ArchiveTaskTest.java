@@ -41,7 +41,7 @@ public class ArchiveTaskTest {
 
 		bamboo.importHeritrixCrawl("testcrawl", seriesId).get();
 
-		assertTrue(Files.exists(seriesPath.resolve("001/000/TEST-1234.warc.gz")));
+		assertTrue(Files.exists(seriesPath.resolve("001/warcs/000/TEST-1234.warc.gz")));
 		//fail("Not yet implemented");
 	}
 

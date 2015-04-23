@@ -41,7 +41,7 @@
             <ul class="nav nav-sidebar">
                 <li><a href="#">Overview</a></li>
                 <li><a href="#">Collections</a></li>
-                <li><a href="series">Crawl Series</a></li>
+                <li><a href="series" id="navCrawlSeries">Crawl Series</a></li>
                 <li><a href="crawls">Crawls</a></li>
             </ul>
             <ul class="nav nav-sidebar">

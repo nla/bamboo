@@ -4,19 +4,19 @@ import bamboo.core.Bamboo;
 import bamboo.web.Webapp;
 import com.gargoylesoftware.htmlunit.*;
 import com.gargoylesoftware.htmlunit.util.NameValuePair;
-import droute.Handler;
-import droute.MultiMap;
-import droute.Request;
-import droute.Response;
+import droute.*;
 import net.sourceforge.jwebunit.htmlunit.HtmlUnitTestingEngineImpl;
 import net.sourceforge.jwebunit.junit.WebTester;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class WebTest {
@@ -53,6 +53,11 @@ public class WebTest {
         }
 
         @Override
+        public String contextPath() {
+            return "/";
+        }
+
+        @Override
         public Map<String, String> headers() {
             return request.getAdditionalHeaders();
         }
@@ -64,7 +69,7 @@ public class WebTest {
 
         @Override
         public URI contextUri() {
-            return uri();
+            return uri().resolve("/");
         }
 
         @Override
@@ -157,19 +162,41 @@ public class WebTest {
 
         @Override
         public WebResponse getResponse(WebRequest webRequest) throws IOException {
-            System.out.println("gimme "  + webRequest.getUrl());
             Request request = new HtmlUnitRequest(webRequest);
-            System.out.println("got " + request.path());
             Response response = handler.handle(request);
-            byte[] body = null;
+            Streamable streamer = streamify(response.body());
+            ByteArrayOutputStream body = new ByteArrayOutputStream();
+            streamer.writeTo(body);
             List<NameValuePair> headers = new ArrayList<>();
             for (Map.Entry<String, String> entry : response.headers().entrySet()) {
                 headers.add(new NameValuePair(entry.getKey(), entry.getValue()));
             }
-            WebResponseData data = new WebResponseData(body, response.status(), "Something", headers);
+            WebResponseData data = new WebResponseData(body.toByteArray(), response.status(), "Something", headers);
             return new WebResponse(data, webRequest, 0);
         }
     }
+
+    private static Streamable streamify(Object obj) {
+        if (obj == null) {
+            return null;
+        } else if (obj instanceof Streamable) {
+            return (Streamable) obj;
+        } else if (obj instanceof InputStream) {
+            return (out) -> {
+                InputStream in = (InputStream)obj;
+                byte buf[] = new byte[16384];
+                int len;
+                while ((len = in.read(buf)) >= 0) {
+                    out.write(buf, 0, len);
+                }
+            };
+        } else if (obj instanceof String) {
+            return (out) -> out.write(((String)obj).getBytes(StandardCharsets.UTF_8));
+        } else {
+            throw new IllegalArgumentException("unable to handle body of type " + obj.getClass());
+        }
+    }
+
     @Test
     public void test() {
         WebTester t = new WebTester();
@@ -183,10 +210,10 @@ public class WebTest {
             }
         });
 
-        t.setBaseUrl("http://localhost:8080/");
+        t.setBaseUrl("http://unittest.localhost:8080/");
 
         t.beginAt("/");
-        t.clickLinkWithExactText("Crawl Series");
+        t.clickLink("navCrawlSeries");
 
 
     }
