@@ -2,3 +2,15 @@
 - Manage indexer lifecycle
 - Archive to blobstore
 - Access crawl config and logs
+
+- View Crawl page
+  - Dates: start, end, duration?
+  - Number of seeds, link to seeds report
+  - Seeds report: extract failures, robots.txt etc
+  - Editable crawl description
+  - Rename crawl
+
+- Crawl lists
+  - Default sort order: most recent first
+  - Columns: data size, finish date, alerts/errors, crawl series
+
