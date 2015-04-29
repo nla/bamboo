@@ -13,4 +13,11 @@ public class Parsing {
             return defaultValue;
         }
     }
+
+    public static String blankToNull(String s) {
+        if (s == null || s.isEmpty()) {
+            return null;
+        }
+        return s;
+    }
 }

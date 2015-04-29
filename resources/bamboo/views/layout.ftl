@@ -5,12 +5,14 @@
     <meta charset="UTF-8">
     <base href="${request.contextPath()}">
     <title>${title} - Bamboo</title>
-    <link rel="stylesheet" href="webjars/bootstrap/3.3.1/css/bootstrap.min.css">
-    <!--<link rel="stylesheet" href="webjars/bootstrap/3.3.1/css/bootstrap-theme.min.css"> -->
+    <!-- <link rel="stylesheet" href="webjars/bootstrap/3.3.4/css/bootstrap.min.css"> -->
+    <link rel="stylesheet" href="webjars/bootswatch-paper/3.3.4%2B1/css/bootstrap.min.css">
+    <!-- <link rel="stylesheet" href="webjars/bootswatch-paper/3.3.4%2B1/css/bootstrap-theme.min.css"> -->
     <link rel="stylesheet" href="assets/bamboo.css">
+
 </head>
 <body>
-<nav class="navbar navbar-inverse navbar-fixed-top">
+<nav class="navbar navbar-default navbar-fixed-top">
     <div class="container-fluid">
         <div class="navbar-header">
             <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
@@ -19,14 +21,16 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-            <a class="navbar-brand" href="#">BambooWeb</a>
+            <a class="navbar-brand" href="#">Bamboo</a>
         </div>
         <div id="navbar" class="navbar-collapse collapse">
             <ul class="nav navbar-nav navbar-right">
                 <li><a href="http://pandas.nla.gov.au/">PANDAS</a></li>
+                <!--
                 <li><a href="#">Settings</a></li>
                 <li><a href="#">Profile</a></li>
                 <li><a href="#">Help</a></li>
+                -->
             </ul>
             <form class="navbar-form navbar-right">
                 <input type="text" class="form-control" placeholder="Search...">
@@ -56,7 +60,7 @@
             </ul>
         </div>
         <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
-            <h1 class="page-header">${title}</h1>
+            <!-- <h2 class="page-header">${title}</h2> -->
     [#nested/]
         </div>
     </div>

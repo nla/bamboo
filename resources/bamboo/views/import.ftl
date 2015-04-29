@@ -1,27 +1,53 @@
 [@page title="Import Crawl"]
 
+<ol class="breadcrumb">
+    <li><a href="crawls">Crawls</a></li>
+    <li class="active">Import</li>
+</ol>
+
+<h3>Import Crawl from Heritrix</h3>
+
 <div class="alert alert-danger"><b>Not functional yet!</b> Check with Alex before using this.
 </div>
 
-<form method="POST">
-    <input name="csrfToken" value="${csrfToken}" type="hidden">
-    <label for="heritrixJob">Heritrix Job:</label>
-    <select id="heritrixJob" name="heritrixJob" class="chosen">
-        [#list jobs as job]
-            <option>${job.name}</option>
-        [/#list]
-    </select><br>
-    <label for="crawlSeriesId">Crawl Series:</label>
-    <select id="crawlSeriesId" name="crawlSeriesId" class="chosen">
-        [#list allCrawlSeries as series]
-            <option value="${series.id}"[#if series.id == selectedCrawlSeriesId!-1] selected[/#if]>${series.name}</option>
-        [/#list]
-    </select><br>
-    <button type="submit">Import</button>
-</form>
+<div class="well">
+    <form method="POST" class="form-horizontal">
+        <input name="csrfToken" value="${csrfToken}" type="hidden">
 
-<script src="webjars/jquery/2.1.3/jquery.min.js"></script>
-<script src="webjars/chosen/1.2.0/chosen.jquery.min.js"></script>
-<link rel="stylesheet" href="webjars/chosen/1.2.0/chosen.min.css">
-<script>$(".chosen").chosen();</script>
+        <fieldset>
+            <div class="form-group">
+                <label for="heritrixJob" class="col-lg-2 control-label">Heritrix Job:</label>
+                <div class="col-lg-10">
+                    <select id="heritrixJob" name="heritrixJob" class="form-control" required>
+                        <option selected disabled hidden></option>
+                        [#list jobs as job]
+                            <option>${job.name}</option>
+                        [/#list]
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="crawlSeriesId" class="col-lg-2 control-label">Crawl Series:</label>
+                <div class="col-lg-10">
+                    <select id="crawlSeriesId" name="crawlSeriesId" class="form-control" required>
+                        <option selected disabled hidden></option>
+                        [#list allCrawlSeries as series]
+                            <option value="${series.id}"[#if series.id == selectedCrawlSeriesId!-1] selected[/#if]>${series.name}</option>
+                        [/#list]
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-lg-10 col-lg-offset-2">
+                    <button type="submit" class="btn btn-primary">Import Crawl</button>
+                    <a href="crawls" class="btn btn-default">Cancel</a>
+                </div>
+            </div>
+
+        </fieldset>
+
+    </form>
+</div>
+
 [/@page]

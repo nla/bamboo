@@ -76,3 +76,21 @@ body {
     width: 100%;
     height: 180px;
 }
+
+/* Collapse description headings down a bit so they don't take over the page */
+
+.description h1 {
+  font-size: 36px;
+}
+
+.description h2 {
+  font-size: 32px;
+}
+
+.description h3 {
+  font-size: 28px;
+}
+
+.description h1 a, .description h2 a, .description h3 a, .description h4 a, .description h5 a, .description h6 a {
+  color: #444;
+}

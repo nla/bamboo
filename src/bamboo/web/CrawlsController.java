@@ -2,6 +2,7 @@ package bamboo.web;
 
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
+import bamboo.util.Markdown;
 import bamboo.util.Pager;
 import droute.Csrf;
 import droute.Handler;
@@ -40,12 +41,14 @@ public class CrawlsController {
             if (crawl == null) {
                 return notFound("No such crawl: " + crawlId);
             }
+
             return render("crawls/show.ftl",
                     "crawl", crawl,
                     "series", db.findCrawlSeriesById(crawl.crawlSeriesId),
                     "warcsToBeCdxIndexed", db.countWarcsToBeCdxIndexedInCrawl(crawlId),
                     "warcsToBeSolrIndexed", db.countWarcsToBeSolrIndexedInCrawl(crawlId),
-                    "corruptWarcs", db.countCorruptWarcsInCrawl(crawlId)
+                    "corruptWarcs", db.countCorruptWarcsInCrawl(crawlId),
+                    "descriptionHtml", Markdown.render(crawl.description, request.uri())
                     );
         }
     }
@@ -67,6 +70,14 @@ public class CrawlsController {
     Response update(Request request) {
         long crawlId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
+            String description = request.formParam("description");
+            if (description != null && description.isEmpty()) {
+                description = null;
+            }
+            int rows = db.updateCrawl(crawlId, request.formParam("name"), description);
+            if (rows == 0) {
+                return notFound("No such crawl: " + crawlId);
+            }
             return seeOther(request.contextUri().resolve("crawls/" + crawlId).toString());
         }
     }

@@ -95,6 +95,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 		public final long warcSize;
 		public final long records;
 		public final long recordBytes;
+		public final String description;
 
 		public Crawl(ResultSet rs) throws SQLException {
 			String path = rs.getString("path");
@@ -110,9 +111,10 @@ public abstract class Db implements AutoCloseable, Transactional {
 			warcSize = rs.getLong("warc_size");
 			records = rs.getLong("records");
 			recordBytes = rs.getLong("record_bytes");
+			description = rs.getString("description");
 		}
 
-		private static final String[] STATE_NAMES = {"Archived", "Importing"};
+		private static final String[] STATE_NAMES = {"Archived", "Importing", "Import Failed"};
 
 		public String stateName() {
 			return STATE_NAMES[state];
@@ -128,7 +130,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	public static final int ARCHIVED = 0;
 	public static final int IMPORTING = 1;
-	public static final int IMPROT_FAILED = -1;
+	public static final int IMPORT_FAILED = 2;
 
 	@SqlQuery("SELECT * FROM crawl")
 	public abstract List<Crawl> listCrawls();
@@ -155,7 +157,10 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("UPDATE crawl SET state = :state WHERE id = :crawlId")
 	public abstract int updateCrawlState(@Bind("crawlId") long crawlId, @Bind("state") int state);
 
-	@SqlQuery("SELECT * FROM crawl LIMIT :limit OFFSET :offset")
+	@SqlUpdate("UPDATE crawl SET name = :name, description = :description WHERE id = :crawlId")
+	public abstract int updateCrawl(@Bind("crawlId") long crawlId, @Bind("name") String name, @Bind("description") String description);
+
+	@SqlQuery("SELECT * FROM crawl ORDER BY id DESC LIMIT :limit OFFSET :offset")
 	public abstract List<Crawl> paginateCrawls(@Bind("limit") long limit, @Bind("offset") long offset);
 
 	@SqlQuery("SELECT COUNT(*) FROM crawl")

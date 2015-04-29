@@ -65,7 +65,7 @@ public class ImportJob {
 			}
 		} catch (IOException e) {
 			try (Db db = dbPool.take()) {
-				db.updateCrawlState(crawl.id, Db.IMPROT_FAILED);
+				db.updateCrawlState(crawl.id, Db.IMPORT_FAILED);
 			}
 			throw new UncheckedIOException(e);
 		}

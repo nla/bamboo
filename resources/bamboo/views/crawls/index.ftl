@@ -1,5 +1,7 @@
 [@page title="Crawls"]
 
+<h3>Crawls <a href="import" class="btn btn-default pull-right">Import from Heritrix</a></h3>
+
 [#if crawls.isEmpty()]
     <p>No crawls found.</p>
 [#else]
@@ -7,6 +9,5 @@
     [@pagination crawlsPager.currentPage crawlsPager.lastPage /]
 [/#if]
 
-<p><a href="import" class="btn btn-primary">Import Crawl from Heritrix</a></p>
 
 [/@page]
