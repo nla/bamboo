@@ -14,7 +14,6 @@
         <table class="table">
             <colgroup>
                 <col class="col-md-2">
-                <col class="col-md-2">
             </colgroup>
             <tr>
                 <th>Size</th>
