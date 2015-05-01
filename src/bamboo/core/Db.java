@@ -200,10 +200,28 @@ public abstract class Db implements AutoCloseable, Transactional {
 		}
 	}
 
+	public static class CrawlSeriesWithCount extends CrawlSeries {
+
+		public final long crawlCount;
+
+
+		public CrawlSeriesWithCount(ResultSet rs) throws SQLException {
+			super(rs);
+			crawlCount = rs.getLong("crawl_count");
+		}
+	}
+
 	public static class CrawlSeriesMapper implements ResultSetMapper<CrawlSeries> {
 		@Override
 		public CrawlSeries map(int index, ResultSet r, StatementContext ctx) throws SQLException {
 			return new CrawlSeries(r);
+		}
+	}
+
+	public static class CrawlSeriesWithCountMapper implements ResultSetMapper<CrawlSeriesWithCount> {
+		@Override
+		public CrawlSeriesWithCount map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+			return new CrawlSeriesWithCount(r);
 		}
 	}
 
@@ -216,8 +234,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlQuery("SELECT COUNT(*) FROM crawl_series")
 	public abstract long countCrawlSeries();
 
-	@SqlQuery("SELECT * FROM crawl_series ORDER BY name LIMIT :limit OFFSET :offset")
-	public abstract List<CrawlSeries> paginateCrawlSeries(@Bind("limit") long limit, @Bind("offset") long offset);
+	@SqlQuery("SELECT *, (SELECT COUNT(*) FROM crawl WHERE crawl_series_id = crawl_series.id) crawl_count FROM crawl_series ORDER BY name LIMIT :limit OFFSET :offset")
+	public abstract List<CrawlSeriesWithCount> paginateCrawlSeries(@Bind("limit") long limit, @Bind("offset") long offset);
 
 	@SqlUpdate("UPDATE crawl_series SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
 	public abstract int incrementRecordStatsForCrawlSeries(@Bind("id") long crawlSeriesId, @Bind("records") long records, @Bind("bytes") long bytes);
