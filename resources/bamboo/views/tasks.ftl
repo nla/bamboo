@@ -1,6 +1,9 @@
 [@page title="Task Manager"]
-<table>
-    <tr><th>Task</th><th>Status</th></tr>
+
+<h3>Task Manager</h3>
+
+<table class="table">
+    <tr><th>Task</th><th>Status</th><th></th></tr>
     [#list tasks as task]
         <tr>
             <td>${task.name}</td>

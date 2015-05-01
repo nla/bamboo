@@ -1,11 +1,5 @@
 [@page title="Edit Crawl"]
 
-<ol class="breadcrumb">
-    <li><a href="crawls">Crawls</a></li>
-    <li><a href="crawls/${crawl.id}">${crawl.name}</a></li>
-    <li class="active">Edit</li>
-</ol>
-
 <h3>Edit Crawl</h3>
 <div class="well">
 <form method="post" class="form-vertical">
@@ -24,7 +18,7 @@
             <label for="description" class="col-lg-2 control-label">Description</label>
             <div class="col-lg-10">
                 <textarea class="form-control" rows="10" id="description" name="description">${(crawl.description)!}</textarea>
-                <span class="help-block"><a href="https://help.github.com/articles/markdown-basics/">Markdown</a> is enabled. You may use <tt>**bold**</tt> and <tt>*italics*</tt> or link to pages <tt>[like this](http://example.org)</tt></span>
+                <span class="help-block"><a href="https://help.github.com/articles/markdown-basics/">Markdown</a> is enabled.</span>
             </div>
         </div>
 

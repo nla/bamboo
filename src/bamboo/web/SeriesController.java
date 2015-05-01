@@ -31,7 +31,7 @@ public class SeriesController {
 
     Response index(Request request) {
         try (Db db = bamboo.dbPool.take()) {
-            Pager<Db.CrawlSeries> pager = new Pager<>(request, "page", db.countCrawls(), db::paginateCrawlSeries);
+            Pager<Db.CrawlSeries> pager = new Pager<>(request, "page", db.countCrawlSeries(), db::paginateCrawlSeries);
             return render("series/index.ftl",
                     "seriesList", pager.items,
                     "seriesPager", pager);

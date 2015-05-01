@@ -1,1 +1,0 @@
-ALTER TABLE crawl ADD description TEXT;

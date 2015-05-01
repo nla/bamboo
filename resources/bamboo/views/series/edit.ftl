@@ -1,40 +1,73 @@
 [@page title="Edit Crawl Series"]
-<form method="post">
-    <input name="csrfToken" value="${csrfToken}" type="hidden">
-    [#include "_form.ftl"]
 
-    <h3>Collections</h3>
-    <table class="table" id="collectionsTable">
-        <colgroup>
-            <col class="col-md-2">
-        </colgroup>
-        <tbody>
-            <tr>
-                <th>Name</th>
-                <th>URL Filters</th>
-            </tr>
-            [#list collections as collection]
-                <tr id="collection-${collection.id}">
-                    <td>${collection.name}<input type='hidden' name='collection.id' value="${collection.id}"></td>
-                    <td><textarea name="collection.urlFilters">${collection.urlFilters}</textarea></td>
-                    <td><button class='btn btn-danger removeButton' type='button'>Remove</button></td>
-                </tr>
-            [/#list]
-            <tr>
-                <td>
-                    <select class="chosen" id="addToCollectionDropDown">
-                        [#list allCollections as collection]
-                            <option value="${collection.id}">${collection.name}</option>
-                        [/#list]
-                    </select>
-                    <button class="btn btn-primary" type="button" id="addToCollectionButton">Add</button>
-                </td>
-            </tr>
-        </tbody>
-    </table>
+<ol class="breadcrumb">
+    <li><a href="series">Series</a></li>
+    <li><a href="series/${series.id}">${series.name}</a></li>
+    <li class="active">Edit</li>
+</ol>
 
-    <button type="submit" class="btn btn-primary">Save</button>
-</form>
+<h3>Edit Series</h3>
+
+<div class="well">
+    <form method="post" class="form-horizontal">
+        <input name="csrfToken" value="${csrfToken}" type="hidden">
+        <fieldset>
+            [#include "_form.ftl"]
+
+            <div class="form-group">
+                <label class="col-lg-2 control-label">Collections</label>
+                <div class="col-lg-10">
+                    <table class="table" id="collectionsTable">
+                        <colgroup>
+                            <col class="col-md-2">
+                        </colgroup>
+                        <tbody>
+                            <tr>
+                                <th>Name</th>
+                                <th>URL Filters</th>
+                            </tr>
+                            [#if collections?size > 0]
+                                [#list collections as collection]
+                                    <tr id="collection-${collection.id}">
+                                        <td>${collection.name}<input type='hidden' name='collection.id' value="${collection.id}"></td>
+                                        <td><textarea name="collection.urlFilters">${collection.urlFilters}</textarea></td>
+                                        <td><button class='btn btn-danger removeButton' type='button'>Remove</button></td>
+                                    </tr>
+                                [/#list]
+                            [#else]
+                                <tr><td colspan="3">None</td></tr>
+                            [/#if]
+                            <tr>
+                                <td colspan="2">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <select class="form-control" id="addToCollectionDropDown">
+                                                [#list allCollections as collection]
+                                                <option value="${collection.id}">${collection.name}</option>
+                                                [/#list]
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button class="btn btn-sm btn-default" type="button" id="addToCollectionButton">Add</button>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="col-lg-10 col-lg-offset-2">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <a href="series/${series.id}" class="btn btn-default">Cancel</a>
+                </div>
+            </div>
+
+        </fieldset>
+    </form>
+</div>
 
 <script src="webjars/jquery/2.1.3/jquery.min.js"></script>
 <script src="webjars/chosen/1.2.0/chosen.jquery.min.js"></script>

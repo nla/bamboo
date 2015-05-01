@@ -1,6 +1,25 @@
 /* Move down content because we have a fixed navbar that is 50px tall */
+
+.container {
+  background: #ffffff;
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+.main {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
 body {
-  padding-top: 50px;
+  padding-top: 65px;
+
+  background-color: rgb(244,231,219);
+  background-image: url(xu-wei-bamboo.jpg);
+  background-repeat: no-repeat;
+  background-position: bottom -70px left;
+  background-attachment: fixed;
+
+  font-size: 16px;
 }
 
 /*
@@ -59,18 +78,6 @@ body {
  * Main content
  */
 
-.main {
-  padding: 20px;
-}
-@media (min-width: 768px) {
-  .main {
-    padding-right: 40px;
-    padding-left: 40px;
-  }
-}
-.main .page-header {
-  margin-top: 0;
-}
 
 #collectionsTable textarea {
     width: 100%;

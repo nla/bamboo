@@ -1,21 +1,9 @@
 [@page title="Overview"]
 
-<h2>Crawl Series</h2>
-<ul>
-    [#list seriesList as series]
-    <li><a href="series/${series.id}">${series.name}</a></li>
-    [/#list]
-</ul>
-
+<h3>Dashboard</h3>
+<p><i>TBD: What sort of useful overview things should we include here?</i></p>
 <div id="dummy-chart" style="width: 400px; height: 400px;"></div>
-
-<h2>Collections</h2>
-<ul>
-    [#list collections as collection]
-        <li><a href="collections/${collection.id}">${collection.name}</a></li>
-    [/#list]
-</ul>
-
+<p></p>
 
 <script src="webjars/flotr2/d43f8566e8/flotr2.min.js"></script>
 <script>

@@ -1,10 +1,5 @@
 [@page title="Crawl: ${crawl.name}"]
 
-<ol class="breadcrumb">
-    <li><a href="crawls">Crawls</a></li>
-    <li class="active">${crawl.name}</li>
-</ol>
-
 [#macro indexingProgress todo]
     [#if todo > 0]
         ${todo} warcs require indexing
@@ -64,21 +59,9 @@
                     ${crawl.warcFiles} warc files; <abbr title="${crawl.warcSize} bytes">${si(crawl.warcSize)}B
                 </td></tr>
             <tr>
-
-
-
-            <!--
-
-            -->
         </table>
     </div>
 </div>
-
-
-
-
-
-
 
 
 [/@page]

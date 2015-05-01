@@ -12,8 +12,9 @@
 
 </head>
 <body>
+
 <nav class="navbar navbar-default navbar-fixed-top">
-    <div class="container-fluid">
+    <div class="container">
         <div class="navbar-header">
             <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
                 <span class="sr-only">Toggle navigation</span>
@@ -21,49 +22,47 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-            <a class="navbar-brand" href="#">Bamboo</a>
+
+            <ul class="nav navbar-nav nav-tabs">
+                <li [#if request.path() = "/"]class="active"[/#if]><a class="navbar-brand" href=".">Bamboo</a>
+                <li [#if request.path().startsWith("/crawls")]class="active"[/#if]><a href="crawls">Crawls</a>
+                <li [#if request.path().startsWith("/series")]class="active"[/#if]><a href="series" id="navCrawlSeries">Series</a>
+                <li [#if request.path().startsWith("/collections")]class="active"[/#if]><a href="collections">Collections</a>
+            </ul>
         </div>
         <div id="navbar" class="navbar-collapse collapse">
-            <ul class="nav navbar-nav navbar-right">
-                <li><a href="http://pandas.nla.gov.au/">PANDAS</a></li>
-                <!--
-                <li><a href="#">Settings</a></li>
-                <li><a href="#">Profile</a></li>
-                <li><a href="#">Help</a></li>
-                -->
-            </ul>
             <form class="navbar-form navbar-right">
                 <input type="text" class="form-control" placeholder="Search...">
             </form>
+            <ul class="nav navbar-nav navbar-right nav-tabs">
+                <li><a href="http://dl.nla.gov.au/agwa/stayback">Access Control</a></li>
+                <li [#if request.path().startsWith("/tasks")]class="active"[/#if]><a href="tasks">Task Manager</a></li>
+            </ul>
         </div>
     </div>
 </nav>
 
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-sm-3 col-md-2 sidebar">
-            <ul class="nav nav-sidebar">
-                <li><a href="#">Overview</a></li>
-                <li><a href="#">Collections</a></li>
-                <li><a href="series" id="navCrawlSeries">Crawl Series</a></li>
-                <li><a href="crawls">Crawls</a></li>
-            </ul>
-            <ul class="nav nav-sidebar">
-                <li><a href="tasks">Task Manager</a></li>
-            </ul>
-            <ul class="nav nav-sidebar">
-                <li><a href="import">Import Crawl from Heritrix</a></li>
-            </ul>
+<div class="container main">
+    <!--
+<div class="row">
 
-            <ul class="nav nav-sidebar">
-                <li><a href="http://dl.nla.gov.au/agwa/stayback/">Access Control</a></li>
-            </ul>
-        </div>
-        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
-            <!-- <h2 class="page-header">${title}</h2> -->
-    [#nested/]
-        </div>
+    <div class="col-sm-3 col-md-2 sidebar">
+        <ul class="nav nav-sidebar">
+            <li><a href="crawls">Crawls</a></li>
+            <li><a href="series" id="navCrawlSeries">Series</a></li>
+            <li><a href="collections">Collections</a></li>
+        </ul>
+        <ul class="nav nav-sidebar">
+            <li><a href="tasks">Task Manager</a></li>
+            <li><a href="http://dl.nla.gov.au/agwa/stayback/">Access Control</a></li>
+        </ul>
     </div>
+    <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+        <!-- <h2 class="page-header">${title}</h2> -->
+    [#nested/]
+    <!--
+        </div>
+    </div> -->
 </div>
 </body>
 </html>
@@ -107,6 +106,8 @@
     [#else]
         [#assign pages = (current - 2)..(current + 2)]
     [/#if]
+<div class="row">
+    <div class="col-md-12 text-center">
     <nav>
         <ul class="pagination">
             [#if (current > 1)]
@@ -140,6 +141,8 @@
             [/#if]
         </ul>
     </nav>
+        </div></div>
+
 [/#macro]
 
 [#macro progress now max=100 min=0]

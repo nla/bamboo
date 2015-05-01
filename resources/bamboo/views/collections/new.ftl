@@ -1,6 +1,6 @@
-[@page title="Edit Collection"]
+[@page title="New Collection"]
 
-<h3>Edit Collection</h3>
+<h3>New Collection</h3>
 
 <div class="well">
     <form method="post" class="form-horizontal">
@@ -11,11 +11,12 @@
 
             <div class="form-group">
                 <div class="col-lg-10 col-lg-offset-2">
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                    <a href="collections/${collection.id}" class="btn btn-default">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Create Collection</button>
+                    <a href="collections" class="btn btn-default">Cancel</a>
                 </div>
             </div>
         </fieldset>
     </form>
 </div>
+
 [/@page]

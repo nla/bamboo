@@ -15,15 +15,6 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	public abstract  void close();
 
-	@SqlUpdate("UPDATE crawl SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
-	public abstract int incrementRecordStatsForCrawl(@Bind("id") long crawlId, @Bind("records") long records, @Bind("bytes") long bytes);
-
-	@SqlUpdate("UPDATE crawl_series SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
-	public abstract int incrementRecordStatsForCrawlSeries(@Bind("id") long crawlSeriesId, @Bind("records") long records, @Bind("bytes") long bytes);
-
-	@SqlUpdate("UPDATE collection SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
-	public abstract int incrementRecordStatsForCollection(@Bind("id") long collectionId, @Bind("records") long records, @Bind("bytes") long bytes);
-
 	public static class Collection {
 		public final long id;
 		public final String name;
@@ -65,8 +56,17 @@ public abstract class Db implements AutoCloseable, Transactional {
 		}
 	}
 
+	@SqlUpdate("SELECT COUNT(*) FROM collection")
+	public abstract long countCollections();
+
 	@SqlQuery("SELECT * FROM collection ORDER BY name")
 	public abstract Iterable<Collection> listCollections();
+
+	@SqlQuery("SELECT * FROM collection ORDER BY name LIMIT :limit OFFSET :offset")
+	public abstract List<Collection> paginateCollections(@Bind("limit") long limit, @Bind("offset") long offset);
+
+	@SqlUpdate("UPDATE collection SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
+	public abstract int incrementRecordStatsForCollection(@Bind("id") long collectionId, @Bind("records") long records, @Bind("bytes") long bytes);
 
 	@SqlQuery("SELECT collection.*, collection_series.url_filters FROM collection_series LEFT JOIN collection ON collection.id = collection_id WHERE crawl_series_id = :it")
 	public abstract List<CollectionWithFilters> listCollectionsForCrawlSeries(@Bind long crawlSeriesId);
@@ -80,8 +80,12 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlQuery("SELECT * FROM collection WHERE id = :id")
 	public abstract  Collection findCollection(@Bind("id") long id);
 
-	@SqlUpdate("UPDATE collection SET name = :name, cdx_url = :cdxUrl, solr_url = :solrUrl WHERE id = :id")
-	public abstract int updateCollection(@Bind("id") long collectionId, @Bind("name")  String name, @Bind("cdxUrl") String cdxUrl, @Bind("solrUrl")  String solrUrl);
+	@SqlUpdate("INSERT INTO collection(name, description, cdx_url, solr_url) VALUES (:name, :description, :cdxUrl, :solrUrl)")
+	@GetGeneratedKeys
+	public abstract long createCollection(@Bind("name")  String name, @Bind("description") String description, @Bind("cdxUrl") String cdxUrl, @Bind("solrUrl")  String solrUrl);
+
+	@SqlUpdate("UPDATE collection SET name = :name, description = :description, cdx_url = :cdxUrl, solr_url = :solrUrl WHERE id = :id")
+	public abstract int updateCollection(@Bind("id") long collectionId, @Bind("name")  String name, @Bind("description") String description, @Bind("cdxUrl") String cdxUrl, @Bind("solrUrl") String solrUrl);
 
 	public static class Crawl {
 		public final long id;
@@ -160,6 +164,9 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("UPDATE crawl SET name = :name, description = :description WHERE id = :crawlId")
 	public abstract int updateCrawl(@Bind("crawlId") long crawlId, @Bind("name") String name, @Bind("description") String description);
 
+	@SqlUpdate("UPDATE crawl SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
+	public abstract int incrementRecordStatsForCrawl(@Bind("id") long crawlId, @Bind("records") long records, @Bind("bytes") long bytes);
+
 	@SqlQuery("SELECT * FROM crawl ORDER BY id DESC LIMIT :limit OFFSET :offset")
 	public abstract List<Crawl> paginateCrawls(@Bind("limit") long limit, @Bind("offset") long offset);
 
@@ -202,11 +209,14 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlQuery("SELECT * FROM crawl_series ORDER BY name")
 	public abstract List<CrawlSeries> listCrawlSeries();
 
-	@SqlQuery("COUNT(*) FROM crawl_series")
+	@SqlQuery("SELECT COUNT(*) FROM crawl_series")
 	public abstract long countCrawlSeries();
 
 	@SqlQuery("SELECT * FROM crawl_series ORDER BY name LIMIT :limit OFFSET :offset")
 	public abstract List<CrawlSeries> paginateCrawlSeries(@Bind("limit") long limit, @Bind("offset") long offset);
+
+	@SqlUpdate("UPDATE crawl_series SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
+	public abstract int incrementRecordStatsForCrawlSeries(@Bind("id") long crawlSeriesId, @Bind("records") long records, @Bind("bytes") long bytes);
 
 	@SqlUpdate("INSERT INTO crawl_series (name, path) VALUES (:name, :path)")
 	@GetGeneratedKeys
