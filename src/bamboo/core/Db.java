@@ -222,12 +222,12 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@GetGeneratedKeys
 	public abstract long createCrawlSeries(@Bind("name") String name, @Bind("path") String path);
 
-	@SqlUpdate("UPDATE crawl_series SET name = :name, path = :path WHERE id = :id")
-	public abstract int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path);
+	@SqlUpdate("UPDATE crawl_series SET name = :name, path = :path, description = :description WHERE id = :id")
+	public abstract int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path, @Bind("description") String description);
 
 	@Transaction
-	public int updateCrawlSeries(long seriesId, String name, String path, List<Long> collectionIds, List<String> collectionUrlFilters) {
-		int rows = updateCrawlSeries(seriesId, name, path);
+	public int updateCrawlSeries(long seriesId, String name, String path, String description, List<Long> collectionIds, List<String> collectionUrlFilters) {
+		int rows = updateCrawlSeries(seriesId, name, path, description);
 		if (rows > 0) {
 			removeCrawlSeriesFromAllCollections(seriesId);
 			addCrawlSeriesToCollections(seriesId, collectionIds, collectionUrlFilters);

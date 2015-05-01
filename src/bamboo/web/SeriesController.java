@@ -90,6 +90,7 @@ public class SeriesController {
 
         try (Db db = bamboo.dbPool.take()) {
             int rows = db.updateCrawlSeries(seriesId, request.formParam("name"), request.formParam("path"),
+                    request.formParam("description"),
                     collectionIds, collectionUrlFilters);
             if (rows == 0) {
                 return notFound("No such crawl series: " + seriesId);
