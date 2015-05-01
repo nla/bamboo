@@ -16,7 +16,7 @@
 <div class="form-group">
     <label for="description" class="col-lg-2 control-label">Description</label>
     <div class="col-lg-10">
-        <textarea class="form-control" rows="10" id="description" name="description">${(crawl.description)!}</textarea>
+        <textarea class="form-control" rows="10" id="description" name="description">${(series.description)!}</textarea>
         <span class="help-block"><a href="https://help.github.com/articles/markdown-basics/">Markdown</a> is enabled.</span>
     </div>
 </div>
