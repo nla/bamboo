@@ -22,6 +22,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 		public final String solrUrl;
 		public final long records;
 		public final long recordBytes;
+		public final String description;
 
 		public Collection(ResultSet rs) throws SQLException {
 			id = rs.getLong("id");
@@ -30,6 +31,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 			solrUrl = rs.getString("solr_url");
 			records = rs.getLong("records");
 			recordBytes = rs.getLong("record_bytes");
+			description = rs.getString("description");
 		}
 	}
 
@@ -184,6 +186,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 		public final long warcSize;
 		public final long records;
 		public final long recordBytes;
+		public final String description;
 
 		public CrawlSeries(ResultSet rs) throws SQLException {
 			id = rs.getLong("id");
@@ -193,6 +196,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 			warcSize = rs.getLong("warc_size");
 			records = rs.getLong("records");
 			recordBytes = rs.getLong("record_bytes");
+			description = rs.getString("description");
 		}
 	}
 

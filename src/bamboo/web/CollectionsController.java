@@ -2,18 +2,15 @@ package bamboo.web;
 
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
+import bamboo.util.Markdown;
 import bamboo.util.Pager;
 import droute.Csrf;
 import droute.Handler;
 import droute.Request;
 import droute.Response;
 
-import static droute.Response.notFound;
-import static droute.Response.render;
-import static droute.Response.seeOther;
-import static droute.Route.GET;
-import static droute.Route.POST;
-import static droute.Route.routes;
+import static droute.Response.*;
+import static droute.Route.*;
 
 public class CollectionsController {
     final Bamboo bamboo;
@@ -61,7 +58,8 @@ public class CollectionsController {
                 return notFound("No such collection: " + collectionId);
             }
             return render("collections/show.ftl",
-                    "collection", collection);
+                    "collection", collection,
+                    "descriptionHtml", Markdown.render(collection.description, request.uri()));
         }
     }
 

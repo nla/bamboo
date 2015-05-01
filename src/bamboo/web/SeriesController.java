@@ -2,6 +2,7 @@ package bamboo.web;
 
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
+import bamboo.util.Markdown;
 import bamboo.util.Pager;
 import droute.Csrf;
 import droute.Handler;
@@ -58,6 +59,7 @@ public class SeriesController {
             }
             return render("series/show.ftl",
                     "series", series,
+                    "descriptionHtml", Markdown.render(series.description, request.uri()),
                     "crawls", db.findCrawlsByCrawlSeriesId(seriesId),
                     "collections", db.listCollectionsForCrawlSeries(seriesId));
         }
