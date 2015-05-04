@@ -168,7 +168,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlQuery("SELECT crawl.* FROM crawl LEFT JOIN cdx_crawl ON crawl.id = cdx_crawl.crawl_id WHERE cdx_id = :cdx_id")
 	public abstract Iterable<Crawl> findCrawlsByCdxId(@Bind("cdx_id") long cdxId);
 
-	@SqlQuery("SELECT * FROM crawl WHERE crawl_series_id = :crawl_series_id")
+	@SqlQuery("SELECT * FROM crawl WHERE crawl_series_id = :crawl_series_id ORDER BY id DESC")
 	public abstract Iterable<Crawl> findCrawlsByCrawlSeriesId(@Bind("crawl_series_id") long crawlSeriesId);
 
 	@SqlQuery("SELECT * FROM crawl WHERE state = :state")
