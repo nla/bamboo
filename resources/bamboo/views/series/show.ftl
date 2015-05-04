@@ -48,8 +48,25 @@
 
 <h4>Crawls <a href="import?crawlSeries=${series.id}" class="btn btn-primary pull-right">Import from Heritrix</a></h4>
 
-[#include "/crawls/_list.ftl"]
-
-
+<table class="table">
+    <thead>
+    <tr>
+        <td>Name</td>
+        <td>Size</td>
+        <td>Finished</td>
+        <td>Alerts</td>
+    </tr>
+    </thead>
+    <tbody>
+    [#list crawls as crawl]
+    <tr>
+        <td><a href="crawls/${crawl.id}">${crawl.name}</a></td>
+        <td>${si(crawl.recordBytes)}B</td>
+        <td>1/1/2013</td>
+        <td></td>
+    </tr>
+    [/#list]
+    </tbody>
+</table>
 
 [/@page]

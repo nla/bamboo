@@ -127,10 +127,27 @@ public abstract class Db implements AutoCloseable, Transactional {
 		}
 	}
 
+	public static class CrawlWithSeriesName extends Crawl {
+		public final String seriesName;
+
+
+		public CrawlWithSeriesName(ResultSet rs) throws SQLException {
+			super(rs);
+			this.seriesName = rs.getString("crawl_series.name");
+		}
+	}
+
 	public static class CrawlMapper implements ResultSetMapper<Crawl> {
 		@Override
 		public Crawl map(int index, ResultSet r, StatementContext ctx) throws SQLException {
 			return new Crawl(r);
+		}
+	}
+
+	public static class CrawlWithSeriesNameMapper implements ResultSetMapper<CrawlWithSeriesName> {
+		@Override
+		public CrawlWithSeriesName map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+			return new CrawlWithSeriesName(r);
 		}
 	}
 
@@ -171,6 +188,9 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	@SqlQuery("SELECT * FROM crawl ORDER BY id DESC LIMIT :limit OFFSET :offset")
 	public abstract List<Crawl> paginateCrawls(@Bind("limit") long limit, @Bind("offset") long offset);
+
+	@SqlQuery("SELECT crawl.*, crawl_series.name FROM crawl LEFT JOIN crawl_series ON crawl.crawl_series_id = crawl_series.id ORDER BY crawl.id DESC LIMIT :limit OFFSET :offset")
+	public abstract List<CrawlWithSeriesName> paginateCrawlsWithSeriesName(@Bind("limit") long limit, @Bind("offset") long offset);
 
 	@SqlQuery("SELECT COUNT(*) FROM crawl")
 	public abstract long countCrawls();

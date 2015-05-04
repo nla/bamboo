@@ -27,7 +27,7 @@ public class CrawlsController {
 
     Response index(Request request) {
         try (Db db = bamboo.dbPool.take()) {
-            Pager<Db.Crawl> pager = new Pager<>(request, "page", db.countCrawls(), db::paginateCrawls);
+            Pager<Db.CrawlWithSeriesName> pager = new Pager<>(request, "page", db.countCrawls(), db::paginateCrawlsWithSeriesName);
             return render("crawls/index.ftl",
                     "crawls", pager.items,
                     "crawlsPager", pager);

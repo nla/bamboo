@@ -25,6 +25,7 @@ public class DbPool implements Closeable {
         dbi = new DBI(ds);
         dbi.registerMapper(new Db.CollectionMapper());
         dbi.registerMapper(new Db.CrawlMapper());
+        dbi.registerMapper(new Db.CrawlWithSeriesNameMapper());
         dbi.registerMapper(new Db.CrawlSeriesMapper());
         dbi.registerMapper(new Db.CrawlSeriesWithCountMapper());
         dbi.registerMapper(new Db.WarcMapper());
