@@ -16,8 +16,11 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipException;
 
 public class CdxIndexer implements Runnable {
@@ -122,6 +125,12 @@ public class CdxIndexer implements Runnable {
             db.inTransaction((t, s) -> {
                 db.updateWarcCdxIndexed(warc.id, System.currentTimeMillis(), stats.records, stats.bytes);
                 db.incrementRecordStatsForCrawl(warc.crawlId, stats.records, stats.bytes);
+                if (stats.startTime != null) {
+                    db.conditionallyUpdateCrawlStartTime(warc.crawlId, stats.startTime);
+                }
+                if (stats.endTime != null) {
+                    db.conditionallyUpdateCrawlEndTime(warc.crawlId, stats.endTime);
+                }
                 if (crawl.crawlSeriesId != null) {
                     db.incrementRecordStatsForCrawlSeries(crawl.crawlSeriesId, stats.records, stats.bytes);
                 }
@@ -147,10 +156,10 @@ public class CdxIndexer implements Runnable {
             filter = new SurtFilter(collection.urlFilters);
         }
 
-        void append(String surt, long recordLength, String cdxLine) {
+        void append(String surt, long recordLength, String cdxLine, Date time) {
             if (filter.accepts(surt)) {
                 buf.append(cdxLine);
-                stats.update(recordLength);
+                stats.update(recordLength, time);
             }
         }
 
@@ -180,10 +189,20 @@ public class CdxIndexer implements Runnable {
     private static class Stats {
         long records = 0;
         long bytes = 0;
+        Date startTime = null;
+        Date endTime = null;
 
-        void update(long recordLength) {
+        void update(long recordLength, Date time) {
             records += 1;
             bytes += recordLength;
+
+            if (startTime == null || time.before(startTime)) {
+                startTime = time;
+            }
+
+            if (endTime == null || time.after(endTime)) {
+                endTime = time;
+            }
         }
     }
 
@@ -195,10 +214,11 @@ public class CdxIndexer implements Runnable {
                 String cdxLine = formatCdxLine(filename, record);
                 if (cdxLine != null) {
                     long recordLength = record.getHeader().getContentLength();
-                    stats.update(recordLength);
+                    Date time = Warcs.parseArcDate(Warcs.getArcDate(record.getHeader()));
+                    stats.update(recordLength, time);
                     String surt = SURT.toSURT(Warcs.getCleanUrl(record.getHeader()));
                     for (CdxBuffer buffer : buffers) {
-                        buffer.append(surt, recordLength, cdxLine);
+                        buffer.append(surt, recordLength, cdxLine, time);
                     }
                 }
             }

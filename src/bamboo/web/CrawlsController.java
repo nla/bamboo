@@ -19,6 +19,7 @@ public class CrawlsController {
             GET("/crawls/:id", this::show, "id", "[0-9]+"),
             GET("/crawls/:id/edit", this::edit, "id", "[0-9]+"),
             POST("/crawls/:id/edit", this::update, "id", "[0-9]+"),
+            GET("/crawls/:id/warcs", this::listWarcs, "id", "[0-9]+"),
             POST("/crawls/:id/buildcdx", this::buildCdx, "id", "[0-9]+"));
 
     public CrawlsController(Bamboo bamboo) {
@@ -86,6 +87,23 @@ public class CrawlsController {
         long crawlId = Long.parseLong(request.urlParam("id"));
         //bamboo.buildCdx(crawlId);
         return seeOther(request.contextUri().resolve("crawls/" + crawlId).toString());
+    }
+
+    Response listWarcs(Request request) {
+        long crawlId = Long.parseLong(request.urlParam("id"));
+        try (Db db = bamboo.dbPool.take()) {
+            Db.Crawl crawl = db.findCrawl(crawlId);
+            if (crawl == null) {
+                return notFound("No such crawl: " + crawlId);
+            }
+
+            Pager<Db.Warc> pager = new Pager<>(request, "page", crawl.warcFiles,
+                    (limit, offset) -> db.paginateWarcsInCrawl(crawlId, limit, offset));
+            return render("crawls/warcs.ftl",
+                    "crawl", crawl,
+                    "warcs", pager.items,
+                    "warcsPager", pager);
+        }
     }
 
 }

@@ -12,7 +12,6 @@
             <td>Series</td>
             <td>Size</td>
             <td>Finished</td>
-            <td>Alerts</td>
         </tr>
         </thead>
         <tbody>
@@ -21,8 +20,7 @@
             <td><a href="crawls/${crawl.id}">${crawl.name}</a></td>
             <td><a href="series/${crawl.crawlSeriesId}">${crawl.seriesName}</a></td>
             <td>${si(crawl.recordBytes)}B</td>
-            <td>1/1/2013</td>
-            <td></td>
+            <td>${(crawl.endTime?date)!""}</td>
         </tr>
         [/#list]
         </tbody>

@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.List;
 
 public abstract class Db implements AutoCloseable, Transactional {
@@ -102,6 +103,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 		public final long records;
 		public final long recordBytes;
 		public final String description;
+		public final Date startTime;
+		public final Date endTime;
 
 		public Crawl(ResultSet rs) throws SQLException {
 			String path = rs.getString("path");
@@ -118,6 +121,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 			records = rs.getLong("records");
 			recordBytes = rs.getLong("record_bytes");
 			description = rs.getString("description");
+			startTime = (Date)rs.getObject("start_time");
+			endTime = (Date)rs.getObject("end_time");
 		}
 
 		private static final String[] STATE_NAMES = {"Archived", "Importing", "Import Failed"};
@@ -186,10 +191,16 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("UPDATE crawl SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
 	public abstract int incrementRecordStatsForCrawl(@Bind("id") long crawlId, @Bind("records") long records, @Bind("bytes") long bytes);
 
-	@SqlQuery("SELECT * FROM crawl ORDER BY id DESC LIMIT :limit OFFSET :offset")
+	@SqlUpdate("UPDATE crawl SET start_time = :time WHERE id = :crawlId AND (start_time IS NULL OR start_time > :time)")
+	public abstract int conditionallyUpdateCrawlStartTime(@Bind("crawlId") long crawlId, @Bind("time") Date time);
+
+	@SqlUpdate("UPDATE crawl SET end_time = :time WHERE id = :crawlId AND (end_time IS NULL OR end_time < :time)")
+	public abstract int conditionallyUpdateCrawlEndTime(@Bind("crawlId") long crawlId, @Bind("time") Date time);
+
+	@SqlQuery("SELECT * FROM crawl ORDER BY end_time DESC, id DESC LIMIT :limit OFFSET :offset")
 	public abstract List<Crawl> paginateCrawls(@Bind("limit") long limit, @Bind("offset") long offset);
 
-	@SqlQuery("SELECT crawl.*, crawl_series.name FROM crawl LEFT JOIN crawl_series ON crawl.crawl_series_id = crawl_series.id ORDER BY crawl.id DESC LIMIT :limit OFFSET :offset")
+	@SqlQuery("SELECT crawl.*, crawl_series.name FROM crawl LEFT JOIN crawl_series ON crawl.crawl_series_id = crawl_series.id ORDER BY crawl.end_time DESC, crawl.id DESC LIMIT :limit OFFSET :offset")
 	public abstract List<CrawlWithSeriesName> paginateCrawlsWithSeriesName(@Bind("limit") long limit, @Bind("offset") long offset);
 
 	@SqlQuery("SELECT COUNT(*) FROM crawl")
@@ -342,6 +353,9 @@ public abstract class Db implements AutoCloseable, Transactional {
 
     @SqlQuery("SELECT * FROM warc WHERE solr_indexed = 0 AND corrupt = 0")
 	public abstract List<Warc> findWarcsToSolrIndex();
+
+	@SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId LIMIT :limit OFFSET :offset")
+	public abstract List<Warc> paginateWarcsInCrawl(@Bind("crawlId") long crawlId, @Bind("limit") long limit, @Bind("offset") long offset);
 
 	@SqlUpdate("UPDATE warc SET cdx_indexed = :timestamp, records = :records, record_bytes = :record_bytes WHERE id = :id")
 	public abstract int updateWarcCdxIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp, @Bind("records") long records, @Bind("record_bytes") long recordBytes);

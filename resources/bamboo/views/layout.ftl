@@ -111,7 +111,7 @@
     <nav>
         <ul class="pagination">
             [#if (current > 1)]
-                <li><a href="${url}?page=${current - 1}" aria-label="Previous">
+                <li><a href="${url}?page=${(current - 1)?c}" aria-label="Previous">
                     <span aria-hidden="true">&laquo;</span>
                 </a></li>
             [#else]
@@ -125,15 +125,15 @@
                 [#if page == current]
                     <li class="active"><span>${page}</span></li>
                 [#else]
-                    <li><a href="${url}?page=${page}">${page}</a></li>
+                    <li><a href="${url}?page=${page?c}">${page}</a></li>
                 [/#if]
             [/#list]
             [#if (last - current >= 5)]
                 <li class="disabled"><span aria-hidden="true">&hellip;</span></li>
-                <li><a href="${url}?page=${last}">${last}</a></li>
+                <li><a href="${url}?page=${last?c}">${last}</a></li>
             [/#if]
             [#if current < last]
-                <li><a href="${url}?page=${current + 1}" aria-label="Next">
+                <li><a href="${url}?page=${(current + 1)?c}" aria-label="Next">
                     <span aria-hidden="true">&raquo;</span>
                 </a></li>
             [#else]

@@ -4,6 +4,7 @@ import bamboo.io.HeritrixJob;
 import bamboo.task.CdxIndexer;
 import bamboo.task.SolrIndexer;
 import bamboo.task.Taskmaster;
+import bamboo.task.Warcs;
 import bamboo.web.Main;
 import doss.BlobStore;
 
@@ -12,6 +13,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Bamboo implements AutoCloseable {
     public final Config config;
@@ -106,6 +110,9 @@ public class Bamboo implements AutoCloseable {
             case "solr-indexer":
                 bamboo.runSolrIndexer();
                 break;
+            case "recalc-crawl-times":
+                bamboo.recalcCrawlTimes();
+                break;
             case "refresh-warc-stats":
                 bamboo.refreshWarcStats();
                 break;
@@ -120,6 +127,24 @@ public class Bamboo implements AutoCloseable {
         }
     }
 
+    /**
+     * Update crawls with an appriximation of their start and end times based on the timestamp extracted from (W)ARC
+     * filenames.  Bit of a migration hack to fill in the table without a full reindex.
+     */
+    public void recalcCrawlTimes() {
+        Pattern p = Pattern.compile(".*-((?:20|19)[0-9]{12,15})-[0-9]{5}-.*");
+        try (Db db = dbPool.take()) {
+            for (Db.Warc warc : db.listWarcs()) {
+                Matcher m = p.matcher(warc.filename);
+                if (m.matches()) {
+                    Date date = Warcs.parseArcDate(m.group(1).substring(0, 14));
+                    db.conditionallyUpdateCrawlStartTime(warc.crawlId, date);
+                    db.conditionallyUpdateCrawlEndTime(warc.crawlId, date);
+                }
+            }
+        }
+    }
+
     public static void usage() {
         System.out.println("Usage: bamboo <subcommand>");
         System.out.println("Bamboo admin tools");
@@ -127,6 +152,7 @@ public class Bamboo implements AutoCloseable {
         System.out.println("  cdx-indexer                      - Run the CDX indexer");
         System.out.println("  import <jobName> <crawlSeriesId> - Import a crawl from Heritrix");
         System.out.println("  insert-warc <crawl-id> <paths>   - Register WARCs with a crawl");
+        System.out.println("  recalc-crawl-times               - Fill approx crawl times based on warc filenames (migration hack)");
         System.out.println("  refresh-warc-stats               - Refresh warc stats tables");
         System.out.println("  refresh-warc-stats-fs            - Refresh warc stats tables based on disk");
         System.out.println("  server                           - Run web server");

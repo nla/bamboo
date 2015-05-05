@@ -121,6 +121,7 @@ public class WarcsController {
                 return response(200, Files.newInputStream(warc.path))
                         .withHeader("Content-Length", Long.toString(warc.size))
                         .withHeader("Content-Type", "application/warc")
+                        .withHeader("Content-Disposition", "filename=" + warc.filename)
                         .withHeader("Accept-Ranges", "bytes");
             } else if (ranges.size() == 1) {
                 return singleRangeResponse(warc.path, ranges.get(0));

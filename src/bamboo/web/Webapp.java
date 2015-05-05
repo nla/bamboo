@@ -98,9 +98,8 @@ public class Webapp implements Handler, AutoCloseable {
             if (crawlSeries == null) {
                 return badRequest("No such crawl series: " + crawlSeriesId);
             }
-            bamboo.importHeritrixCrawl(jobName, crawlSeriesId);
-
-            return seeOther(request.contextUri().resolve("crawls").toString());
+            long crawlId = bamboo.importHeritrixCrawl(jobName, crawlSeriesId);
+            return seeOther(request.contextUri().resolve("crawls/" + crawlId).toString());
         }
     }
 

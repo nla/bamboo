@@ -8,12 +8,14 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 
 public class Warcs {
 
-    final static DateTimeFormatter warcDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
-    final static DateTimeFormatter arcDateFormat = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    public final static DateTimeFormatter warcDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
+    public final static DateTimeFormatter arcDateFormat = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     private Warcs() {
     }
@@ -69,5 +71,10 @@ public class Warcs {
             return warcDate; // already an ARC date
         }
         return LocalDateTime.parse(warcDate, warcDateFormat).format(arcDateFormat);
+    }
+
+    public static Date parseArcDate(String arcDate) {
+        LocalDateTime parsed = LocalDateTime.parse(arcDate, arcDateFormat);
+        return Date.from(parsed.toInstant(ZoneOffset.UTC));
     }
 }

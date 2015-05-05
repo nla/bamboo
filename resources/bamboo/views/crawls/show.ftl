@@ -49,14 +49,14 @@
                 <col class="col-md-2">
             </colgroup>
             <tr><th>Collected</th>
-                <td>2/8/2013&ndash;5/8/2013</td>
+                <td>${crawl.startTime!"unknown"}&ndash;<br>${crawl.endTime!"unknown"}</td>
             </tr>
             <tr><th>Series</th><td><a href="series/${series.id}">${series.name}</a></td></tr>
             <tr>
                 <th>Size</th>
                 <td>
                     ${crawl.records} records; <abbr title="${crawl.recordBytes} bytes">${si(crawl.recordBytes)}B</abbr><br>
-                    ${crawl.warcFiles} warc files; <abbr title="${crawl.warcSize} bytes">${si(crawl.warcSize)}B
+                    <a href="crawls/${crawl.id}/warcs">${crawl.warcFiles} warc files</a>; <abbr title="${crawl.warcSize} bytes">${si(crawl.warcSize)}B
                 </td></tr>
             <tr>
         </table>
