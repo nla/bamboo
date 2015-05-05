@@ -25,7 +25,7 @@
         <div class="form-group">
             <div class="col-lg-10 col-lg-offset-2">
                 <button type="submit" class="btn btn-primary">Save Changes</button>
-                <a href="crawls/${crawl.id}" class="btn btn-default">Cancel</a>
+                <a href="crawls/${crawl.id?c}" class="btn btn-default">Cancel</a>
             </div>
         </div>
     </fieldset>

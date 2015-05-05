@@ -1,6 +1,6 @@
 [@page title="${collection.name}"]
 
-<h3>${collection.name} <a href="collections/${collection.id}/edit" class="btn btn-default pull-right">Edit</a></h3>
+<h3>${collection.name} <a href="collections/${collection.id?c}/edit" class="btn btn-default pull-right">Edit</a></h3>
 
 <div class="row">
     <div class="col-md-8">

@@ -1,6 +1,6 @@
 [@page title="WARC files in ${crawl.name}"]
 
-<h3>WARC files in <a href="crawls/${crawl.id}">${crawl.name}</a></h3>
+<h3>WARC files in <a href="crawls/${crawl.id?c}">${crawl.name}</a></h3>
 
 <table class="table">
     <thead>

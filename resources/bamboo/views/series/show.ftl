@@ -1,6 +1,6 @@
 [@page title="${series.name}"]
 
-<h3>${series.name} <a class="btn btn-default pull-right" href="series/${series.id}/edit">Edit</a></h3>
+<h3>${series.name} <a class="btn btn-default pull-right" href="series/${series.id?c}/edit">Edit</a></h3>
 
 <div class="row">
     <div class="col-md-8">
@@ -29,7 +29,7 @@
                     [#else]
                         <ul>
                             [#list collections as collection]
-                                <li><a href="collections/${collection.id}">${collection.name}</a>
+                                <li><a href="collections/${collection.id?c}">${collection.name}</a>
                                     [#if collection.urlFilters?has_content] (filtered)
                                     <div class="text-indent-8">
                                         <pre>${collection.urlFilters}</pre>
@@ -46,7 +46,7 @@
 </div>
 
 
-<h4>Crawls <a href="import?crawlSeries=${series.id}" class="btn btn-primary pull-right">Import from Heritrix</a></h4>
+<h4>Crawls <a href="import?crawlSeries=${series.id?c}" class="btn btn-primary pull-right">Import from Heritrix</a></h4>
 
 <table class="table">
     <thead>
@@ -59,7 +59,7 @@
     <tbody>
     [#list crawls as crawl]
     <tr>
-        <td><a href="crawls/${crawl.id}">${crawl.name}</a></td>
+        <td><a href="crawls/${crawl.id?c}">${crawl.name}</a></td>
         <td>${si(crawl.recordBytes)}B</td>
         <td>${(crawl.endTime?date)!""}</td>
     </tr>

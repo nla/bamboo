@@ -10,7 +10,7 @@
     [/#if]
 [/#macro]
 
-<h3>${crawl.name} <a class="btn btn-default pull-right" href="crawls/${crawl.id}/edit">Edit</a></h3>
+<h3>${crawl.name} <a class="btn btn-default pull-right" href="crawls/${crawl.id?c}/edit">Edit</a></h3>
 
 [#if crawl.state == 1]
     <div class="alert alert-info" role="alert">
@@ -51,12 +51,12 @@
             <tr><th>Collected</th>
                 <td>${crawl.startTime!"unknown"}&ndash;<br>${crawl.endTime!"unknown"}</td>
             </tr>
-            <tr><th>Series</th><td><a href="series/${series.id}">${series.name}</a></td></tr>
+            <tr><th>Series</th><td><a href="series/${series.id?c}">${series.name}</a></td></tr>
             <tr>
                 <th>Size</th>
                 <td>
                     ${crawl.records} records; <abbr title="${crawl.recordBytes} bytes">${si(crawl.recordBytes)}B</abbr><br>
-                    <a href="crawls/${crawl.id}/warcs">${crawl.warcFiles} warc files</a>; <abbr title="${crawl.warcSize} bytes">${si(crawl.warcSize)}B
+                    <a href="crawls/${crawl.id?c}/warcs">${crawl.warcFiles} warc files</a>; <abbr title="${crawl.warcSize} bytes">${si(crawl.warcSize)}B
                 </td></tr>
             <tr>
         </table>

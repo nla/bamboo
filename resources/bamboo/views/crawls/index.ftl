@@ -17,8 +17,8 @@
         <tbody>
         [#list crawls as crawl]
         <tr>
-            <td><a href="crawls/${crawl.id}">${crawl.name}</a></td>
-            <td><a href="series/${crawl.crawlSeriesId}">${crawl.seriesName}</a></td>
+            <td><a href="crawls/${crawl.id?c}">${crawl.name}</a></td>
+            <td><a href="series/${crawl.crawlSeriesId?c}">${crawl.seriesName}</a></td>
             <td>${si(crawl.recordBytes)}B</td>
             <td>${(crawl.endTime?date)!""}</td>
         </tr>

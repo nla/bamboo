@@ -9,7 +9,7 @@
     <tbody>
         [#list seriesList as series]
             <tr>
-                <td><a href="series/${series.id}">${series.name}</a></td>
+                <td><a href="series/${series.id?c}">${series.name}</a></td>
                 <td>${si(series.recordBytes)}B</td>
                 <td>${series.crawlCount}</td>
             </tr>

@@ -10,12 +10,12 @@
             <td>${task.status}</td>
             <td>
                 [#if task.isEnabled()]
-                    <form method="post" action="tasks/${task.id}/disable">
+                    <form method="post" action="tasks/${task.id?c}/disable">
                         <input type="hidden" name="csrfToken" value="${csrfToken}">
                         <button>Disable</button>
                     </form>
                 [#else]
-                    <form method="post" action="tasks/${task.id}/enable">
+                    <form method="post" action="tasks/${task.id?c}/enable">
                         <input type="hidden" name="csrfToken" value="${csrfToken}">
                         <button>Enable</button>
                     </form>

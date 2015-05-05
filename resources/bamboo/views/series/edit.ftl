@@ -2,7 +2,7 @@
 
 <ol class="breadcrumb">
     <li><a href="series">Series</a></li>
-    <li><a href="series/${series.id}">${series.name}</a></li>
+    <li><a href="series/${series.id?c}">${series.name}</a></li>
     <li class="active">Edit</li>
 </ol>
 
@@ -28,8 +28,8 @@
                             </tr>
                             [#if collections?size > 0]
                                 [#list collections as collection]
-                                    <tr id="collection-${collection.id}">
-                                        <td>${collection.name}<input type='hidden' name='collection.id' value="${collection.id}"></td>
+                                    <tr id="collection-${collection.id?c}">
+                                        <td>${collection.name}<input type='hidden' name='collection.id' value="${collection.id?c}"></td>
                                         <td><textarea name="collection.urlFilters">${collection.urlFilters}</textarea></td>
                                         <td><button class='btn btn-danger removeButton' type='button'>Remove</button></td>
                                     </tr>
@@ -43,7 +43,7 @@
                                         <div class="col-md-8">
                                             <select class="form-control" id="addToCollectionDropDown">
                                                 [#list allCollections as collection]
-                                                <option value="${collection.id}">${collection.name}</option>
+                                                <option value="${collection.id?c}">${collection.name}</option>
                                                 [/#list]
                                             </select>
                                         </div>
@@ -61,7 +61,7 @@
             <div class="form-group">
                 <div class="col-lg-10 col-lg-offset-2">
                     <button type="submit" class="btn btn-primary">Save Changes</button>
-                    <a href="series/${series.id}" class="btn btn-default">Cancel</a>
+                    <a href="series/${series.id?c}" class="btn btn-default">Cancel</a>
                 </div>
             </div>
 

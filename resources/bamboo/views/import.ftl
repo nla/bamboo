@@ -33,7 +33,7 @@
                     <select id="crawlSeriesId" name="crawlSeriesId" class="form-control" required>
                         <option selected disabled hidden></option>
                         [#list allCrawlSeries as series]
-                            <option value="${series.id}"[#if series.id == selectedCrawlSeriesId!-1] selected[/#if]>${series.name}</option>
+                            <option value="${series.id?c}"[#if series.id == selectedCrawlSeriesId!-1] selected[/#if]>${series.name}</option>
                         [/#list]
                     </select>
                 </div>

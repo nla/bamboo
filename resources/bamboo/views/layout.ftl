@@ -98,7 +98,7 @@
 [/#function]
 
 [#macro pagination current last]
-    [#assign url = request.contextUri().relativize(request.uri()).getPath()]
+    [#assign url = request.path()?remove_beginning("/")]
     [#if current < 5]
         [#assign pages = 1..min(last, 5)]
     [#elseif last - current < 5]
