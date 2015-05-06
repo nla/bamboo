@@ -354,7 +354,7 @@ public abstract class Db implements AutoCloseable, Transactional {
     @SqlQuery("SELECT * FROM warc WHERE solr_indexed = 0 AND corrupt = 0")
 	public abstract List<Warc> findWarcsToSolrIndex();
 
-	@SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId LIMIT :limit OFFSET :offset")
+	@SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId ORDER BY filename LIMIT :limit OFFSET :offset")
 	public abstract List<Warc> paginateWarcsInCrawl(@Bind("crawlId") long crawlId, @Bind("limit") long limit, @Bind("offset") long offset);
 
 	@SqlUpdate("UPDATE warc SET cdx_indexed = :timestamp, records = :records, record_bytes = :record_bytes WHERE id = :id")
