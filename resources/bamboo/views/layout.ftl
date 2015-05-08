@@ -5,15 +5,12 @@
     <meta charset="UTF-8">
     <base href="${request.contextPath()}">
     <title>${title} - Bamboo</title>
-    <!-- <link rel="stylesheet" href="webjars/bootstrap/3.3.4/css/bootstrap.min.css"> -->
     <link rel="stylesheet" href="webjars/bootswatch-paper/3.3.4%2B1/css/bootstrap.min.css">
-    <!-- <link rel="stylesheet" href="webjars/bootswatch-paper/3.3.4%2B1/css/bootstrap-theme.min.css"> -->
     <link rel="stylesheet" href="assets/bamboo.css">
-
 </head>
 <body>
 
-<nav class="navbar navbar-default navbar-fixed-top">
+<nav class="navbar navbar-default navbar-static-top">
     <div class="container">
         <div class="navbar-header">
             <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
@@ -22,19 +19,21 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-
+        </div>
+        <div id="navbar" class="navbar-collapse collapse">
             <ul class="nav navbar-nav nav-tabs">
                 <li [#if request.path() = "/"]class="active"[/#if]><a class="navbar-brand" href=".">Bamboo</a>
                 <li [#if request.path().startsWith("/crawls")]class="active"[/#if]><a href="crawls">Crawls</a>
                 <li [#if request.path().startsWith("/series")]class="active"[/#if]><a href="series" id="navCrawlSeries">Series</a>
                 <li [#if request.path().startsWith("/collections")]class="active"[/#if]><a href="collections">Collections</a>
             </ul>
-        </div>
-        <div id="navbar" class="navbar-collapse collapse">
-            <form class="navbar-form navbar-right">
-                <input type="text" class="form-control" placeholder="Search...">
-            </form>
+
             <ul class="nav navbar-nav navbar-right nav-tabs">
+                <li>
+                    <form class="navbar-form navbar-right">
+                        <input type="text" class="form-control" placeholder="Search...">
+                    </form>
+                </li>
                 <li><a href="http://dl.nla.gov.au/agwa/stayback">Access Control</a></li>
                 <li [#if request.path().startsWith("/tasks")]class="active"[/#if]><a href="tasks">Task Manager</a></li>
             </ul>
@@ -43,26 +42,7 @@
 </nav>
 
 <div class="container main">
-    <!--
-<div class="row">
-
-    <div class="col-sm-3 col-md-2 sidebar">
-        <ul class="nav nav-sidebar">
-            <li><a href="crawls">Crawls</a></li>
-            <li><a href="series" id="navCrawlSeries">Series</a></li>
-            <li><a href="collections">Collections</a></li>
-        </ul>
-        <ul class="nav nav-sidebar">
-            <li><a href="tasks">Task Manager</a></li>
-            <li><a href="http://dl.nla.gov.au/agwa/stayback/">Access Control</a></li>
-        </ul>
-    </div>
-    <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
-        <!-- <h2 class="page-header">${title}</h2> -->
     [#nested/]
-    <!--
-        </div>
-    </div> -->
 </div>
 </body>
 </html>

@@ -160,18 +160,12 @@ public abstract class Db implements AutoCloseable, Transactional {
 	public static final int IMPORTING = 1;
 	public static final int IMPORT_FAILED = 2;
 
-	@SqlQuery("SELECT * FROM crawl")
-	public abstract List<Crawl> listCrawls();
-
 	@SqlUpdate("INSERT INTO crawl (name, crawl_series_id, state) VALUES (:name, :crawl_series_id, :state)")
 	@GetGeneratedKeys
 	public abstract long createCrawl(@Bind("name") String name, @Bind("crawl_series_id") Long crawlSeriesId, @Bind("state") int state);
 
 	@SqlQuery("SELECT * FROM crawl WHERE id = :id")
 	public abstract Crawl findCrawl(@Bind("id") long crawlId);
-
-	@SqlQuery("SELECT crawl.* FROM crawl LEFT JOIN cdx_crawl ON crawl.id = cdx_crawl.crawl_id WHERE cdx_id = :cdx_id")
-	public abstract Iterable<Crawl> findCrawlsByCdxId(@Bind("cdx_id") long cdxId);
 
 	@SqlQuery("SELECT * FROM crawl WHERE crawl_series_id = :crawl_series_id ORDER BY id DESC")
 	public abstract Iterable<Crawl> findCrawlsByCrawlSeriesId(@Bind("crawl_series_id") long crawlSeriesId);
@@ -196,9 +190,6 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	@SqlUpdate("UPDATE crawl SET end_time = :time WHERE id = :crawlId AND (end_time IS NULL OR end_time < :time)")
 	public abstract int conditionallyUpdateCrawlEndTime(@Bind("crawlId") long crawlId, @Bind("time") Date time);
-
-	@SqlQuery("SELECT * FROM crawl ORDER BY end_time DESC, id DESC LIMIT :limit OFFSET :offset")
-	public abstract List<Crawl> paginateCrawls(@Bind("limit") long limit, @Bind("offset") long offset);
 
 	@SqlQuery("SELECT crawl.*, crawl_series.name FROM crawl LEFT JOIN crawl_series ON crawl.crawl_series_id = crawl_series.id ORDER BY crawl.end_time DESC, crawl.id DESC LIMIT :limit OFFSET :offset")
 	public abstract List<CrawlWithSeriesName> paginateCrawlsWithSeriesName(@Bind("limit") long limit, @Bind("offset") long offset);
