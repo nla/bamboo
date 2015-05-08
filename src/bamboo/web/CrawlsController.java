@@ -4,10 +4,17 @@ import bamboo.core.Bamboo;
 import bamboo.core.Db;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
-import droute.Csrf;
-import droute.Handler;
-import droute.Request;
-import droute.Response;
+import droute.*;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.zip.CRC32;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static droute.Response.*;
 import static droute.Route.*;
@@ -20,7 +27,7 @@ public class CrawlsController {
             GET("/crawls/:id/edit", this::edit, "id", "[0-9]+"),
             POST("/crawls/:id/edit", this::update, "id", "[0-9]+"),
             GET("/crawls/:id/warcs", this::listWarcs, "id", "[0-9]+"),
-            POST("/crawls/:id/buildcdx", this::buildCdx, "id", "[0-9]+"));
+            GET("/crawls/:id/warcs/download", this::downloadWarcs, "id", "[0-9]+"));
 
     public CrawlsController(Bamboo bamboo) {
         this.bamboo = bamboo;
@@ -83,12 +90,6 @@ public class CrawlsController {
         }
     }
 
-    Response buildCdx(Request request) {
-        long crawlId = Long.parseLong(request.urlParam("id"));
-        //bamboo.buildCdx(crawlId);
-        return seeOther(request.contextUri().resolve("crawls/" + crawlId).toString());
-    }
-
     Response listWarcs(Request request) {
         long crawlId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
@@ -106,4 +107,50 @@ public class CrawlsController {
         }
     }
 
+    Response downloadWarcs(Request request) {
+        long crawlId = Long.parseLong(request.urlParam("id"));
+        List<Db.Warc> warcs;
+        try (Db db = bamboo.dbPool.take()) {
+            warcs = db.findWarcsByCrawlId(crawlId);
+        }
+        if (warcs.isEmpty()) {
+            return response(404, "No warcs found");
+        }
+        return response((Streamable) out -> {
+            try (ZipOutputStream zip = new ZipOutputStream(out)) {
+                for (Db.Warc warc : warcs) {
+                    writeZipEntry(zip, "crawl-" + crawlId + "/" + warc.filename, warc.path);
+                }
+            }
+        }).withHeader("Content-Type", "application/zip")
+          .withHeader("Content-Disposition", "attachment; filename=crawl-" + crawlId + ".zip");
+    }
+
+    private void writeZipEntry(ZipOutputStream zip, String entryName, Path sourceFile) throws IOException {
+        long size = Files.size(sourceFile);
+
+        ZipEntry entry = new ZipEntry(entryName);
+        entry.setLastModifiedTime(Files.getLastModifiedTime(sourceFile));
+        entry.setSize(size);
+        entry.setCompressedSize(size);
+        entry.setCrc(crc32(sourceFile));
+
+        zip.setMethod(ZipOutputStream.STORED);
+        zip.putNextEntry(entry);
+        Files.copy(sourceFile, zip);
+        zip.closeEntry();
+    }
+
+    private long crc32(Path file) throws IOException {
+        try (FileChannel channel = FileChannel.open(file)) {
+            CRC32 crc32 = new CRC32();
+            ByteBuffer buffer = ByteBuffer.allocate(16384);
+            while (channel.read(buffer) >= 0) {
+                buffer.flip();
+                crc32.update(buffer);
+                buffer.clear();
+            }
+            return crc32.getValue();
+        }
+    }
 }

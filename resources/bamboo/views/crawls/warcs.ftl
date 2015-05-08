@@ -1,6 +1,8 @@
 [@page title="WARC files in ${crawl.name}"]
 
-<h3>WARC files in <a href="crawls/${crawl.id?c}">${crawl.name}</a></h3>
+<h3>WARC files in <a href="crawls/${crawl.id?c}">${crawl.name}</a>
+    <a class="btn btn-primary pull-right" href="crawls/${crawl.id?c}/warcs/download">Download All (${si(crawl.warcSize)}B)</a>
+</h3>
 
 <table class="table">
     <thead>
