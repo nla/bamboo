@@ -26,14 +26,17 @@
                 <li [#if request.path().startsWith("/crawls")]class="active"[/#if]><a href="crawls">Crawls</a>
                 <li [#if request.path().startsWith("/series")]class="active"[/#if]><a href="series" id="navCrawlSeries">Series</a>
                 <li [#if request.path().startsWith("/collections")]class="active"[/#if]><a href="collections">Collections</a>
+                <li [#if request.path().startsWith("/seedlists")]class="active"[/#if]><a href="seedlists">Seedlists</a>
             </ul>
 
             <ul class="nav navbar-nav navbar-right nav-tabs">
+                <!--
                 <li>
                     <form class="navbar-form navbar-right">
                         <input type="text" class="form-control" placeholder="Search...">
                     </form>
                 </li>
+                -->
                 <li><a href="http://dl.nla.gov.au/agwa/stayback">Access Control</a></li>
                 <li [#if request.path().startsWith("/tasks")]class="active"[/#if]><a href="tasks">Task Manager</a></li>
             </ul>
@@ -44,6 +47,8 @@
 <div class="container main">
     [#nested/]
 </div>
+<script src="webjars/jquery/2.1.3/jquery.min.js"></script>
+<script src="webjars/bootstrap/3.3.4/js/bootstrap.min.js"></script>
 </body>
 </html>
 [/#macro]

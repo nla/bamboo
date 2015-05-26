@@ -282,6 +282,77 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("UPDATE crawl_series SET warc_files = (SELECT COALESCE(SUM(warc_files), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), warc_size = (SELECT COALESCE(SUM(warc_size), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id)")
 	public abstract int refreshWarcStatsOnCrawlSeries();
 
+	public static class Seed {
+		public final long id;
+		public final String url;
+		public final String surt;
+		public final long seedlistId;
+
+		public Seed(ResultSet rs) throws SQLException {
+			id = rs.getLong("id");
+			url = rs.getString("url");
+			surt = rs.getString("surt");
+			seedlistId = rs.getLong("seedlist_id");
+		}
+	}
+
+	public static class SeedMapper implements ResultSetMapper<Seed> {
+		@Override
+		public Seed map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+			return new Seed(resultSet);
+		}
+	}
+
+	@SqlQuery("SELECT * FROM seed WHERE seedlist_id = :id ORDER BY surt")
+	public abstract List<Seed> findSeedsBySeedListId(@Bind("id") long seedlistId);
+
+	@SqlBatch("INSERT INTO seed (seedlist_id, url, surt) VALUES (:seedlistId, :urls, :surts)")
+	public abstract void insertSeeds(@Bind("seedlistId") long seedlistId, @Bind("urls") List<String> urls, @Bind("surts") List<String> surts);
+
+	@SqlUpdate("DELETE FROM seed WHERE seedlist_id = :seedlistId")
+	public abstract int deleteSeedsBySeedlistId(@Bind("seedlistId") long seedlistId);
+
+	public static class Seedlist {
+		public final long id;
+		public final String name;
+		public final long totalSeeds;
+
+		public Seedlist(ResultSet rs) throws SQLException {
+			id = rs.getLong("id");
+			name = rs.getString("name");
+			totalSeeds = rs.getLong("total_seeds");
+		}
+	}
+
+	public static class SeedlistMapper implements ResultSetMapper<Seedlist> {
+		@Override
+		public Seedlist map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+			return new Seedlist(resultSet);
+		}
+	}
+
+	@SqlQuery("SELECT * FROM seedlist")
+	public abstract List<Seedlist> listSeedlists();
+
+	@SqlUpdate("INSERT INTO seedlist (name) VALUES (:name)")
+	@GetGeneratedKeys
+	public abstract long createSeedlist(@Bind("name") String name);
+
+	@SqlUpdate("UPDATE seedlist SET name = :name WHERE id = :id")
+	public abstract int updateSeedlist(@Bind("id") long id, @Bind("name") String name);
+
+	@SqlQuery("SELECT * FROM seedlist WHERE id = :id")
+	public abstract Seedlist findSeedlist(@Bind("id") long id);
+
+	@SqlUpdate("DELETE FROM seedlist WHERE id = :seedlistId")
+	public abstract int deleteSeedlistOnly(@Bind("seedlistId") long seedlistId);
+
+	@Transaction
+	public int deleteSeedlist(long seedlistId) {
+		deleteSeedsBySeedlistId(seedlistId);
+		return deleteSeedlistOnly(seedlistId);
+	}
+
 	public static class Warc {
 		public final long id;
 		public final long crawlId;

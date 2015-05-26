@@ -26,6 +26,7 @@ public class Webapp implements Handler, AutoCloseable {
             new CollectionsController(bamboo).routes,
             new CrawlsController(bamboo).routes,
             new JobsController(bamboo).routes,
+            new SeedlistsController(bamboo).routes,
             new SeriesController(bamboo).routes,
             new TasksController(bamboo).routes,
             new WarcsController(bamboo).routes,

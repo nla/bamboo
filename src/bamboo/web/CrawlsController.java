@@ -7,27 +7,30 @@ import bamboo.util.Pager;
 import droute.*;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
-import java.util.zip.CRC32;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+import java.util.zip.*;
 
 import static droute.Response.*;
-import static droute.Route.*;
+import static droute.Route.GET;
+import static droute.Route.POST;
 
 public class CrawlsController {
     final Bamboo bamboo;
-    public final Handler routes = routes(
+    public final Handler routes = Route.routes(
             GET("/crawls", this::index),
             GET("/crawls/:id", this::show, "id", "[0-9]+"),
             GET("/crawls/:id/edit", this::edit, "id", "[0-9]+"),
             POST("/crawls/:id/edit", this::update, "id", "[0-9]+"),
             GET("/crawls/:id/warcs", this::listWarcs, "id", "[0-9]+"),
-            GET("/crawls/:id/warcs/download", this::downloadWarcs, "id", "[0-9]+"));
+            GET("/crawls/:id/warcs/download", this::downloadWarcs, "id", "[0-9]+"),
+            GET("/crawls/:id/reports", this::listReports, "id", "[0-9]+")
+            );
 
     public CrawlsController(Bamboo bamboo) {
         this.bamboo = bamboo;
@@ -151,6 +154,27 @@ public class CrawlsController {
                 buffer.clear();
             }
             return crc32.getValue();
+        }
+    }
+
+    Response listReports(Request request) {
+        long crawlId = Long.parseLong(request.urlParam("id"));
+        try (Db db = bamboo.dbPool.take()) {
+            Db.Crawl crawl = db.findCrawl(crawlId);
+            if (crawl == null) {
+                return notFound("No such crawl: " + crawlId);
+            }
+
+            String out = "";
+            Path bundle = crawl.path.resolve("crawl-bundle.zip");
+            try (ZipFile zip = new ZipFile(bundle.toFile())) {
+                for (ZipEntry entry : Collections.list(zip.entries())) {
+                    out += entry.getName() + "\n";
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            return response(out);
         }
     }
 }
