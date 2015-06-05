@@ -1,12 +1,11 @@
 [@page title="Crawl: ${crawl.name}"]
 
-[#macro indexingProgress todo]
+[#macro indexingProgress type todo]
     [#if todo > 0]
-        ${todo} warcs require indexing
+        ${todo} warc files require ${type} indexing
         [@progress now=(crawl.warcFiles - todo) max=crawl.warcFiles /]
-
     [#else]
-        Complete
+        ${type} indexing complete
     [/#if]
 [/#macro]
 
@@ -25,12 +24,11 @@
 [/#if]
 
 [#if warcsToBeCdxIndexed > 0 || warcsToBeSolrIndexed > 0]
-    Indexing of this crawl has not finsihed.
     [#if warcsToBeCdxIndexed > 0]
-    CDX: [@indexingProgress warcsToBeCdxIndexed /]
+        [@indexingProgress "CDX" warcsToBeCdxIndexed /]
     [/#if]
     [#if warcsToBeSolrIndexed > 0]
-    Solr: [@indexingProgress warcsToBeSolrIndexed /]
+        [@indexingProgress "Solr" warcsToBeSolrIndexed /]
     [/#if]
 [/#if]
 
