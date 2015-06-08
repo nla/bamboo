@@ -233,8 +233,8 @@ public class SolrIndexer implements Runnable {
             TextDocument textDoc = new BoilerpipeSAXInput(new InputSource(in)).getTextDocument();
             doc.addField("title", textDoc.getTitle());
             DefaultExtractor.INSTANCE.process(textDoc);
-            doc.addField("content", textDoc.getText(true, true));
-            doc.addField("boiled", textDoc.getContent());
+            doc.addField("content", textDoc.getText(true, true).replace("\uFFFF", ""));
+            doc.addField("boiled", textDoc.getContent().replace("\uFFFF", ""));
             return doc;
         } catch (SAXException | BoilerpipeProcessingException e) {
             return null;
