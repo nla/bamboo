@@ -422,8 +422,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("UPDATE crawl_series SET warc_files = warc_files + :warc_files,  warc_size = warc_size + :warc_size WHERE id = (SELECT crawl_series_id FROM crawl WHERE crawl.id = :crawl_id)")
 	public abstract void incrementWarcStatsForCrawlSeriesByCrawlId(@Bind("crawl_id") long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
 
-	@SqlUpdate("UPDATE crawl SET warc_files = warc_files + :warc_files, warc_size = warc_size + :warc_size")
-	public abstract void incrementWarcStatsForCrawl(long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
+	@SqlUpdate("UPDATE crawl SET warc_files = warc_files + :warc_files, warc_size = warc_size + :warc_size WHERE id = :crawlId")
+	public abstract void incrementWarcStatsForCrawl(@Bind("crawlId") long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
 
 	@SqlUpdate("INSERT INTO warc (crawl_id, path, filename, size, cdx_indexed) VALUES (:crawlId, :path, :filename, :size, 0)")
 	@GetGeneratedKeys
