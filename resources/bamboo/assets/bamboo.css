@@ -30,6 +30,17 @@ body {
   background: #ffffff;
 }
 
+tr.table-sep td {
+  border-top: 1px solid #DDD;
+}
+
+.hlurl {
+  color: #777;
+}
+
+.hlurl .domain {
+  color: #000;
+}
 
 /*
  * Main content

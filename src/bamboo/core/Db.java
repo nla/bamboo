@@ -1,16 +1,21 @@
 package bamboo.core;
 
+import com.google.common.net.InternetDomainName;
+import org.apache.commons.lang.StringEscapeUtils;
+import org.archive.url.URLParser;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.*;
 import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public abstract class Db implements AutoCloseable, Transactional {
 
@@ -294,6 +299,20 @@ public abstract class Db implements AutoCloseable, Transactional {
 			surt = rs.getString("surt");
 			seedlistId = rs.getLong("seedlist_id");
 		}
+
+		public String topPrivateDomain() {
+			try {
+				return InternetDomainName.from(URLParser.parse(url).getHost()).topPrivateDomain().toString();
+			} catch (URISyntaxException e) {
+				return url;
+			}
+		}
+
+		public String highlighted() {
+			String domain = StringEscapeUtils.escapeHtml(topPrivateDomain());
+			String pattern = "(" + Pattern.quote(domain) + ")([:/]|$)";
+			return "<span class='hlurl'>" + url.replaceFirst(pattern, "<span class='domain'>$1</span>$2") + "</span>";
+		}
 	}
 
 	public static class SeedMapper implements ResultSetMapper<Seed> {
@@ -307,7 +326,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 	public abstract List<Seed> findSeedsBySeedListId(@Bind("id") long seedlistId);
 
 	@SqlBatch("INSERT INTO seed (seedlist_id, url, surt) VALUES (:seedlistId, :urls, :surts)")
-	public abstract void insertSeeds(@Bind("seedlistId") long seedlistId, @Bind("urls") List<String> urls, @Bind("surts") List<String> surts);
+	public abstract void insertSeedsOnly(@Bind("seedlistId") long seedlistId, @Bind("urls") List<String> urls, @Bind("surts") List<String> surts);
 
 	@SqlUpdate("DELETE FROM seed WHERE seedlist_id = :seedlistId")
 	public abstract int deleteSeedsBySeedlistId(@Bind("seedlistId") long seedlistId);
@@ -351,6 +370,15 @@ public abstract class Db implements AutoCloseable, Transactional {
 	public int deleteSeedlist(long seedlistId) {
 		deleteSeedsBySeedlistId(seedlistId);
 		return deleteSeedlistOnly(seedlistId);
+	}
+
+	@SqlUpdate("UPDATE seedlist SET total_seeds = total_seeds + :delta WHERE id = :id")
+	public abstract int incrementSeedlistTotalSeeds(@Bind("id") long id, @Bind("delta") long delta);
+
+	@Transaction
+	public void insertSeeds(long seedlistId, List<String> urls, List<String> surts) {
+		insertSeedsOnly(seedlistId, urls, surts);
+		incrementSeedlistTotalSeeds(seedlistId, urls.size());
 	}
 
 	public static class Warc {

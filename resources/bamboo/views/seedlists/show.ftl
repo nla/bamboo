@@ -18,12 +18,14 @@
     </span>
 </h3>
 
-<table>
+<table class="">
+    [#assign prevDomain = ""]
     [#list seeds as seed]
-        <tr>
-            <td>${seed.url}</td>
-            <td>${seed.surt}</td>
+        [#assign domain = seed.topPrivateDomain()]
+        <tr [#if domain != prevDomain]class="table-sep"[/#if]>
+            <td>[#noescape]${seed.highlighted()}[/#noescape]</td>
         </tr>
+        [#assign prevDomain = domain]
     [/#list]
 </table>
 
