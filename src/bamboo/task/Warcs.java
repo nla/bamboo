@@ -10,6 +10,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Date;
 
 public class Warcs {
@@ -79,10 +80,17 @@ public class Warcs {
             do {
                 i = arcDate.indexOf("00", i);
                 if (i % 2 == 0) {
-                    return arcDate.substring(0, i) + arcDate.substring(i + 2);
+                    String candidate = arcDate.substring(0, i) + arcDate.substring(i + 2);
+                    try {
+                        parseArcDate(candidate);
+                        return candidate;
+                    } catch (DateTimeParseException e) {
+                        // try removing a later occurance
+                        i += 2;
+                    }
                 }
             } while (i >= 0);
-            // last resort, chop the end off
+            // give up, chop the end off
             return arcDate.substring(0, 14);
         } else if (arcDate.length() == 12) {
             // pad out truncated dates
