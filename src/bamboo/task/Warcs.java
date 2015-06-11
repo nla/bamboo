@@ -34,7 +34,7 @@ public class Warcs {
     }
 
     static String getArcDate(ArchiveRecordHeader h) {
-        return warcToArcDate(h.getDate());
+        return warcToArcDate(repairCorruptArcDate(h.getDate()));
     }
 
     static String getOrCalcDigest(ArchiveRecord record) throws IOException {
@@ -63,6 +63,32 @@ public class Warcs {
             throw new RuntimeException(e);
         }
         return digest;
+    }
+
+    /**
+     * We've encountered some ARC files collected circa 2000 which have corrupt dates. It appears there was a data
+     * race in the software that originally wrote them. This attempts to repair them.
+     */
+    static String repairCorruptArcDate(String arcDate) {
+        if (arcDate.length() == 16) {
+            // Dates with an extra 00 inserted somewhere after the year.
+            // 200010[00]01063618
+            // 200010010830[00]07
+            // 200010[00]01063618
+            int i = 4; // always seems to be after the year
+            do {
+                i = arcDate.indexOf("00", i);
+                if (i % 2 == 0) {
+                    return arcDate.substring(0, i) + arcDate.substring(i + 2);
+                }
+            } while (i >= 0);
+            // last resort, chop the end off
+            return arcDate.substring(0, 14);
+        } else if (arcDate.length() == 12) {
+            // pad out truncated dates
+            return arcDate + "00";
+        }
+        return arcDate;
     }
 
 
