@@ -86,9 +86,9 @@ public class Warcs {
                         return candidate;
                     } catch (DateTimeParseException e) {
                         // try removing a later occurance
-                        i += 2;
                     }
                 }
+                i++;
             } while (i >= 0);
             // give up, chop the end off
             return arcDate.substring(0, 14);
