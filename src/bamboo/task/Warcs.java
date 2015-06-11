@@ -89,7 +89,7 @@ public class Warcs {
                     }
                 }
                 i++;
-            } while (i >= 0);
+            } while (i >= 0 && i < arcDate.length());
             // give up, chop the end off
             return arcDate.substring(0, 14);
         } else if (arcDate.length() == 12) {
