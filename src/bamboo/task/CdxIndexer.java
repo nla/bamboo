@@ -286,7 +286,7 @@ public class CdxIndexer implements Runnable {
 
         @Override
         void append(String surt, long recordLength, String cdxLine, Date time) {
-            System.out.print(cdxLine);
+            System.out.print(cdxServer + " " + surt + " " + cdxLine);
         }
 
         @Override
