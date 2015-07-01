@@ -15,12 +15,14 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.zip.ZipException;
 
 public class CdxIndexer implements Runnable {
@@ -156,6 +158,12 @@ public class CdxIndexer implements Runnable {
             filter = new SurtFilter(collection.urlFilters);
         }
 
+        private CdxBuffer() {
+            collection = null;
+            cdxServer = null;
+            filter = null;
+        }
+
         void append(String surt, long recordLength, String cdxLine, Date time) {
             if (filter.accepts(surt)) {
                 buf.append(cdxLine);
@@ -206,6 +214,16 @@ public class CdxIndexer implements Runnable {
         }
     }
 
+    final static Pattern schemeRegex = Pattern.compile("^[a-zA-Z][a-zA-Z+.-]*://?");
+
+    static String stripScheme(String surt) {
+        return schemeRegex.matcher(surt).replaceFirst("");
+    }
+
+    static String toSchemalessSURT(String url) {
+        return SURT.toSURT(stripScheme(url));
+    }
+
     private static Stats writeCdx(Path warc, List<CdxBuffer> buffers) throws IOException {
         Stats stats = new Stats();
         String filename = warc.getFileName().toString();
@@ -216,7 +234,7 @@ public class CdxIndexer implements Runnable {
                     long recordLength = record.getHeader().getContentLength();
                     Date time = Warcs.parseArcDate(Warcs.getArcDate(record.getHeader()));
                     stats.update(recordLength, time);
-                    String surt = SURT.toSURT(Warcs.getCleanUrl(record.getHeader()));
+                    String surt = toSchemalessSURT(Warcs.getCleanUrl(record.getHeader()));
                     for (CdxBuffer buffer : buffers) {
                         buffer.append(surt, recordLength, cdxLine, time);
                     }
@@ -259,4 +277,31 @@ public class CdxIndexer implements Runnable {
         return s.replace(" ", "%20").replace("\n", "%0A").replace("\r", "%0D");
     }
 
+
+    public static class DummyCdxBuffer extends CdxBuffer {
+
+        DummyCdxBuffer() {
+
+        }
+
+        @Override
+        void append(String surt, long recordLength, String cdxLine, Date time) {
+            System.out.print(cdxLine);
+        }
+
+        @Override
+        void submit() throws IOException {
+        }
+    }
+
+    public static void main(String args[]) throws IOException {
+        if (args.length < 1) {
+            System.err.println("Usage: CdxIndexer warc");
+            System.exit(1);
+        }
+        String warc = args[0];
+        List<CdxBuffer> buffers = new ArrayList<>();
+        buffers.add(new DummyCdxBuffer());
+        writeCdx(Paths.get(warc), buffers);
+    }
 }
