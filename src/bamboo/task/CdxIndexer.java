@@ -122,22 +122,43 @@ public class CdxIndexer implements Runnable {
             buffer.submit();
         }
 
-        // update the database
+        // update the records and statistics in the database
         try (Db db = dbPool.take()) {
             db.inTransaction((t, s) -> {
                 db.updateWarcCdxIndexed(warc.id, System.currentTimeMillis(), stats.records, stats.bytes);
-                db.incrementRecordStatsForCrawl(warc.crawlId, stats.records, stats.bytes);
+
+                // we subtract the original counts to prevent doubling up the stats when reindexing
+                // if this is a straight reindex with no changes these deltas will be zero
+                long warcRecordsDelta = stats.records - warc.records;
+                long warcBytesDelta = stats.bytes - warc.recordBytes;
+
+                db.incrementRecordStatsForCrawl(warc.crawlId, warcRecordsDelta, warcBytesDelta);
+
+                if (crawl.crawlSeriesId != null) {
+                    db.incrementRecordStatsForCrawlSeries(crawl.crawlSeriesId, warcRecordsDelta, warcBytesDelta);
+                }
+
                 if (stats.startTime != null) {
                     db.conditionallyUpdateCrawlStartTime(warc.crawlId, stats.startTime);
                 }
                 if (stats.endTime != null) {
                     db.conditionallyUpdateCrawlEndTime(warc.crawlId, stats.endTime);
                 }
-                if (crawl.crawlSeriesId != null) {
-                    db.incrementRecordStatsForCrawlSeries(crawl.crawlSeriesId, stats.records, stats.bytes);
-                }
+
+                // update each of the per-collection stats
                 for (CdxBuffer buffer: buffers) {
-                    db.incrementRecordStatsForCollection(buffer.collection.id, buffer.stats.records, buffer.stats.bytes);
+                    long recordsDelta = buffer.stats.records;
+                    long bytesDelta = buffer.stats.bytes;
+
+                    Db.CollectionWarc old = db.findCollectionWarc(buffer.collection.id, warc.id);
+                    if (old != null) {
+                        recordsDelta -= old.records;
+                        bytesDelta -= old.recordBytes;
+                    }
+
+                    db.deleteCollectionWarc(buffer.collection.id, warc.id);
+                    db.insertCollectionWarc(buffer.collection.id, warc.id, buffer.stats.records, buffer.stats.bytes);
+                    db.incrementRecordStatsForCollection(buffer.collection.id, recordsDelta, bytesDelta);
                 }
                 return null;
             });

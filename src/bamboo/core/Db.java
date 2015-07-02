@@ -21,6 +21,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	public abstract  void close();
 
+
 	public static class Collection {
 		public final long id;
 		public final String name;
@@ -94,6 +95,29 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	@SqlUpdate("UPDATE collection SET name = :name, description = :description, cdx_url = :cdxUrl, solr_url = :solrUrl WHERE id = :id")
 	public abstract int updateCollection(@Bind("id") long collectionId, @Bind("name")  String name, @Bind("description") String description, @Bind("cdxUrl") String cdxUrl, @Bind("solrUrl") String solrUrl);
+
+	public static class CollectionWarc {
+		public final long collectionId;
+		public final long warcId;
+		public final long records;
+		public final long recordBytes;
+
+		public CollectionWarc(ResultSet rs) throws SQLException {
+			collectionId = rs.getLong("collection_id");
+			warcId = rs.getLong("warc_id");
+			records = rs.getLong("records");
+			recordBytes = rs.getLong("recordBytes");
+		}
+	}
+
+	@SqlQuery("SELECT * FROM collection_warc WHERE collection_id = :collectionId AND warc_id = :warcId")
+	public abstract CollectionWarc findCollectionWarc(@Bind("collectionId") long collectionId, @Bind("warcId") long warcId);
+
+	@SqlUpdate("DELETE FROM collection_warc WHERE collection_id = :collectionId AND warc_id = :warcId")
+	public abstract int deleteCollectionWarc(@Bind("collectionId") long collectionId, @Bind("warcId") long warcId);
+
+	@SqlUpdate("INSERT INTO collection_warc (collection_id, warc_id, records, record_bytes) VALUES (:collectionId, warcId, :records, :recordBytes)")
+	public abstract void insertCollectionWarc(@Bind("collectionId") long collectionId, @Bind("warcId") long warcId, @Bind("records") long records, @Bind("record_bytes") long recordBytes);
 
 	public static class Crawl {
 		public final long id;
@@ -202,7 +226,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlQuery("SELECT COUNT(*) FROM crawl")
 	public abstract long countCrawls();
 
-	@SqlUpdate("UPDATE crawl SET warc_files = (SELECT COALESCE(COUNT(*), 0) FROM warc WHERE warc.crawl_id = crawl.id), warc_size = (SELECT COALESCE(SUM(size), 0) FROM warc WHERE warc.crawl_id = crawl.id)")
+	@SqlUpdate("UPDATE crawl SET warc_files = (SELECT COALESCE(COUNT(*), 0) FROM warc WHERE warc.crawl_id = crawl.id), warc_size = (SELECT COALESCE(SUM(size), 0) FROM warc WHERE warc.crawl_id = crawl.id), records = (SELECT COALESCE(SUM(records), 0) FROM warc WHERE warc.crawl_id = crawl.id), record_bytes = (SELECT COALESCE(SUM(record_bytes), 0) FROM warc WHERE warc.crawl_id = crawl.id)")
 	public abstract int refreshWarcStatsOnCrawls();
 
 	public static class CrawlSeries {
@@ -284,7 +308,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 		return rows;
 	}
 
-	@SqlUpdate("UPDATE crawl_series SET warc_files = (SELECT COALESCE(SUM(warc_files), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), warc_size = (SELECT COALESCE(SUM(warc_size), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id)")
+	@SqlUpdate("UPDATE crawl_series SET warc_files = (SELECT COALESCE(SUM(warc_files), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), warc_size = (SELECT COALESCE(SUM(warc_size), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), records = (SELECT COALESCE(SUM(records), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), record_bytes = (SELECT COALESCE(SUM(record_bytes), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id)")
 	public abstract int refreshWarcStatsOnCrawlSeries();
 
 	public static class Seed {
