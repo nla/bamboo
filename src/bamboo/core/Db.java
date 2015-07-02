@@ -116,7 +116,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("DELETE FROM collection_warc WHERE collection_id = :collectionId AND warc_id = :warcId")
 	public abstract int deleteCollectionWarc(@Bind("collectionId") long collectionId, @Bind("warcId") long warcId);
 
-	@SqlUpdate("INSERT INTO collection_warc (collection_id, warc_id, records, record_bytes) VALUES (:collectionId, warcId, :records, :recordBytes)")
+	@SqlUpdate("INSERT INTO collection_warc (collection_id, warc_id, records, record_bytes) VALUES (:collectionId, :warcId, :records, :recordBytes)")
 	public abstract void insertCollectionWarc(@Bind("collectionId") long collectionId, @Bind("warcId") long warcId, @Bind("records") long records, @Bind("recordBytes") long recordBytes);
 
 	public static class Crawl {
