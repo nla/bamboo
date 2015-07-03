@@ -4,11 +4,9 @@ import bamboo.core.Db;
 import bamboo.core.DbPool;
 import bamboo.util.SurtFilter;
 import com.google.common.net.InternetDomainName;
-import com.itextpdf.text.exceptions.InvalidPdfException;
-import com.itextpdf.text.pdf.PdfReader;
-import com.itextpdf.text.pdf.parser.PdfReaderContentParser;
-import com.itextpdf.text.pdf.parser.SimpleTextExtractionStrategy;
-import com.itextpdf.text.pdf.parser.TextExtractionStrategy;
+import com.lowagie.text.exceptions.InvalidPdfException;
+import com.lowagie.text.pdf.PdfReader;
+import com.lowagie.text.pdf.parser.PdfTextExtractor;
 import de.l3s.boilerpipe.BoilerpipeProcessingException;
 import de.l3s.boilerpipe.document.TextDocument;
 import de.l3s.boilerpipe.extractors.DefaultExtractor;
@@ -260,12 +258,11 @@ public class SolrIndexer implements Runnable {
                 pdfReader = new PdfReader(record);
             }
 
-            PdfReaderContentParser pdfParser = new PdfReaderContentParser(pdfReader);
+            PdfTextExtractor extractor = new PdfTextExtractor(pdfReader);
             try {
                 for (int i = 1; i <= pdfReader.getNumberOfPages(); ++i) {
-                    TextExtractionStrategy strategy = pdfParser.processContent(i,
-                            new SimpleTextExtractionStrategy());
-                    buf.append(strategy.getResultantText().replace("\uFFFF", ""));
+                    String text = extractor.getTextFromPage(i);
+                    buf.append(text.replace("\uFFFF", ""));
                     buf.append(' ');
                 }
             } catch (BufferOverflowException e) {
