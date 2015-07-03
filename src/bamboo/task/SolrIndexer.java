@@ -33,6 +33,7 @@ import java.nio.BufferOverflowException;
 import java.nio.CharBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -252,7 +253,7 @@ public class SolrIndexer implements Runnable {
                 // PDFReader needs (uncompressed) random access to the file.  When given a stream it loads the whole
                 // lot into a memory buffer. So for large records let's decompress to a temporary file first.
                 tmp = Files.createTempFile("bamboo-solr-tmp", ".pdf");
-                Files.copy(record, tmp);
+                Files.copy(record, tmp, StandardCopyOption.REPLACE_EXISTING);
                 pdfReader = new PdfReader(tmp.toString());
             } else {
                 pdfReader = new PdfReader(record);
