@@ -33,6 +33,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.BufferOverflowException;
 import java.nio.CharBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -46,6 +48,7 @@ import java.util.regex.Pattern;
 
 public class SolrIndexer implements Runnable {
 
+    static final int PDF_DISK_OFFLOAD_THRESHOLD = 32 * 1024 * 1024;
     static final int MAX_DOC_SIZE = 0x100000;
     static final int COMMIT_WITHIN_MS = 300000;
 
@@ -242,9 +245,21 @@ public class SolrIndexer implements Runnable {
     }
 
     private static SolrInputDocument extractPdfContent(ArchiveRecord record, SolrInputDocument doc) throws IOException {
+        Path tmp = null;
         try {
             CharBuffer buf = CharBuffer.allocate(MAX_DOC_SIZE);
-            PdfReader pdfReader = new PdfReader(record);
+            PdfReader pdfReader;
+
+            if (record.getHeader().getLength() > PDF_DISK_OFFLOAD_THRESHOLD) {
+                // PDFReader needs (uncompressed) random access to the file.  When given a stream it loads the whole
+                // lot into a memory buffer. So for large records let's decompress to a temporary file first.
+                tmp = Files.createTempFile("bamboo-solr-tmp", ".pdf");
+                Files.copy(record, tmp);
+                pdfReader = new PdfReader(tmp.toString());
+            } else {
+                pdfReader = new PdfReader(record);
+            }
+
             PdfReaderContentParser pdfParser = new PdfReaderContentParser(pdfReader);
             try {
                 for (int i = 1; i <= pdfReader.getNumberOfPages(); ++i) {
@@ -262,6 +277,10 @@ public class SolrIndexer implements Runnable {
             return doc;
         } catch (InvalidPdfException | NoClassDefFoundError | RuntimeException | EOFException e) {
             return null; // invalid or encrypted pdf
+        } finally {
+            if (tmp != null) {
+                Files.deleteIfExists(tmp);
+            }
         }
     }
 
