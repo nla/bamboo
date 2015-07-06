@@ -2,8 +2,10 @@ package bamboo.web;
 
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
+import bamboo.util.Markdown;
 import droute.*;
 import org.archive.url.SURT;
+import org.archive.url.SURTTokenizer;
 
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
@@ -49,9 +51,11 @@ public class SeedlistsController {
     }
 
     Response create(Request request) {
+        String name = request.formParam("name");
+        String description = request.formParam("description");
         String seeds = request.formParam("seeds");
         try (Db db = bamboo.dbPool.take()) {
-            long seedlistId = db.createSeedlist(request.formParam("name"));
+            long seedlistId = db.createSeedlist(name, description);
             if (seeds != null) {
                 ParsedSeeds parsed = new ParsedSeeds(seeds);
                 db.insertSeeds(seedlistId, parsed.urls, parsed.surts);
@@ -69,6 +73,7 @@ public class SeedlistsController {
             }
             return render("seedlists/show.ftl",
                     "seedlist", seedlist,
+                    "descriptionHtml", Markdown.render(seedlist.description, request.uri()),
                     "seeds", db.findSeedsBySeedListId(seedlistId));
         }
     }
@@ -89,15 +94,17 @@ public class SeedlistsController {
 
     Response update(Request request) {
         long seedlistId = Long.parseLong(request.urlParam("id"));
+        String name = request.formParam("name");
+        String description = request.formParam("description");
         String seeds = request.formParam("seeds");
         if (seeds != null) {
             ParsedSeeds parsed = new ParsedSeeds(seeds);
             try (Db db = bamboo.dbPool.take()) {
-                db.updateSeedlist(seedlistId, request.formParam("name"), parsed.urls, parsed.surts);
+                db.updateSeedlist(seedlistId, name, description, parsed.urls, parsed.surts);
             }
         } else {
             try (Db db = bamboo.dbPool.take()) {
-                db.updateSeedlist(seedlistId, request.formParam("name"));
+                db.updateSeedlist(seedlistId, name, description);
             }
         }
         return seeOther(request.contextUri().resolve("seedlists/" + seedlistId).toString());
@@ -119,7 +126,7 @@ public class SeedlistsController {
         }
 
         static String canonicalize(String url) {
-            return url.trim();
+            return SURTTokenizer.addImpliedHttpIfNecessary(url.trim());
         }
     }
 

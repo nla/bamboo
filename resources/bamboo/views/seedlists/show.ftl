@@ -17,6 +17,12 @@
     </span>
 </h3>
 
+<div class="description well">
+    <div class="panel-body">
+        [#noescape]${descriptionHtml!"No description."}[/#noescape]
+    </div>
+</div>
+
 <table class="">
     [#assign prevDomain = ""]
     [#list seeds as seed]

@@ -357,11 +357,13 @@ public abstract class Db implements AutoCloseable, Transactional {
 	public static class Seedlist {
 		public final long id;
 		public final String name;
+		public final String description;
 		public final long totalSeeds;
 
 		public Seedlist(ResultSet rs) throws SQLException {
 			id = rs.getLong("id");
 			name = rs.getString("name");
+			description = rs.getString("description");
 			totalSeeds = rs.getLong("total_seeds");
 		}
 	}
@@ -376,15 +378,15 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlQuery("SELECT * FROM seedlist")
 	public abstract List<Seedlist> listSeedlists();
 
-	@SqlUpdate("INSERT INTO seedlist (name) VALUES (:name)")
+	@SqlUpdate("INSERT INTO seedlist (name, description) VALUES (:name, :description)")
 	@GetGeneratedKeys
-	public abstract long createSeedlist(@Bind("name") String name);
+	public abstract long createSeedlist(@Bind("name") String name, @Bind("description") String description);
 
-	@SqlUpdate("UPDATE seedlist SET name = :name WHERE id = :id")
-	public abstract int updateSeedlist(@Bind("id") long id, @Bind("name") String name);
+	@SqlUpdate("UPDATE seedlist SET name = :name, description = :description WHERE id = :id")
+	public abstract int updateSeedlist(@Bind("id") long id, @Bind("name") String name, @Bind("description") String description);
 
-	@SqlUpdate("UPDATE seedlist SET name = :name, total_seeds = :totalSeeds WHERE id = :id")
-	public abstract int updateSeedlist(@Bind("id") long id, @Bind("name") String name, @Bind("totalSeeds") long totalSeeds);
+	@SqlUpdate("UPDATE seedlist SET name = :name, description = :description, total_seeds = :totalSeeds WHERE id = :id")
+	public abstract int updateSeedlist(@Bind("id") long id, @Bind("name") String name, @Bind("description") String description, @Bind("totalSeeds") long totalSeeds);
 
 	@SqlQuery("SELECT * FROM seedlist WHERE id = :id")
 	public abstract Seedlist findSeedlist(@Bind("id") long id);
@@ -408,11 +410,11 @@ public abstract class Db implements AutoCloseable, Transactional {
 	}
 
 	@Transaction
-	public void updateSeedlist(long seedlistId, String name, List<String> urls, List<String> surts) {
+	public void updateSeedlist(long seedlistId, String name, String description, List<String> urls, List<String> surts) {
 		assert(urls.size() == surts.size());
 		deleteSeedsBySeedlistId(seedlistId);
 		insertSeedsOnly(seedlistId, urls, surts);
-		updateSeedlist(seedlistId, name, urls.size());
+		updateSeedlist(seedlistId, name, description, urls.size());
 	}
 
 	public static class Warc {

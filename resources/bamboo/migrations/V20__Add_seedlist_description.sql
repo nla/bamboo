@@ -1,0 +1,1 @@
+ALTER TABLE seedlist ADD description TEXT;

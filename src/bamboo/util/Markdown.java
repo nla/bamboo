@@ -21,7 +21,7 @@ public class Markdown {
     private static final Whitelist HTML_WHITELIST = Whitelist.relaxed().preserveRelativeLinks(true);
 
     public static String render(String markdown, URI baseUri) {
-        if (markdown == null) {
+        if (markdown == null || markdown.isEmpty()) {
             return null;
         }
         String html = new PegDownProcessor(PEGDOWN_OPTIONS).markdownToHtml(markdown);
