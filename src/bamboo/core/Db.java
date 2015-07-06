@@ -21,7 +21,6 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	public abstract  void close();
 
-
 	public static class Collection {
 		public final long id;
 		public final String name;
@@ -384,6 +383,9 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("UPDATE seedlist SET name = :name WHERE id = :id")
 	public abstract int updateSeedlist(@Bind("id") long id, @Bind("name") String name);
 
+	@SqlUpdate("UPDATE seedlist SET name = :name, total_seeds = :totalSeeds WHERE id = :id")
+	public abstract int updateSeedlist(@Bind("id") long id, @Bind("name") String name, @Bind("totalSeeds") long totalSeeds);
+
 	@SqlQuery("SELECT * FROM seedlist WHERE id = :id")
 	public abstract Seedlist findSeedlist(@Bind("id") long id);
 
@@ -403,6 +405,14 @@ public abstract class Db implements AutoCloseable, Transactional {
 	public void insertSeeds(long seedlistId, List<String> urls, List<String> surts) {
 		insertSeedsOnly(seedlistId, urls, surts);
 		incrementSeedlistTotalSeeds(seedlistId, urls.size());
+	}
+
+	@Transaction
+	public void updateSeedlist(long seedlistId, String name, List<String> urls, List<String> surts) {
+		assert(urls.size() == surts.size());
+		deleteSeedsBySeedlistId(seedlistId);
+		insertSeedsOnly(seedlistId, urls, surts);
+		updateSeedlist(seedlistId, name, urls.size());
 	}
 
 	public static class Warc {

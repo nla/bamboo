@@ -2,7 +2,6 @@
 
 <h3>${seedlist.name}
     <span class="pull-right">
-        <a href="seedlists/${seedlist.id?c}/import" class="btn btn-default">Add Seeds</a>
         <div class="btn-group">
             <a href="seedlists/${seedlist.id?c}/export/urls" class="btn btn-default">Export</a>
             <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
