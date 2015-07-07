@@ -183,6 +183,7 @@ public class WarcsController {
                         out.write(line);
                     }
                 }
+                out.flush();
             } catch (Exception e) {
                 out.write("\n\nError reading " + path + "\n");
                 e.printStackTrace(new PrintWriter(out));
