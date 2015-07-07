@@ -14,7 +14,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
-import java.util.zip.*;
+import java.util.zip.CRC32;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
 import static droute.Response.*;
 import static droute.Route.GET;
@@ -37,6 +40,15 @@ public class CrawlsController {
         this.bamboo = bamboo;
     }
 
+    static Db.Crawl findCrawl(Db db, Request request) {
+        long id = Long.parseLong(request.urlParam("id"));
+        Db.Crawl crawl = db.findCrawl(id);
+        if (crawl == null) {
+            throw new Webapp.NotFound("No such crawl: " + id);
+        }
+        return crawl;
+    }
+
     Response index(Request request) {
         try (Db db = bamboo.dbPool.take()) {
             Pager<Db.CrawlWithSeriesName> pager = new Pager<>(request, "page", db.countCrawls(), db::paginateCrawlsWithSeriesName);
@@ -47,31 +59,22 @@ public class CrawlsController {
     }
 
     Response show(Request request) {
-        long crawlId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
-            Db.Crawl crawl = db.findCrawl(crawlId);
-            if (crawl == null) {
-                return notFound("No such crawl: " + crawlId);
-            }
-
+            Db.Crawl crawl = findCrawl(db, request);
             return render("crawls/show.ftl",
                     "crawl", crawl,
                     "series", db.findCrawlSeriesById(crawl.crawlSeriesId),
-                    "warcsToBeCdxIndexed", db.countWarcsToBeCdxIndexedInCrawl(crawlId),
-                    "warcsToBeSolrIndexed", db.countWarcsToBeSolrIndexedInCrawl(crawlId),
-                    "corruptWarcs", db.countCorruptWarcsInCrawl(crawlId),
+                    "warcsToBeCdxIndexed", db.countWarcsToBeCdxIndexedInCrawl(crawl.id),
+                    "warcsToBeSolrIndexed", db.countWarcsToBeSolrIndexedInCrawl(crawl.id),
+                    "corruptWarcs", db.countCorruptWarcsInCrawl(crawl.id),
                     "descriptionHtml", Markdown.render(crawl.description, request.uri())
                     );
         }
     }
 
     Response edit(Request request) {
-        long crawlId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
-            Db.Crawl crawl = db.findCrawl(crawlId);
-            if (crawl == null) {
-                return notFound("No such crawl: " + crawlId);
-            }
+            Db.Crawl crawl = findCrawl(db, request);
             return render("crawls/edit.ftl",
                     "crawl", crawl,
                     "csrfToken", Csrf.token(request)
@@ -95,14 +98,10 @@ public class CrawlsController {
     }
 
     Response listWarcs(Request request) {
-        long crawlId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
-            Db.Crawl crawl = db.findCrawl(crawlId);
-            if (crawl == null) {
-                return notFound("No such crawl: " + crawlId);
-            }
+            Db.Crawl crawl = findCrawl(db, request);
             Pager<Db.Warc> pager = new Pager<>(request, "page", crawl.warcFiles,
-                    (limit, offset) -> db.paginateWarcsInCrawl(crawlId, limit, offset));
+                    (limit, offset) -> db.paginateWarcsInCrawl(crawl.id, limit, offset));
             return render("crawls/warcs.ftl",
                     "crawl", crawl,
                     "warcs", pager.items,
@@ -111,14 +110,10 @@ public class CrawlsController {
     }
 
     Response listCorruptWarcs(Request request) {
-        long crawlId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
-            Db.Crawl crawl = db.findCrawl(crawlId);
-            if (crawl == null) {
-                return notFound("No such crawl: " + crawlId);
-            }
-            Pager<Db.Warc> pager = new Pager<>(request, "page", db.countCorruptWarcsInCrawl(crawlId),
-                    (limit, offset) -> db.paginateCorruptWarcsInCrawl(crawlId, limit, offset));
+            Db.Crawl crawl = findCrawl(db, request);
+            Pager<Db.Warc> pager = new Pager<>(request, "page", db.countCorruptWarcsInCrawl(crawl.id),
+                    (limit, offset) -> db.paginateCorruptWarcsInCrawl(crawl.id, limit, offset));
             return render("crawls/warcs.ftl",
                     "titlePrefix", "Corrupt",
                     "crawl", crawl,
@@ -175,13 +170,8 @@ public class CrawlsController {
     }
 
     Response listReports(Request request) {
-        long crawlId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
-            Db.Crawl crawl = db.findCrawl(crawlId);
-            if (crawl == null) {
-                return notFound("No such crawl: " + crawlId);
-            }
-
+            Db.Crawl crawl = findCrawl(db, request);
             String out = "";
             Path bundle = crawl.path.resolve("crawl-bundle.zip");
             try (ZipFile zip = new ZipFile(bundle.toFile())) {

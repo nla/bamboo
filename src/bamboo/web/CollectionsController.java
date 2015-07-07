@@ -26,6 +26,15 @@ public class CollectionsController {
         this.bamboo = bamboo;
     }
 
+    static Db.Collection findCollection(Db db, Request request) {
+        long id = Long.parseLong(request.urlParam("id"));
+        Db.Collection collection = db.findCollection(id);
+        if (collection == null) {
+            throw new Webapp.NotFound("No such collection: " + id);
+        }
+        return collection;
+    }
+
     Response index(Request request) {
         try (Db db = bamboo.dbPool.take()) {
             Pager<Db.Collection> pager = new Pager<>(request, "page", db.countCollections(), db::paginateCollections);
@@ -51,12 +60,8 @@ public class CollectionsController {
     }
 
     Response show(Request request) {
-        long collectionId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
-            Db.Collection collection = db.findCollection(collectionId);
-            if (collection == null) {
-                return notFound("No such collection: " + collectionId);
-            }
+            Db.Collection collection = findCollection(db, request);
             return render("collections/show.ftl",
                     "collection", collection,
                     "descriptionHtml", Markdown.render(collection.description, request.uri()));
@@ -64,12 +69,8 @@ public class CollectionsController {
     }
 
     Response edit(Request request) {
-        long collectionId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
-            Db.Collection collection = db.findCollection(collectionId);
-            if (collection == null) {
-                return notFound("No such collection: " + collectionId);
-            }
+            Db.Collection collection = findCollection(db, request);
             return render("collections/edit.ftl",
                     "collection", collection,
                     "csrfToken", Csrf.token(request));

@@ -48,10 +48,12 @@ public class Webapp implements Handler, AutoCloseable {
     /**
      * Dump a copy of the stack trace to the client on uncaught exceptions.
      */
-    private static Handler errorHandler(Handler handler) {
+    static Handler errorHandler(Handler handler) {
         return request -> {
             try {
                 return handler.handle(request);
+            } catch (NotFound e) {
+                return notFound(e.getMessage());
             } catch (Throwable t) {
                 StringWriter out = new StringWriter();
                 t.printStackTrace();
@@ -66,18 +68,6 @@ public class Webapp implements Handler, AutoCloseable {
             return render("index.ftl",
                     "seriesList", db.listCrawlSeries(),
                     "collections", db.listCollections());
-        }
-    }
-
-    Response showCollection(Request request) {
-        try (Db db = bamboo.dbPool.take()) {
-            long id = Long.parseLong(request.param("id"));
-            Db.Collection collection = db.findCollection(id);
-            if (collection == null) {
-                return response(404, "No such collection: " + id);
-            }
-            return render("collection.ftl",
-                    "collection", collection);
         }
     }
 
@@ -104,10 +94,6 @@ public class Webapp implements Handler, AutoCloseable {
         }
     }
 
-    Response showThing(Request request) {
-        return response("showing thing " + request.param("id"));
-    }
-
     Response badRequest(String message) {
         return response(400, message);
     }
@@ -120,5 +106,11 @@ public class Webapp implements Handler, AutoCloseable {
     @Override
     public void close() throws Exception {
         bamboo.close();
+    }
+
+    static class NotFound extends RuntimeException {
+        public NotFound(String message) {
+            super(message);
+        }
     }
 }

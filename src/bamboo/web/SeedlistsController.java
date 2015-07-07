@@ -38,6 +38,15 @@ public class SeedlistsController {
             this.bamboo = bamboo;
         }
 
+    static Db.Seedlist findSeedlist(Db db, Request request) {
+        long id = Long.parseLong(request.urlParam("id"));
+        Db.Seedlist seedlist = db.findSeedlist(id);
+        if (seedlist == null) {
+            throw new Webapp.NotFound("No such seedlist: " + id);
+        }
+        return seedlist;
+    }
+
     Response index(Request request) {
         try (Db db = bamboo.dbPool.take()) {
             return render("seedlists/index.ftl",
@@ -65,30 +74,22 @@ public class SeedlistsController {
     }
 
     Response show(Request request) {
-        long seedlistId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
-            Db.Seedlist seedlist = db.findSeedlist(seedlistId);
-            if (seedlist == null) {
-                return notFound("No such seedlist: " + seedlistId);
-            }
+            Db.Seedlist seedlist = findSeedlist(db, request);
             return render("seedlists/show.ftl",
                     "seedlist", seedlist,
                     "descriptionHtml", Markdown.render(seedlist.description, request.uri()),
-                    "seeds", db.findSeedsBySeedListId(seedlistId));
+                    "seeds", db.findSeedsBySeedListId(seedlist.id));
         }
     }
 
     Response edit(Request request) {
-        long seedlistId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
-            Db.Seedlist seedlist = db.findSeedlist(seedlistId);
-            if (seedlist == null) {
-                return notFound("No such seedlist: " + seedlistId);
-            }
+            Db.Seedlist seedlist = findSeedlist(db, request);
             return render("seedlists/edit.ftl",
                     "csrfToken", Csrf.token(request),
                     "seedlist", seedlist,
-                    "seeds", db.findSeedsBySeedListId(seedlistId));
+                    "seeds", db.findSeedsBySeedListId(seedlist.id));
         }
     }
 

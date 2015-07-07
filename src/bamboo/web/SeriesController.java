@@ -30,6 +30,15 @@ public class SeriesController {
         this.bamboo = bamboo;
     }
 
+    static Db.CrawlSeries findCrawlSeries(Db db, Request request) {
+        long id = Long.parseLong(request.urlParam("id"));
+        Db.CrawlSeries series = db.findCrawlSeriesById(id);
+        if (series == null) {
+            throw new Webapp.NotFound("No such crawl series: " + id);
+        }
+        return series;
+    }
+
     Response index(Request request) {
         try (Db db = bamboo.dbPool.take()) {
             Pager<Db.CrawlSeriesWithCount> pager = new Pager<>(request, "page", db.countCrawlSeries(), db::paginateCrawlSeries);
@@ -51,30 +60,22 @@ public class SeriesController {
     }
 
     Response show(Request request) {
-        long seriesId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
-            Db.CrawlSeries series = db.findCrawlSeriesById(seriesId);
-            if (series == null) {
-                return notFound("No such crawl series: " + seriesId);
-            }
+            Db.CrawlSeries series = findCrawlSeries(db, request);
             return render("series/show.ftl",
                     "series", series,
                     "descriptionHtml", Markdown.render(series.description, request.uri()),
-                    "crawls", db.findCrawlsByCrawlSeriesId(seriesId),
-                    "collections", db.listCollectionsForCrawlSeries(seriesId));
+                    "crawls", db.findCrawlsByCrawlSeriesId(series.id),
+                    "collections", db.listCollectionsForCrawlSeries(series.id));
         }
     }
 
     Response edit(Request request) {
-        long seriesId = Long.parseLong(request.urlParam("id"));
         try (Db db = bamboo.dbPool.take()) {
-            Db.CrawlSeries series = db.findCrawlSeriesById(seriesId);
-            if (series == null) {
-                return notFound("No such crawl series: " + seriesId);
-            }
+            Db.CrawlSeries series = findCrawlSeries(db, request);
             return render("series/edit.ftl",
                     "series", series,
-                    "collections", db.listCollectionsForCrawlSeries(seriesId),
+                    "collections", db.listCollectionsForCrawlSeries(series.id),
                     "allCollections", db.listCollections(),
                     "csrfToken", Csrf.token(request));
         }
