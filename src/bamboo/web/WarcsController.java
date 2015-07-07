@@ -2,19 +2,22 @@ package bamboo.web;
 
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
+import bamboo.task.CdxIndexer;
 import com.google.common.base.Charsets;
 import droute.Handler;
 import droute.Request;
 import droute.Response;
 import droute.Streamable;
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveReaderFactory;
+import org.archive.io.ArchiveRecord;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.UncheckedIOException;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -30,8 +33,10 @@ import static droute.Route.routes;
 public class WarcsController {
     final Bamboo bamboo;
     public final Handler routes = routes(
-            GET("/warcs/:id", this::serveById, "id", "[0-9]+"),
-            GET("/warcs/:filename", this::serveByFilename, "filename", "[^/]+")
+            GET("/warcs/:id", this::serve, "id", "[0-9]+"),
+            GET("/warcs/:id/cdx", this::showCdx, "id", "[0-9]+"),
+            GET("/warcs/:filename", this::serve, "filename", "[^/]+"),
+            GET("/warcs/:filename/cdx", this::showCdx, "filename", "[^/]+")
             );
 
     public WarcsController(Bamboo bamboo) {
@@ -90,28 +95,24 @@ public class WarcsController {
         }
     }
 
-    Response serveById(Request request) {
-        long warcId = Long.parseLong(request.param("id"));
-        Db.Warc warc;
+    Db.Warc findWarc(Request request) {
+        Db.Warc warc = null;
         try (Db db = bamboo.dbPool.take()) {
-            warc = db.findWarc(warcId);
+            if (request.param("id") != null) {
+                long warcId = Long.parseLong(request.param("id"));
+                warc = db.findWarc(warcId);
+            } else if (request.param("filename") != null) {
+                warc = db.findWarcByFilename(request.param("filename"));
+            }
         }
         if (warc == null) {
-            return Response.notFound("No such warc: " + warcId);
+            throw new RuntimeException("No such warc file");
         }
-        return serve(request, warc);
+        return warc;
     }
 
-    Response serveByFilename(Request request) {
-        String filename = request.param("filename");
-        Db.Warc warc;
-        try (Db db = bamboo.dbPool.take()) {
-            warc = db.findWarcByFilename(filename);
-        }
-        if (warc == null) {
-            return Response.notFound("No such warc: " + filename);
-        }
-        return serve(request, warc);
+    Response serve(Request request) {
+        return serve(request, findWarc(request));
     }
 
     private Response serve(Request request, Db.Warc warc) {
@@ -167,5 +168,26 @@ public class WarcsController {
 
     private static ByteBuffer asciiBuffer(String s) {
         return ByteBuffer.wrap(s.getBytes(Charsets.UTF_8));
+    }
+
+    private Response showCdx(Request request) {
+        Db.Warc warc = findWarc(request);
+        Path path = warc.path;
+        String filename = path.getFileName().toString();
+        return response(200, (Streamable)(OutputStream outStream) -> {
+            Writer out = new BufferedWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
+            try (ArchiveReader reader = ArchiveReaderFactory.get(path.toFile())) {
+                for (ArchiveRecord record : reader) {
+                    String line = CdxIndexer.formatCdxLine(filename, record);
+                    if (line != null) {
+                        out.write(line);
+                    }
+                }
+            } catch (Exception e) {
+                out.write("\n\nError reading " + path + "\n");
+                e.printStackTrace(new PrintWriter(out));
+                out.flush();
+            }
+        }).withHeader("Content-Type", "text/plain");
     }
 }

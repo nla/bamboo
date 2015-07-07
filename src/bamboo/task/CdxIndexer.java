@@ -265,7 +265,7 @@ public class CdxIndexer implements Runnable {
         return stats;
     }
 
-    private static String formatCdxLine(String filename, ArchiveRecord record) throws IOException {
+    public static String formatCdxLine(String filename, ArchiveRecord record) throws IOException {
         ArchiveRecordHeader h = record.getHeader();
         if (!Warcs.isResponseRecord(h)) {
             return null;

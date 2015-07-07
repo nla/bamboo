@@ -69,3 +69,7 @@ tr.table-sep td {
 .description h1 a, .description h2 a, .description h3 a, .description h4 a, .description h5 a, .description h6 a {
   color: #444;
 }
+
+.alert a:not(.close) {
+  text-decoration: underline;
+}

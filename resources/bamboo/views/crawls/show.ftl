@@ -19,7 +19,7 @@
 
 [#if corruptWarcs > 0]
     <div class="alert alert-warning" role="alert">
-        <strong>Possible WARC corruption:</strong> ${corruptWarcs} WARC files were unreadable when indexing this crawl.
+        <strong>Possible WARC corruption:</strong> <a href="crawls/${crawl.id?c}/warcs/corrupt">${corruptWarcs} WARC files</a>  were unreadable when indexing this crawl.
     </div>
 [/#if]
 
