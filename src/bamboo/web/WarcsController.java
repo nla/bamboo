@@ -174,7 +174,7 @@ public class WarcsController {
         Db.Warc warc = findWarc(request);
         Path path = warc.path;
         String filename = path.getFileName().toString();
-        return response(200, (Streamable)(OutputStream outStream) -> {
+        return response(200, (Streamable) (OutputStream outStream) -> {
             Writer out = new BufferedWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
             try (ArchiveReader reader = ArchiveReaderFactory.get(path.toFile())) {
                 for (ArchiveRecord record : reader) {
@@ -183,12 +183,12 @@ public class WarcsController {
                         out.write(line);
                     }
                 }
-                out.flush();
             } catch (Exception e) {
                 out.write("\n\nError reading " + path + "\n");
                 e.printStackTrace(new PrintWriter(out));
+            } finally {
                 out.flush();
             }
         }).withHeader("Content-Type", "text/plain");
+        }
     }
-}
