@@ -8,4 +8,4 @@ History of user-visible changes.
 
 * WARCs marked corrupt can now be listed and their CDX (and any errors) viewed.
 * Seedlist can now be edited, have a description and are deduplicated.
-* Reindexing no longer causes record count statistics to be inflated.
+* Reindexing no longer causes crawl and series record count statistics to be inflated.
