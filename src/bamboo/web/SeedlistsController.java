@@ -18,11 +18,11 @@ import java.util.function.UnaryOperator;
 import static droute.Response.*;
 import static droute.Route.*;
 
-public class SeedlistsController {
+class SeedlistsController {
 
     final Bamboo bamboo;
 
-    public final Handler routes = routes(
+    final Handler routes = routes(
             GET("/seedlists", this::index),
             GET("/seedlists/new", this::newForm),
             POST("/seedlists/new", this::create),
@@ -34,7 +34,7 @@ public class SeedlistsController {
             GET("/seedlists/:id/export/surts", this::exportSurts, "id", "[0-9]+")
             );
 
-    public SeedlistsController(Bamboo bamboo) {
+    SeedlistsController(Bamboo bamboo) {
             this.bamboo = bamboo;
         }
 

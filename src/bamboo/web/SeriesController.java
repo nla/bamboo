@@ -16,9 +16,9 @@ import java.util.stream.Collectors;
 import static droute.Response.*;
 import static droute.Route.*;
 
-public class SeriesController {
+class SeriesController {
     final Bamboo bamboo;
-    public final Handler routes = routes(
+    final Handler routes = routes(
             GET("/series", this::index),
             GET("/series/new", this::newForm),
             POST("/series/new", this::createSeries),
@@ -26,7 +26,7 @@ public class SeriesController {
             GET("/series/:id/edit", this::edit, "id", "[0-9]+"),
             POST("/series/:id/edit", this::update, "id", "[0-9]+"));
 
-    public SeriesController(Bamboo bamboo) {
+    SeriesController(Bamboo bamboo) {
         this.bamboo = bamboo;
     }
 

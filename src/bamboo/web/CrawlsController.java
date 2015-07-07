@@ -23,9 +23,9 @@ import static droute.Response.*;
 import static droute.Route.GET;
 import static droute.Route.POST;
 
-public class CrawlsController {
+class CrawlsController {
     final Bamboo bamboo;
-    public final Handler routes = Route.routes(
+    final Handler routes = Route.routes(
             GET("/crawls", this::index),
             GET("/crawls/:id", this::show, "id", "[0-9]+"),
             GET("/crawls/:id/edit", this::edit, "id", "[0-9]+"),
@@ -36,7 +36,7 @@ public class CrawlsController {
             GET("/crawls/:id/reports", this::listReports, "id", "[0-9]+")
             );
 
-    public CrawlsController(Bamboo bamboo) {
+    CrawlsController(Bamboo bamboo) {
         this.bamboo = bamboo;
     }
 

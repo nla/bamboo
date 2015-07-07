@@ -12,9 +12,9 @@ import droute.Response;
 import static droute.Response.*;
 import static droute.Route.*;
 
-public class CollectionsController {
+class CollectionsController {
     final Bamboo bamboo;
-    public final Handler routes = routes(
+    final Handler routes = routes(
             GET("/collections", this::index),
             GET("/collections/new", this::newForm),
             POST("/collections/new", this::create),
@@ -22,7 +22,7 @@ public class CollectionsController {
             GET("/collections/:id/edit", this::edit, "id", "[0-9]+"),
             POST("/collections/:id/edit", this::update, "id", "[0-9]+"));
 
-    public CollectionsController(Bamboo bamboo) {
+    CollectionsController(Bamboo bamboo) {
         this.bamboo = bamboo;
     }
 

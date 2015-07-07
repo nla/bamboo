@@ -13,13 +13,13 @@ import java.io.IOException;
 import static droute.Response.*;
 import static droute.Route.*;
 
-public class JobsController {
+class JobsController {
     final Bamboo bamboo;
-    public final Handler routes = routes(
+    final Handler routes = routes(
             GET("/jobs", this::index),
             POST("/jobs/:job/delete", this::delete));
 
-    public JobsController(Bamboo bamboo) {
+    JobsController(Bamboo bamboo) {
         this.bamboo = bamboo;
     }
 

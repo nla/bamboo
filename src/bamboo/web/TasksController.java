@@ -12,14 +12,14 @@ import static droute.Response.render;
 import static droute.Response.seeOther;
 import static droute.Route.*;
 
-public class TasksController {
+class TasksController {
     final Bamboo bamboo;
-    public final Handler routes = routes(
+    final Handler routes = routes(
             GET("/tasks", this::index),
             POST("/tasks/:id/disable", this::disable),
             POST("/tasks/:id/enable", this::enable));
 
-    public TasksController(Bamboo bamboo) {
+    TasksController(Bamboo bamboo) {
         this.bamboo = bamboo;
     }
 
