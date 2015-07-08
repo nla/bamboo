@@ -92,12 +92,9 @@ public class RepairArc {
                     break;
                 }
             }
-
         }
 
-
         return FailureType.UNKNOWN;
-
     }
 
     static void skipToEndOfRecord(InputStream in) throws IOException {
@@ -115,15 +112,42 @@ public class RepairArc {
         System.out.println("Classifies problems preventing an ARC from being read");
     }
 
+    static class Problem {
+        public Problem(File file, FailureType type, long recordOffset, String arcHeader) {
+            this.file = file;
+            this.type = type;
+            this.recordOffset = recordOffset;
+            this.arcHeader = arcHeader;
+            recordLength = Long.parseLong(arcHeader.split(" ")[4]);
+        }
+
+        @Override
+        public String toString() {
+            return "Problem{" +
+                    "file=" + file +
+                    ", type=" + type +
+                    ", recordOffset=" + recordOffset +
+                    ", arcHeader='" + arcHeader + '\'' +
+                    ", recordLength=" + recordLength +
+                    '}';
+        }
+
+        final File file;
+        final FailureType type;
+        final long recordOffset;
+        final String arcHeader;
+        final long recordLength;
+    }
+
     public static void main(String args[]) throws IOException {
         if (args.length < 1) {
             usage();
             System.exit(1);
         }
 
-        File path = new File(args[0]);
+        File file = new File(args[0]);
         long lastOkRecord = 0;
-        try (ARCReader reader = ARCReaderFactory.get(path)) {
+        try (ARCReader reader = ARCReaderFactory.get(file)) {
             for (ArchiveRecord record : reader) {
                 // read all records until we encounter an error
                 ArchiveRecordHeader header = record.getHeader();
@@ -136,18 +160,19 @@ public class RepairArc {
             e.printStackTrace();
         }
 
-        try (FileInputStream fis = new FileInputStream(path)) {
+        Problem problem;
+
+        try (FileInputStream fis = new FileInputStream(file)) {
             fis.skip(lastOkRecord);
             GZIPMembersInputStream in = new GZIPMembersInputStream(fis);
             skipToEndOfRecord(in);
 
             String arcHeader = LaxHttpParser.readLine(in, "UTF-8");
-            System.out.println(arcHeader);
-
-            long startOfBadRecord = lastOkRecord + in.getCurrentMemberStart();
-
+            long recordOffset = lastOkRecord + in.getCurrentMemberStart();
             FailureType type = determineFailureType(in);
-            System.out.println(type + " record starts at " + startOfBadRecord);
+            problem = new Problem(file, type, recordOffset, arcHeader);
+
+            System.out.println(problem);
         }
     }
 
