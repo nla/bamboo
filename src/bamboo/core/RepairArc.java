@@ -7,12 +7,15 @@ import org.archive.io.arc.ARCReaderFactory;
 import org.archive.util.LaxHttpParser;
 import org.archive.util.zip.GZIPMembersInputStream;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.zip.GZIPOutputStream;
 
 public class RepairArc {
 
@@ -32,12 +35,7 @@ public class RepairArc {
         return -1;
     }
 
-    static FailureType determineFailureType(GZIPMembersInputStream in) throws IOException {
-        byte peek[] = new byte[16384];
-        int len = 0;
-        while (len < peek.length && !in.getAtMemberEnd()) {
-            len += in.read(peek, len, peek.length - len);
-        }
+    static FailureType determineFailureType(byte[] peek, int len) throws IOException {
 
         //
         // Record contents were replaced with something like:
@@ -51,8 +49,8 @@ public class RepairArc {
         // HTTP status lines containing a colon like:
         // HTTP/1.0 404 Not Found: "/hbe/Yowies/spoon.jpg"
         //
-        int firstColon = indexOf(peek, (byte)':', len);
-        int firstLinefeed = indexOf(peek, (byte)'\n', len);
+        int firstColon = indexOf(peek, (byte) ':', len);
+        int firstLinefeed = indexOf(peek, (byte) '\n', len);
         if (firstColon != -1 && (firstColon < firstLinefeed || firstLinefeed == -1)) {
             return FailureType.COLON_IN_HTTP_STATUS;
         }
@@ -113,10 +111,11 @@ public class RepairArc {
     }
 
     static class Problem {
-        public Problem(File file, FailureType type, long recordOffset, String arcHeader) {
+        public Problem(File file, FailureType type, long recordStart, long recordEnd, String arcHeader) {
             this.file = file;
             this.type = type;
-            this.recordOffset = recordOffset;
+            this.recordStart = recordStart;
+            this.recordEnd = recordEnd;
             this.arcHeader = arcHeader;
             recordLength = Long.parseLong(arcHeader.split(" ")[4]);
         }
@@ -126,7 +125,8 @@ public class RepairArc {
             return "Problem{" +
                     "file=" + file +
                     ", type=" + type +
-                    ", recordOffset=" + recordOffset +
+                    ", recordStart=" + recordStart +
+                    ", recordEnd=" + recordEnd +
                     ", arcHeader='" + arcHeader + '\'' +
                     ", recordLength=" + recordLength +
                     '}';
@@ -134,9 +134,69 @@ public class RepairArc {
 
         final File file;
         final FailureType type;
-        final long recordOffset;
+        final long recordStart;
+        final long recordEnd;
         final String arcHeader;
         final long recordLength;
+    }
+
+    static void transferCompletely(FileChannel in, long position, long count, FileChannel out) throws IOException {
+        while (count > 0) {
+            long written = in.transferTo(position, count, out);
+            position += written;
+            count -= written;
+        }
+    }
+
+    static void removeBadRecord(Problem problem, Path dest) throws IOException {
+        try (FileChannel in = FileChannel.open(problem.file.toPath(), StandardOpenOption.READ);
+             FileChannel out = FileChannel.open(dest, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+            transferCompletely(in, 0, problem.recordStart, out);
+            transferCompletely(in, problem.recordEnd, in.size() - problem.recordEnd, out);
+        }
+    }
+
+    static String readLine(InputStream in, int limit) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        for (int i = 0; i < limit; i++) {
+            int c = in.read();
+            if (c == -1) break;
+            baos.write(c);
+            if (c == '\n') break;
+        }
+        return baos.toString("ISO-8859-1");
+    }
+
+    static void copy(InputStream in, OutputStream out, long count) throws IOException {
+        byte[] buf = new byte[8192];
+        while (count > 0) {
+            int n = in.read(buf);
+            if (n < 0) break;
+            out.write(buf, 0, n);
+            count -= n;
+        }
+    }
+
+    static void fixStatusColon(Problem problem, Path src, Path dest) throws IOException {
+        try (FileChannel in = FileChannel.open(problem.file.toPath(), StandardOpenOption.READ);
+             GZIPMembersInputStream gzip = new GZIPMembersInputStream(Channels.newInputStream(in));
+             FileChannel out = FileChannel.open(dest, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+            String arcHeader = readLine(gzip, 65536);
+            long length = Long.parseLong(arcHeader.split(" ")[4]);
+            String s = readLine(gzip, (int) Math.min(8192, length));
+            if (s.startsWith("HTTP/1.")) {
+                int colon = s.indexOf(":");
+                if (colon != -1) {
+                    s = s.replace(':', ' ');
+                    byte[] newStatus = s.getBytes(StandardCharsets.ISO_8859_1);
+                    GZIPOutputStream gzipOut = new GZIPOutputStream(Channels.newOutputStream(out));
+                    gzipOut.write(arcHeader.getBytes(StandardCharsets.ISO_8859_1));
+                    gzipOut.write(newStatus);
+                    copy(Channels.newInputStream(in), gzipOut, length - newStatus.length);
+                    gzipOut.finish();
+                }
+            }
+        }
     }
 
     public static void main(String args[]) throws IOException {
@@ -168,11 +228,53 @@ public class RepairArc {
             skipToEndOfRecord(in);
 
             String arcHeader = LaxHttpParser.readLine(in, "UTF-8");
-            long recordOffset = lastOkRecord + in.getCurrentMemberStart();
-            FailureType type = determineFailureType(in);
-            problem = new Problem(file, type, recordOffset, arcHeader);
+            long recordStart = lastOkRecord + in.getCurrentMemberStart();
+            long recordLength = Long.parseLong(arcHeader.split(" ")[4]);
+
+            // grab the first few KB of the record for analysis
+            byte peek[] = new byte[16384];
+            int peekLen = 0;
+            while (peekLen < peek.length && !in.getAtMemberEnd() && peekLen < recordLength) {
+                peekLen += in.read(peek, peekLen, (int)Math.min(peek.length - peekLen, recordLength - peekLen));
+            }
+
+            // skip the remaining part of the record
+            long pos = peekLen;
+            while (pos < recordLength) {
+                long skipped = in.skip(recordLength - pos);
+                if (skipped < 0) break;
+                pos += skipped;
+            }
+
+            long recordEnd;
+            if (in.getAtMemberEnd()) {
+                recordEnd = in.getCurrentMemberEnd();
+            } else {
+                int b1 = in.read();
+                int b2 = in.read();
+                if (b1 < 0 || b2 < 0) {
+                    // end of file
+                    recordEnd = file.length();
+                } else if (b1 == '\n') {
+                    recordEnd = lastOkRecord + in.getCurrentMemberStart();
+                } else {
+                    // recover by reading until end of gzip member?
+                    throw new IllegalStateException("ARC record length appears to be wrong [" + b2 + "]");
+                }
+            }
+
+            FailureType type = determineFailureType(peek, peekLen);
+            problem = new Problem(file, type, recordStart, recordEnd, arcHeader);
 
             System.out.println(problem);
+            System.out.println("END " + recordEnd);
+
+            if (args.length >= 2) {
+                Path dest = Paths.get(args[1]);
+                System.out.println("Writing repaired ARC to " + dest);
+                removeBadRecord(problem, dest);
+            }
+
         }
     }
 
