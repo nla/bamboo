@@ -59,7 +59,8 @@ public class Bamboo implements AutoCloseable {
         try (Db db = dbPool.take()) {
             Path p = Paths.get(path);
             long size = Files.size(p);
-            long warcId = db.insertWarc(crawlId, path, p.getFileName().toString(), size);
+            String digest = Scrub.calculateDigest("SHA-256", p);
+            long warcId = db.insertWarc(crawlId, path, p.getFileName().toString(), size, digest);
             System.out.println("Registered WARC " + warcId);
         }
     }
@@ -121,6 +122,9 @@ public class Bamboo implements AutoCloseable {
                 break;
             case "server":
                 Main.main(Arrays.copyOfRange(args, 1, args.length));
+                break;
+            case "scrub":
+                Scrub.scrub(bamboo);
                 break;
             default:
                 usage();

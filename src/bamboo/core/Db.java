@@ -427,6 +427,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 		public final long records;
 		public final long recordBytes;
 		public final String filename;
+		public final String sha256;
+		public final int corrupt;
 
 		public Warc(ResultSet rs) throws SQLException {
 			id = rs.getLong("id");
@@ -438,6 +440,8 @@ public abstract class Db implements AutoCloseable, Transactional {
 			records = rs.getLong("records");
 			recordBytes = rs.getLong("record_bytes");
 			filename = rs.getString("filename");
+			sha256 = rs.getString("sha256");
+			corrupt = rs.getInt("corrupt");
 		}
 	}
 
@@ -449,10 +453,10 @@ public abstract class Db implements AutoCloseable, Transactional {
 	}
 
 	@Transaction
-	public long insertWarc(long crawlId, String path, String filename, long size) {
+	public long insertWarc(long crawlId, String path, String filename, long size, String sha256) {
 		incrementWarcStatsForCrawl(crawlId, 1, size);
 		incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 1, size);
-		return insertWarcWithoutRollup(crawlId, path, filename, size);
+		return insertWarcWithoutRollup(crawlId, path, filename, size, sha256);
 	}
 
 	@SqlUpdate("UPDATE crawl_series SET warc_files = warc_files + :warc_files,  warc_size = warc_size + :warc_size WHERE id = (SELECT crawl_series_id FROM crawl WHERE crawl.id = :crawl_id)")
@@ -461,9 +465,9 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("UPDATE crawl SET warc_files = warc_files + :warc_files, warc_size = warc_size + :warc_size WHERE id = :crawlId")
 	public abstract void incrementWarcStatsForCrawl(@Bind("crawlId") long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
 
-	@SqlUpdate("INSERT INTO warc (crawl_id, path, filename, size, cdx_indexed) VALUES (:crawlId, :path, :filename, :size, 0)")
+	@SqlUpdate("INSERT INTO warc (crawl_id, path, filename, size, cdx_indexed, sha256) VALUES (:crawlId, :path, :filename, :size, 0, :sha256)")
 	@GetGeneratedKeys
-	public abstract long insertWarcWithoutRollup(@Bind("crawlId") long crawlId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size);
+	public abstract long insertWarcWithoutRollup(@Bind("crawlId") long crawlId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256);
 
 	@SqlQuery("SELECT * FROM warc")
 	public abstract List<Warc> listWarcs();
@@ -509,6 +513,9 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	@SqlUpdate("UPDATE warc SET corrupt = :corrupt WHERE id = :id")
 	public abstract int updateWarcCorrupt(@Bind("id") long warcId, @Bind("corrupt") int corrupt);
+
+	@SqlUpdate("UPDATE warc SET sha256 = :digest WHERE id = :id")
+	public abstract int updateWarcSha256(@Bind("id") long id, @Bind("digest") String digest);
 
 	public static final int GZIP_CORRUPT = 1;
 	public static final int WARC_CORRUPT = 2;

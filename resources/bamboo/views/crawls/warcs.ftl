@@ -15,7 +15,7 @@
     <tbody>
     [#list warcs as warc]
         <tr>
-            <td>${warc.filename}</td>
+            <td><a href="warcs/${warc.id?c}/details">${warc.filename}</a></td>
             <td>${warc.records}</td>
             <td>${si(warc.size)}</td>
             <td><a href="warcs/${warc.id?c}/cdx">CDX</a> | <a href="warcs/${warc.id?c}">Download</a></td>

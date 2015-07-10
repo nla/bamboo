@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static droute.Response.render;
 import static droute.Response.response;
 import static droute.Route.GET;
 import static droute.Route.routes;
@@ -35,6 +36,7 @@ class WarcsController {
     final Handler routes = routes(
             GET("/warcs/:id", this::serve, "id", "[0-9]+"),
             GET("/warcs/:id/cdx", this::showCdx, "id", "[0-9]+"),
+            GET("/warcs/:id/details", this::details, "id", "[0-9]+"),
             GET("/warcs/:filename", this::serve, "filename", "[^/]+"),
             GET("/warcs/:filename/cdx", this::showCdx, "filename", "[^/]+")
             );
@@ -190,5 +192,15 @@ class WarcsController {
                 out.flush();
             }
         }).withHeader("Content-Type", "text/plain");
+    }
+
+    Response details(Request request) {
+        Db.Warc warc = findWarc(request);
+        try (Db db = bamboo.dbPool.take()) {
+            Db.Crawl crawl = db.findCrawl(warc.crawlId);
+            return render("warc.ftl",
+                    "warc", warc,
+                    "crawl", crawl);
         }
     }
+}

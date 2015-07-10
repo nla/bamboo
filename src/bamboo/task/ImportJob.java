@@ -3,6 +3,7 @@ package bamboo.task;
 import bamboo.core.Config;
 import bamboo.core.Db;
 import bamboo.core.DbPool;
+import bamboo.core.Scrub;
 import bamboo.io.HeritrixJob;
 
 import java.io.IOException;
@@ -104,9 +105,10 @@ public class ImportJob {
 			if (!Files.exists(destDir)) {
 				Files.createDirectory(destDir);
 			}
+			String digest = Scrub.calculateDigest("SHA-256", src);
 			Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
 			try (Db db = dbPool.take()) {
-				db.insertWarc(crawlId, dest.toString(), dest.getFileName().toString(), size);
+				db.insertWarc(crawlId, dest.toString(), dest.getFileName().toString(), size, digest);
 			}
 		}
 	}
