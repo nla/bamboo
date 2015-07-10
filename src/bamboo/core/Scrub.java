@@ -9,8 +9,53 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 
 public class Scrub {
+
+    enum ResultType {NEW, OK, MISMATCH, ERROR}
+
+    ;
+
+    public static class Result {
+        public final ResultType type;
+        public final long warcId;
+        public final Path path;
+        public final String storedDigest;
+        public final String calculatedDigest;
+        public final Exception error;
+
+        Result(ResultType type, long warcId, Path path, String storedDigest, String calculatedDigest) {
+            this.type = type;
+            this.warcId = warcId;
+            this.path = path;
+            this.storedDigest = storedDigest;
+            this.calculatedDigest = calculatedDigest;
+            error = null;
+        }
+
+        Result(ResultType type, long warcId, Path path, String storedDigest, Exception error) {
+            this.type = type;
+            this.warcId = warcId;
+            this.path = path;
+            this.storedDigest = storedDigest;
+            calculatedDigest = null;
+            this.error = error;
+        }
+
+        @Override
+        public String toString() {
+            return "Result{" +
+                    "type=" + type +
+                    ", id=" + warcId +
+                    ", path=" + path +
+                    ", storedDigest='" + storedDigest + '\'' +
+                    ", calculatedDigest='" + calculatedDigest + '\'' +
+                    ", error=" + error +
+                    '}';
+        }
+    }
+
     static String calculateDigest(String algorithm, ReadableByteChannel channel) throws NoSuchAlgorithmException, IOException {
         MessageDigest md = MessageDigest.getInstance(algorithm);
         ByteBuffer buffer = ByteBuffer.allocate(8192);
@@ -30,31 +75,39 @@ public class Scrub {
         }
     }
 
-    static void scrub(Db db) {
-        for (Db.Warc warc : db.listWarcs()) {
-            scrub(db, warc);
-        }
-    }
-
-    private static void scrub(Db db, Db.Warc warc) {
+    static Result scrub(Db.Warc warc) {
+        String digest;
         try {
-            String digest = calculateDigest("SHA-256", warc.path);
-            if (warc.sha256 == null) {
-                System.out.println("NEW " + warc.id + " " + warc.path + " " + digest);
-                db.updateWarcSha256(warc.id, digest);
-            } else if (warc.sha256.equals(digest)) {
-                System.out.println("OK " + warc.id + " " + warc.path + " " + digest);
-            } else {
-                System.out.println("MISMATCH " + warc.id + " " + warc.sha256 + " " + warc.path + " " + digest);
-            }
+            digest = calculateDigest("SHA-256", warc.path);
         } catch (IOException e) {
-            System.out.println("ERR " + warc.id + " " + warc.path + " " + e.toString());
+            return new Result(ResultType.ERROR, warc.id, warc.path, warc.sha256, e);
+        }
+
+        if (warc.sha256 == null) {
+            return new Result(ResultType.NEW, warc.id, warc.path, digest, digest);
+        } else if (warc.sha256.equals(digest)) {
+            return new Result(ResultType.OK, warc.id, warc.path, digest, digest);
+        } else {
+            return new Result(ResultType.MISMATCH, warc.id, warc.path, warc.sha256, digest);
         }
     }
 
     public static void scrub(Bamboo bamboo) {
+        List<Db.Warc> warcs;
+
         try (Db db = bamboo.dbPool.take()) {
-            scrub(db);
+            warcs = db.listWarcs();
         }
+
+        warcs.parallelStream()
+                .map(Scrub::scrub)
+                .forEach(result -> {
+                    System.out.println(result);
+                    if (result.type == ResultType.NEW) {
+                        try (Db db = bamboo.dbPool.take()) {
+                            db.updateWarcSha256(result.warcId, result.calculatedDigest);
+                        }
+                    }
+                });
     }
 }
