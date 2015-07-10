@@ -12,7 +12,7 @@
     <tr><th>SHA-256 Digest</th><td>${warc.sha256!}</td></tr>
     <tr><th>Records</th><td><a href="warcs/${warc.id?c}/cdx">${warc.records} records</a>; <abbr title="${warc.recordBytes} bytes">${si(warc.recordBytes)}B</abbr></td></tr>
     <tr><th>CDX Indexed</th><td>[#if (warc.cdxIndexed!0) != 0]${warc.cdxIndexed?number_to_datetime}[#else]No[/#if]</td></tr>
-    <tr><th>Solr Indexed</th><td>[#if (warc.solrIndexed!0) != 0]${warc.solrIndexed?number_to_datetime!"o"}[#else]No[/#if]</td></tr>
+    <tr><th>Solr Indexed</th><td>[#if (warc.solrIndexed!0) != 0]${warc.solrIndexed?number_to_datetime}[#else]No[/#if]</td></tr>
     <tr><th>Corruption Flag</th><td>${warc.corrupt}</td></tr>
 </table>
 
