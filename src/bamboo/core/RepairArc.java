@@ -23,7 +23,7 @@ public class RepairArc {
     static final byte[] HTTP_MAGIC = "HTTP/1.".getBytes(StandardCharsets.UTF_8);
 
     enum FailureType {
-        UNKNOWN, DELETED, COLON_IN_HTTP_STATUS, NO_HTTP_HEADER, JUNK_2KB_BEFORE_HEADER, JUNK_4KB_BEFORE_HEADER, JUNK_8KB_BEFORE_HEADER,
+        UNKNOWN, DELETED, COLON_IN_HTTP_STATUS, NO_HTTP_HEADER, JUNK_1KB_BEFORE_HEADER, JUNK_2KB_BEFORE_HEADER, JUNK_4KB_BEFORE_HEADER, JUNK_8KB_BEFORE_HEADER,
     };
 
     static int indexOf(byte[] a, byte b, int length) {
@@ -45,17 +45,25 @@ public class RepairArc {
             return FailureType.DELETED;
         }
 
-        //
-        // HTTP status lines containing a colon like:
-        // HTTP/1.0 404 Not Found: "/hbe/Yowies/spoon.jpg"
-        //
-        int firstColon = indexOf(peek, (byte) ':', len);
-        int firstLinefeed = indexOf(peek, (byte) '\n', len);
-        if (firstColon != -1 && (firstColon < firstLinefeed || firstLinefeed == -1)) {
-            return FailureType.COLON_IN_HTTP_STATUS;
+        if (len > HTTP_MAGIC.length && Arrays.equals(HTTP_MAGIC, Arrays.copyOfRange(peek, 0, HTTP_MAGIC.length))) {
+            //
+            // HTTP status lines containing a colon like:
+            // HTTP/1.0 404 Not Found: "/hbe/Yowies/spoon.jpg"
+            //
+            int firstColon = indexOf(peek, (byte) ':', len);
+            int firstLinefeed = indexOf(peek, (byte) '\n', len);
+            if (firstColon != -1 && (firstColon < firstLinefeed || firstLinefeed == -1)) {
+                return FailureType.COLON_IN_HTTP_STATUS;
+            }
         }
 
         if (len > HTTP_MAGIC.length && !Arrays.equals(HTTP_MAGIC, Arrays.copyOfRange(peek, 0, HTTP_MAGIC.length))) {
+            //
+            // Records with 1KB of junk before the HTTP headers
+            //
+            if (len > 1024 + HTTP_MAGIC.length && Arrays.equals(HTTP_MAGIC, Arrays.copyOfRange(peek, 1024, 1024 + HTTP_MAGIC.length))) {
+                return FailureType.JUNK_1KB_BEFORE_HEADER;
+            }
 
             //
             // Records with 2KB of junk before the HTTP headers
@@ -177,26 +185,98 @@ public class RepairArc {
         }
     }
 
+    static void copy(InputStream in, OutputStream out) throws IOException {
+        byte[] buf = new byte[8192];
+        for (;;) {
+            int n = in.read(buf);
+            if (n < 0) break;
+            out.write(buf, 0, n);
+        }
+    }
+
+    static int detectKbAlignedHeader(byte[] buffer, int buflen, String arcHeader, String statusLine) {
+        //System.out.println("bound check " + statusLine);
+        for (int boundary = 1024; boundary < 8192; boundary += 1024) {
+            if (buflen > boundary + HTTP_MAGIC.length && Arrays.equals(HTTP_MAGIC, Arrays.copyOfRange(buffer, boundary, boundary + HTTP_MAGIC.length))) {
+                return boundary;
+            }
+        }
+        return 0;
+    }
+
+    static String subtractLengthFromHeader(String arcHeader, long delta) {
+        int sp = arcHeader.lastIndexOf(' ');
+        long length = Long.parseLong(arcHeader.substring(sp + 1).trim());
+        length -= delta;
+        return arcHeader.substring(0, sp) + " " + length + "\n";
+    }
+
     static void fixStatusColon(Problem problem, Path src, Path dest) throws IOException {
-        try (FileChannel in = FileChannel.open(problem.file.toPath(), StandardOpenOption.READ);
+        int httpStart;
+        long recordsModified = 0, recordsCopied = 0;
+        byte[] buffer = new byte[16384];
+        try (FileChannel in = FileChannel.open(src, StandardOpenOption.READ);
+             FileChannel in2 = FileChannel.open(src, StandardOpenOption.READ);
              GZIPMembersInputStream gzip = new GZIPMembersInputStream(Channels.newInputStream(in));
              FileChannel out = FileChannel.open(dest, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
-            String arcHeader = readLine(gzip, 65536);
-            long length = Long.parseLong(arcHeader.split(" ")[4]);
-            String s = readLine(gzip, (int) Math.min(8192, length));
-            if (s.startsWith("HTTP/1.")) {
-                int colon = s.indexOf(":");
-                if (colon != -1) {
-                    s = s.replace(':', ' ');
-                    byte[] newStatus = s.getBytes(StandardCharsets.ISO_8859_1);
+            gzip.setEofEachMember(true);
+            for (;;) {
+                String arcHeader = readLine(gzip, 65536);
+                if (arcHeader.isEmpty()) {
+                    assert(gzip.getCurrentMemberStart() == in2.size());
+                    break;
+                }
+                int buflen = 0;
+                while (buflen < buffer.length) {
+                    int n = gzip.read(buffer, buflen, buffer.length - buflen);
+                    if (n < 0) break;
+                    buflen += n;
+                }
+                int linebreak = indexOf(buffer, (byte) '\n', buflen);
+                String statusLine = new String(buffer, 0, linebreak, StandardCharsets.ISO_8859_1);
+
+                if (statusLine.startsWith("HTTP/1.") && statusLine.contains(":")) {
+                    System.out.println("Replace colon from " + gzip.getCurrentMemberStart());
+                    statusLine = statusLine.replace(':', ' ');
+                    byte[] newStatus = statusLine.getBytes(StandardCharsets.ISO_8859_1);
                     GZIPOutputStream gzipOut = new GZIPOutputStream(Channels.newOutputStream(out));
                     gzipOut.write(arcHeader.getBytes(StandardCharsets.ISO_8859_1));
                     gzipOut.write(newStatus);
-                    copy(Channels.newInputStream(in), gzipOut, length - newStatus.length);
+                    gzipOut.write(buffer, newStatus.length, buflen - newStatus.length);
+                    copy(gzip, gzipOut);
                     gzipOut.finish();
+                    gzip.nextMember();
+                    recordsModified++;
+
+                } else if (!statusLine.startsWith("HTTP/") && (httpStart = detectKbAlignedHeader(buffer, buflen, arcHeader, statusLine)) > 0) {
+                    System.out.println(gzip.getCurrentMemberStart() + " " + arcHeader);
+                    System.out.println("HTTP response prefixed with junk detected at " + httpStart + ". Trimming junk from record.");
+
+                    arcHeader = subtractLengthFromHeader(arcHeader, httpStart);
+
+                    GZIPOutputStream gzipOut = new GZIPOutputStream(Channels.newOutputStream(out));
+                    gzipOut.write(arcHeader.getBytes(StandardCharsets.ISO_8859_1));
+                    gzipOut.write(buffer, httpStart, buflen - httpStart);
+                    copy(gzip, gzipOut);
+                    gzipOut.finish();
+                    gzip.nextMember();
+                    recordsModified++;
+
+                } else {
+                    // skip to end of record, discarding the data as we'll copy the compressed stream
+                    while (!gzip.getAtMemberEnd()) {
+                        int n = gzip.read(buffer);
+                    }
+
+                    long start = gzip.getCurrentMemberStart();
+                    long lengthToCopy = gzip.getCurrentMemberEnd() - gzip.getCurrentMemberStart();
+                    transferCompletely(in2, start, lengthToCopy, out);
+                    gzip.nextMember();
+                    recordsCopied++;
                 }
             }
         }
+        System.out.println("Modified " + recordsModified + " records. Copied " + recordsCopied + " as is.");
     }
 
     public static void main(String args[]) throws IOException {
@@ -204,6 +284,13 @@ public class RepairArc {
             usage();
             System.exit(1);
         }
+
+        if (args[0].equals("-f")) {
+            fixStatusColon(null, Paths.get(args[1]), Paths.get(args[2]));
+            return;
+        }
+
+
 
         File file = new File(args[0]);
         long lastOkRecord = 0;
@@ -276,6 +363,7 @@ public class RepairArc {
             }
 
         }
+
     }
 
 }
