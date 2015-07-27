@@ -490,6 +490,18 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId ORDER BY filename LIMIT :limit OFFSET :offset")
 	public abstract List<Warc> paginateWarcsInCrawl(@Bind("crawlId") long crawlId, @Bind("limit") long limit, @Bind("offset") long offset);
 
+	@SqlQuery("SELECT COUNT(*) FROM warc WHERE cdx_indexed = 0 AND corrupt = 0")
+	public abstract long countWarcsToBeCdxIndexed();
+
+	@SqlQuery("SELECT * FROM warc WHERE cdx_indexed = 0 AND corrupt = 0 LIMIT :limit OFFSET :offset")
+	public abstract List<Warc> paginateWarcsToBeCdxIndexed(@Bind("limit") long limit, @Bind("offset") long offset);
+
+	@SqlQuery("SELECT COUNT(*) FROM warc WHERE solr_indexed = 0 AND corrupt = 0")
+	public abstract long countWarcsToBeSolrIndexed();
+
+	@SqlQuery("SELECT * FROM warc WHERE solr_indexed = 0 AND corrupt = 0 LIMIT :limit OFFSET :offset")
+	public abstract List<Warc> paginateWarcsToBeSolrIndexed(@Bind("limit") long limit, @Bind("offset") long offset);
+
 	@SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId AND corrupt <> 0 ORDER BY filename LIMIT :limit OFFSET :offset")
 	public abstract List<Warc> paginateCorruptWarcsInCrawl(@Bind("crawlId") long crawlId, @Bind("limit") long limit, @Bind("offset") long offset);
 
