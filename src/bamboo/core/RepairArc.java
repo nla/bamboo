@@ -286,17 +286,22 @@ public class RepairArc {
                     recordsDiscarded++;
 
                 } else if (trimmed.equals("") || trimmed.equals("1") || !trimmed.startsWith("HTTP")) {
-                    System.out.println("XXX " + statusLine + " " + gzip.getCurrentMemberStart());
+                    System.out.println("XXX '" + statusLine + "' " + gzip.getCurrentMemberStart());
                     // skip to end of record, discarding the data as we'll copy the compressed stream
                     while (!gzip.getAtMemberEnd()) {
                         int n = gzip.read(buffer);
                     }
 
-                    long start = gzip.getCurrentMemberStart();
-                    long lengthToCopy = gzip.getCurrentMemberEnd() - gzip.getCurrentMemberStart();
-                    transferCompletely(in2, start, lengthToCopy, out);
+                    if (gzip.getCurrentMemberEnd() == in2.size()) {
+                        System.out.println("Discarding record with bogus status line at end of ARC");
+                        recordsDiscarded++;
+                    } else {
+                        long start = gzip.getCurrentMemberStart();
+                        long lengthToCopy = gzip.getCurrentMemberEnd() - gzip.getCurrentMemberStart();
+                        transferCompletely(in2, start, lengthToCopy, out);
+                        recordsCopied++;
+                    }
                     gzip.nextMember();
-                    recordsCopied++;
                 } else {
                     // skip to end of record, discarding the data as we'll copy the compressed stream
                     while (!gzip.getAtMemberEnd()) {
