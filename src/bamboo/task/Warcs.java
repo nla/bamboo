@@ -31,7 +31,7 @@ public class Warcs {
     }
 
     static String getCleanUrl(ArchiveRecordHeader h) {
-        return h.getUrl().replace(" ", "%20");
+        return h.getUrl().replace(" ", "%20").replace("\r", "%0a").replace("\n", "%0d");
     }
 
     static String getArcDate(ArchiveRecordHeader h) {
