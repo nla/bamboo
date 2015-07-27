@@ -21,9 +21,11 @@ public class RepairArc {
 
     static final byte[] DELETED_MARKER = "DELETED".getBytes(StandardCharsets.UTF_8);
     static final byte[] HTTP_MAGIC = "HTTP/1.".getBytes(StandardCharsets.UTF_8);
+    static final byte[] FAKE_500_MAGIC = "500 ".getBytes(StandardCharsets.US_ASCII);
 
     enum FailureType {
-        UNKNOWN, DELETED, COLON_IN_HTTP_STATUS, NO_HTTP_HEADER, JUNK_1KB_BEFORE_HEADER, JUNK_2KB_BEFORE_HEADER, JUNK_4KB_BEFORE_HEADER, JUNK_8KB_BEFORE_HEADER,
+        UNKNOWN, DELETED, COLON_IN_HTTP_STATUS, NO_HTTP_HEADER, JUNK_1KB_BEFORE_HEADER, JUNK_2KB_BEFORE_HEADER,
+        JUNK_4KB_BEFORE_HEADER, JUNK_8KB_BEFORE_HEADER, FAKE_500
     };
 
     static int indexOf(byte[] a, byte b, int length) {
@@ -43,6 +45,13 @@ public class RepairArc {
         //
         if (Arrays.equals(DELETED_MARKER, Arrays.copyOfRange(peek, 0, DELETED_MARKER.length))) {
             return FailureType.DELETED;
+        }
+
+        //
+        // 500 (Internal Server Error) Can't connect to www.hotmall.com.au:80 (Bad hostname 'www.hotmall.com.au')
+        //
+        if (len > FAKE_500_MAGIC.length && Arrays.equals(FAKE_500_MAGIC, Arrays.copyOfRange(peek, 0, FAKE_500_MAGIC.length))) {
+            return FailureType.FAKE_500;
         }
 
         if (len > HTTP_MAGIC.length && Arrays.equals(HTTP_MAGIC, Arrays.copyOfRange(peek, 0, HTTP_MAGIC.length))) {
@@ -213,7 +222,7 @@ public class RepairArc {
 
     static void fixStatusColon(Problem problem, Path src, Path dest) throws IOException {
         int httpStart;
-        long recordsModified = 0, recordsCopied = 0;
+        long recordsModified = 0, recordsCopied = 0, recordsDiscarded = 0;
         byte[] buffer = new byte[16384];
         try (FileChannel in = FileChannel.open(src, StandardOpenOption.READ);
              FileChannel in2 = FileChannel.open(src, StandardOpenOption.READ);
@@ -234,6 +243,7 @@ public class RepairArc {
                 }
                 int linebreak = indexOf(buffer, (byte) '\n', buflen);
                 String statusLine = new String(buffer, 0, linebreak, StandardCharsets.ISO_8859_1);
+                String trimmed = statusLine.trim();
 
                 if (statusLine.startsWith("HTTP/1.") && statusLine.contains(":")) {
                     System.out.println("Replace colon from " + gzip.getCurrentMemberStart());
@@ -262,6 +272,31 @@ public class RepairArc {
                     gzip.nextMember();
                     recordsModified++;
 
+                } else if (statusLine.startsWith("500 (Internal Server Error) Can't connect to ") || statusLine.startsWith("DELETED_TIME=")) {
+                    if (statusLine.startsWith("500")) {
+                        System.out.println("Discard fake 500 error");
+                    } else {
+                        System.out.println("Discard deleted record");
+                    }
+                    // skip to end of record, discarding the data
+                    while (!gzip.getAtMemberEnd()) {
+                        int n = gzip.read(buffer);
+                    }
+                    gzip.nextMember();
+                    recordsDiscarded++;
+
+                } else if (trimmed.equals("") || trimmed.equals("1") || !trimmed.startsWith("HTTP")) {
+                    System.out.println("XXX " + statusLine + " " + gzip.getCurrentMemberStart());
+                    // skip to end of record, discarding the data as we'll copy the compressed stream
+                    while (!gzip.getAtMemberEnd()) {
+                        int n = gzip.read(buffer);
+                    }
+
+                    long start = gzip.getCurrentMemberStart();
+                    long lengthToCopy = gzip.getCurrentMemberEnd() - gzip.getCurrentMemberStart();
+                    transferCompletely(in2, start, lengthToCopy, out);
+                    gzip.nextMember();
+                    recordsCopied++;
                 } else {
                     // skip to end of record, discarding the data as we'll copy the compressed stream
                     while (!gzip.getAtMemberEnd()) {
@@ -276,7 +311,7 @@ public class RepairArc {
                 }
             }
         }
-        System.out.println("Modified " + recordsModified + " records. Copied " + recordsCopied + " as is.");
+        System.out.println("Modified " + recordsModified + " records. Copied " + recordsCopied + " as is. Discarded " + recordsDiscarded);
     }
 
     public static void main(String args[]) throws IOException {
