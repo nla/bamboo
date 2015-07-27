@@ -1,6 +1,6 @@
 [@page title="WARC files queued for ${queueName}"]
 
-<h3>WARC files queued for ${queueName}</h3>
+<h3>${warcsPager.totalItems} WARC files queued for ${queueName}</h3>
 
 <table class="table">
     <thead>
