@@ -92,6 +92,33 @@ public class Warcs {
             } while (i >= 0 && i < arcDate.length());
             // give up, chop the end off
             return arcDate.substring(0, 14);
+        } else if (arcDate.length() == 18) {
+            // Dates with two extra 00 inserted somewhere after the year
+            // 2000083115[00]55[00]15
+            int i = 4; // always seems to be after the year
+            do {
+                i = arcDate.indexOf("00", i);
+                if (i % 2 == 0) {
+                    int j = i + 2;
+                    do {
+                        j = arcDate.indexOf("00", j);
+                        if (j % 2 == 0) {
+                            String candidate = arcDate.substring(0, i) + arcDate.substring(i + 2, j) + arcDate.substring(j + 2);
+
+                            try {
+                                parseArcDate(candidate);
+                                return candidate;
+                            } catch (DateTimeParseException e) {
+                                // try removing a later occurance
+                            }
+                        }
+                        j++;
+                    } while (j >= 0 && j < arcDate.length());
+                }
+                i++;
+            } while (i >= 0 && i < arcDate.length());
+            // give up, chop the end off
+            return arcDate.substring(0, 14);
         } else if (arcDate.length() == 12) {
             // pad out truncated dates
             return arcDate + "00";
