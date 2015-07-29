@@ -20,12 +20,14 @@ import java.util.regex.Pattern;
 public class Bamboo implements AutoCloseable {
     public final Config config;
     public final DbPool dbPool;
+    public final PandasDbPool pandasDbPool;
     public final Taskmaster taskmaster;
     public final BlobStore blobStore;
 
     public Bamboo(Config config, DbPool dbPool) {
         this.config = config;
         this.dbPool = dbPool;
+        this.pandasDbPool = null;
         this.taskmaster = new Taskmaster(config, dbPool);
         //blobStore = LocalBlobStore.open(config.getDossHome());
         blobStore = null; // coming soon
@@ -35,6 +37,11 @@ public class Bamboo implements AutoCloseable {
         config = new Config();
         dbPool = new DbPool(config);
         dbPool.migrate();
+        if (config.getPandasDbUrl() != null) {
+            pandasDbPool = new PandasDbPool(config);
+        } else {
+            pandasDbPool = null;
+        }
         this.taskmaster = new Taskmaster(config, dbPool);
         //blobStore = LocalBlobStore.open(config.getDossHome());
         blobStore = null; // coming soon
@@ -43,6 +50,9 @@ public class Bamboo implements AutoCloseable {
     @Override
     public void close() {
         dbPool.close();
+        if (pandasDbPool != null) {
+            pandasDbPool.close();
+        }
     }
 
     public long importHeritrixCrawl(String jobName, Long crawlSeriesId) {

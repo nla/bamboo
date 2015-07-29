@@ -30,8 +30,24 @@ body {
   background: #ffffff;
 }
 
-tr.table-sep td {
+.table.table-no-sep td {
+  border-top: none;
+}
+
+.table-no-sep tr.table-sep td {
   border-top: 1px solid #DDD;
+}
+
+.status-rejected {
+  color: #b06060;
+}
+
+.status-granted {
+  color: #60b060;
+}
+
+.status-default {
+  color: #6060b0;
 }
 
 .hlurl {
@@ -73,3 +89,4 @@ tr.table-sep td {
 .alert a:not(.close) {
   text-decoration: underline;
 }
+

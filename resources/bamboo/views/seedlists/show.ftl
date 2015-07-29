@@ -13,6 +13,14 @@
                 <li><a href="seedlists/${seedlist.id?c}/export/surts">Plain text (SURTs)</a></li>
             </ul>
         </div>
+        <div class="btn-group">
+            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                Compare <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu" role="menu">
+                <li><a href="seedlists/${seedlist.id?c}/compare/pandas">to PANDAS</a></li>
+            </ul>
+        </div>
         <a href="seedlists/${seedlist.id?c}/edit" class="btn btn-default">Edit</a>
     </span>
 </h3>

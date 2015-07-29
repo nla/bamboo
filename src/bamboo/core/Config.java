@@ -36,4 +36,16 @@ public class Config {
     public Path getDossHome() {
         return Paths.get(getEnv("DOSS_HOME", "/tmp/doss-home"));
     }
+
+    public String getPandasDbUrl() {
+        return getEnv("PANDAS_DB_URL", null);
+    }
+
+    public String getPandasDbUser() {
+        return getEnv("PANDAS_DB_USER", null);
+    }
+
+    public String getPandasDbPassword() {
+        return getEnv("PANDAS_DB_PASSWORD", null);
+    }
 }
