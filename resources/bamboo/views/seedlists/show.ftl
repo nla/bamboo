@@ -14,11 +14,14 @@
             </ul>
         </div>
         <div class="btn-group">
+            <a href="seedlists/${seedlist.id?c}/compare" class="btn btn-default">Compare</a>
             <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                Compare <span class="caret"></span>
+                <span class="caret"></span>
+                <span class="sr-only">Toggle Dropdown</span>
             </button>
             <ul class="dropdown-menu" role="menu">
-                <li><a href="seedlists/${seedlist.id?c}/compare/pandas">to PANDAS</a></li>
+                <li><a href="seedlists/${seedlist.id?c}/compare">with another seedlist</a></li>
+                <li><a href="seedlists/${seedlist.id?c}/compare/pandas">with PANDAS</a></li>
             </ul>
         </div>
         <a href="seedlists/${seedlist.id?c}/edit" class="btn btn-default">Edit</a>
