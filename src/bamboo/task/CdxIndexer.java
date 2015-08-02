@@ -16,6 +16,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -253,7 +254,12 @@ public class CdxIndexer implements Runnable {
                 String cdxLine = formatCdxLine(filename, record);
                 if (cdxLine != null) {
                     long recordLength = record.getHeader().getContentLength();
-                    Date time = Warcs.parseArcDate(Warcs.getArcDate(record.getHeader()));
+                    Date time;
+                    try {
+                        time = Warcs.parseArcDate(Warcs.getArcDate(record.getHeader()));
+                    } catch (DateTimeParseException e) {
+                        continue; // skip record if we can't get a sane time
+                    }
                     stats.update(recordLength, time);
                     String surt = toSchemalessSURT(Warcs.getCleanUrl(record.getHeader()));
                     for (CdxBuffer buffer : buffers) {
