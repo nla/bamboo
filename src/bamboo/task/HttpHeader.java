@@ -21,7 +21,7 @@ public class HttpHeader {
 
     public static HttpHeader parse(InputStream in, String targetUrl) throws IOException {
         String line = new String(LaxHttpParser.readRawLine(in), ISO_8859_1);
-        if (!StatusLine.startsWithHTTP(line)) {
+        if (line == null || !StatusLine.startsWithHTTP(line)) {
             return null;
         }
         HttpHeader result = new HttpHeader();
