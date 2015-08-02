@@ -238,7 +238,7 @@ public class SolrIndexer implements Runnable {
             doc.addField("content", textDoc.getText(true, true).replace("\uFFFF", ""));
             doc.addField("boiled", textDoc.getContent().replace("\uFFFF", ""));
             return doc;
-        } catch (SAXException | BoilerpipeProcessingException | IllegalArgumentException e) {
+        } catch (SAXException | BoilerpipeProcessingException | IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
             return null;
         }
     }
