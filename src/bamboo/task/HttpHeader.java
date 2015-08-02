@@ -12,15 +12,13 @@ import java.net.URL;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
-
 public class HttpHeader {
     int status;
     String location;
     String contentType;
 
     public static HttpHeader parse(InputStream in, String targetUrl) throws IOException {
-        String line = new String(LaxHttpParser.readRawLine(in), ISO_8859_1);
+        String line = LaxHttpParser.readLine(in, "ISO-8859-1");
         if (line == null || !StatusLine.startsWithHTTP(line)) {
             return null;
         }
