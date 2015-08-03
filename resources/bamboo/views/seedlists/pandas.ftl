@@ -31,7 +31,7 @@
             [#assign title = match.title]
             [#assign domain = seed.topPrivateDomain()]
             [#if seed.url != prevUrl]
-                <tr [#if domain != prevDomain]class="table-sep"[/#if]><td colspan="6">[#noescape]${seed.highlighted()}[/#noescape]</td></tr>
+                <tr [#if domain != prevDomain]class="table-sep"[/#if]><td colspan="6"><a href="${seed.url}">[#noescape]${seed.highlighted()}[/#noescape]</a></td></tr>
             [/#if]
             <tr>
                 <td></td>
@@ -59,7 +59,7 @@
     [#list unmatched as seed]
     [#assign domain = seed.topPrivateDomain()]
     <tr [#if domain != prevDomain]class="table-sep"[/#if]>
-        <td>[#noescape]${seed.highlighted()}[/#noescape]</td>
+        <td><a href="${seed.url}">[#noescape]${seed.highlighted()}[/#noescape]</a></td>
     </tr>
     [#assign prevDomain = domain]
     [/#list]

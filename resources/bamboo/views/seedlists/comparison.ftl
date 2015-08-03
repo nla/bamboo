@@ -4,7 +4,7 @@
         [#list seeds as seed]
         [#assign domain = seed.topPrivateDomain()]
         <tr [#if domain != prevDomain]class="table-sep"[/#if]>
-            <td>[#noescape]${seed.highlighted()}[/#noescape]</td>
+            <td><a href="${seed.url}">[#noescape]${seed.highlighted()}[/#noescape]</a></td>
         </tr>
         [#assign prevDomain = domain]
         [/#list]
