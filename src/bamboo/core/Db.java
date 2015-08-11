@@ -459,6 +459,29 @@ public abstract class Db implements AutoCloseable, Transactional {
 		return insertWarcWithoutRollup(crawlId, path, filename, size, sha256);
 	}
 
+	@Transaction
+	public int updateWarc(long crawlId, long warcId, String path, String filename, long oldSize, long size, String sha256) {
+		int rows = updateWarcWithoutRollup(warcId, path, filename, size, sha256);
+		if (rows > 0) {
+			incrementWarcStatsForCrawl(crawlId, 0, size - oldSize);
+			incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 0, size - oldSize);
+		}
+		return rows;
+	}
+
+	@Transaction
+	public int updateWarcSize(long crawlId, long warcId, long oldSize, long size) {
+		int rows = updateWarcSizeWithoutRollup(warcId, size);
+		if (rows > 0) {
+			incrementWarcStatsForCrawl(crawlId, 0, size - oldSize);
+			incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 0, size - oldSize);
+		}
+		return rows;
+	}
+
+	@SqlUpdate("UPDATE warc SET path = :path, filename = :filename, size = :size, sha256 = :sha256 WHERE id = :warcId")
+	public abstract int updateWarcWithoutRollup(@Bind("warcId") long warcId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256);
+
 	@SqlUpdate("UPDATE crawl_series SET warc_files = warc_files + :warc_files,  warc_size = warc_size + :warc_size WHERE id = (SELECT crawl_series_id FROM crawl WHERE crawl.id = :crawl_id)")
 	public abstract void incrementWarcStatsForCrawlSeriesByCrawlId(@Bind("crawl_id") long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
 
@@ -477,6 +500,9 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	@SqlQuery("SELECT * FROM warc WHERE filename = :filename")
 	public abstract Warc findWarcByFilename(@Bind("filename") String filename);
+
+	@SqlQuery("SELECT * FROM warc WHERE path = :path")
+	public abstract Warc findWarcByPath(@Bind("path") String path);
 
 	@SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId")
 	public abstract List<Warc> findWarcsByCrawlId(@Bind("crawlId") long crawlId);
@@ -512,7 +538,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 	public abstract int updateWarcSolrIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
 
 	@SqlUpdate("UPDATE warc SET size = :size WHERE id = :id")
-	public abstract int updateWarcSize(@Bind("id") long warcId, @Bind("size") long size);
+	public abstract int updateWarcSizeWithoutRollup(@Bind("id") long warcId, @Bind("size") long size);
 
 	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND cdx_indexed = 0 AND corrupt = 0")
 	public abstract long countWarcsToBeCdxIndexedInCrawl(@Bind long crawlId);

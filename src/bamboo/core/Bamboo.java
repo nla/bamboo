@@ -1,10 +1,7 @@
 package bamboo.core;
 
 import bamboo.io.HeritrixJob;
-import bamboo.task.CdxIndexer;
-import bamboo.task.SolrIndexer;
-import bamboo.task.Taskmaster;
-import bamboo.task.Warcs;
+import bamboo.task.*;
 import bamboo.web.Main;
 import doss.BlobStore;
 
@@ -95,7 +92,7 @@ public class Bamboo implements AutoCloseable {
             for (Db.Warc warc : db.listWarcs()) {
                 long size = Files.size(warc.path);
                 System.out.println(warc.size + " -> " + size + " " + warc.id + " " + warc.path);
-                db.updateWarcSize(warc.id, size);
+                db.updateWarcSizeWithoutRollup(warc.id, size);
             }
             db.refreshWarcStatsOnCrawls();
             db.refreshWarcStatsOnCrawlSeries();
@@ -136,6 +133,8 @@ public class Bamboo implements AutoCloseable {
             case "scrub":
                 Scrub.scrub(bamboo);
                 break;
+            case "watch-importer":
+                new WatchImporter(bamboo.dbPool, Long.parseLong(args[1]), Paths.get(args[2])).run();
             default:
                 usage();
         }
@@ -170,6 +169,7 @@ public class Bamboo implements AutoCloseable {
         System.out.println("  refresh-warc-stats               - Refresh warc stats tables");
         System.out.println("  refresh-warc-stats-fs            - Refresh warc stats tables based on disk");
         System.out.println("  server                           - Run web server");
+        System.out.println("  watch-importer <crawl-id> <path> - Monitor path for new warcs, incrementally index them and then import them to crawl-id");
         System.exit(1);
     }
 }

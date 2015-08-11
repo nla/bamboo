@@ -7,6 +7,7 @@ import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
+import org.archive.io.warc.WARCReaderFactory;
 import org.archive.url.SURT;
 
 import java.io.*;
@@ -87,7 +88,7 @@ public class CdxIndexer implements Runnable {
         // parse the warc file
         Stats stats;
         try {
-            stats = writeCdx(warc.path, buffers);
+            stats = writeCdx(warc.path, warc.filename, buffers);
         } catch (RuntimeException e) {
             if (e.getCause() != null && e.getCause() instanceof ZipException) {
                 try (Db db = dbPool.take()) {
@@ -147,7 +148,7 @@ public class CdxIndexer implements Runnable {
                 }
 
                 // update each of the per-collection stats
-                for (CdxBuffer buffer: buffers) {
+                for (CdxBuffer buffer : buffers) {
                     long recordsDelta = buffer.stats.records;
                     long bytesDelta = buffer.stats.bytes;
 
@@ -165,6 +166,14 @@ public class CdxIndexer implements Runnable {
             });
         }
         System.out.println("Finished CDX indexing " + warc.id + " " + warc.path + " (" + stats.records + " records with " + stats.bytes + " bytes)");
+    }
+
+    void indexWarc(long warcId) throws IOException {
+        Db.Warc warc;
+        try (Db db = dbPool.take()) {
+            warc = db.findWarc(warcId);
+        }
+        indexWarc(warc);
     }
 
     private static class CdxBuffer {
@@ -246,10 +255,9 @@ public class CdxIndexer implements Runnable {
         return SURT.toSURT(stripScheme(url));
     }
 
-    private static Stats writeCdx(Path warc, List<CdxBuffer> buffers) throws IOException {
+    private static Stats writeCdx(Path warc, String filename, List<CdxBuffer> buffers) throws IOException {
         Stats stats = new Stats();
-        String filename = warc.getFileName().toString();
-        try (ArchiveReader reader = ArchiveReaderFactory.get(warc.toFile())) {
+        try (ArchiveReader reader = openWarc(warc)) {
             for (ArchiveRecord record : reader) {
                 String cdxLine = formatCdxLine(filename, record);
                 if (cdxLine != null) {
@@ -269,6 +277,17 @@ public class CdxIndexer implements Runnable {
             }
         }
         return stats;
+    }
+
+    private static ArchiveReader openWarc(Path path) throws IOException {
+        /*
+         * ArchiveReaderFactor.get doesn't understand the .open extension.
+         */
+        if (path.toString().endsWith(".warc.gz.open")) {
+            return WARCReaderFactory.get(path.toFile());
+        } else {
+            return ArchiveReaderFactory.get(path.toFile());
+        }
     }
 
     public static String formatCdxLine(String filename, ArchiveRecord record) throws IOException {
@@ -326,9 +345,9 @@ public class CdxIndexer implements Runnable {
             System.err.println("Usage: CdxIndexer warc");
             System.exit(1);
         }
-        String warc = args[0];
+        Path warc = Paths.get(args[0]);
         List<CdxBuffer> buffers = new ArrayList<>();
         buffers.add(new DummyCdxBuffer());
-        writeCdx(Paths.get(warc), buffers);
+        writeCdx(warc, warc.getFileName().toString(), buffers);
     }
 }
