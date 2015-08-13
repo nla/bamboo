@@ -452,16 +452,19 @@ public abstract class Db implements AutoCloseable, Transactional {
 	}
 
 	@Transaction
-	public long insertWarc(long crawlId, String path, String filename, long size, String sha256) {
+	public long insertWarc(long crawlId, int stateId, String path, String filename, long size, String sha256) {
 		incrementWarcStatsForCrawl(crawlId, 1, size);
 		incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 1, size);
-		return insertWarcWithoutRollup(crawlId, path, filename, size, sha256);
+		long warcId = insertWarcWithoutRollup(crawlId, stateId, path, filename, size, sha256);
+		insertWarcHistory(warcId, stateId);
+		return warcId;
 	}
 
 	@Transaction
-	public int updateWarc(long crawlId, long warcId, String path, String filename, long oldSize, long size, String sha256) {
-		int rows = updateWarcWithoutRollup(warcId, path, filename, size, sha256);
+	public int updateWarc(long crawlId, long warcId, int stateId, String path, String filename, long oldSize, long size, String sha256) {
+		int rows = updateWarcWithoutRollup(warcId, stateId, path, filename, size, sha256);
 		if (rows > 0) {
+			insertWarcHistory(warcId, stateId);
 			incrementWarcStatsForCrawl(crawlId, 0, size - oldSize);
 			incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 0, size - oldSize);
 		}
@@ -478,8 +481,11 @@ public abstract class Db implements AutoCloseable, Transactional {
 		return rows;
 	}
 
-	@SqlUpdate("UPDATE warc SET path = :path, filename = :filename, size = :size, sha256 = :sha256 WHERE id = :warcId")
-	public abstract int updateWarcWithoutRollup(@Bind("warcId") long warcId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256);
+	@SqlQuery("SELECT crawl_id FROM warc WHERE id = :warcId")
+	public abstract long findCrawlIdForWarc(@Bind("warcId") long warcId);
+
+	@SqlUpdate("UPDATE warc SET warc_state_id = :stateId, path = :path, filename = :filename, size = :size, sha256 = :sha256 WHERE id = :warcId")
+	public abstract int updateWarcWithoutRollup(@Bind("warcId") long warcId, @Bind("stateId") int stateId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256);
 
 	@SqlUpdate("UPDATE crawl_series SET warc_files = warc_files + :warc_files,  warc_size = warc_size + :warc_size WHERE id = (SELECT crawl_series_id FROM crawl WHERE crawl.id = :crawl_id)")
 	public abstract void incrementWarcStatsForCrawlSeriesByCrawlId(@Bind("crawl_id") long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
@@ -487,9 +493,9 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("UPDATE crawl SET warc_files = warc_files + :warc_files, warc_size = warc_size + :warc_size WHERE id = :crawlId")
 	public abstract void incrementWarcStatsForCrawl(@Bind("crawlId") long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
 
-	@SqlUpdate("INSERT INTO warc (crawl_id, path, filename, size, warc_state_id, sha256) VALUES (:crawlId, :path, :filename, :size, " + Db.Warc.IMPORTED + ", :sha256)")
+	@SqlUpdate("INSERT INTO warc (crawl_id, path, filename, size, warc_state_id, sha256) VALUES (:crawlId, :path, :filename, :size, :stateId, :sha256)")
 	@GetGeneratedKeys
-	public abstract long insertWarcWithoutRollup(@Bind("crawlId") long crawlId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256);
+	public abstract long insertWarcWithoutRollup(@Bind("crawlId") long crawlId, @Bind("stateId") int stateId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256);
 
 	@SqlQuery("SELECT * FROM warc")
 	public abstract List<Warc> listWarcs();

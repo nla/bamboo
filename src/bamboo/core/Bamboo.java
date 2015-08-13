@@ -67,7 +67,7 @@ public class Bamboo implements AutoCloseable {
             Path p = Paths.get(path);
             long size = Files.size(p);
             String digest = Scrub.calculateDigest("SHA-256", p);
-            long warcId = db.insertWarc(crawlId, path, p.getFileName().toString(), size, digest);
+            long warcId = db.insertWarc(crawlId, Db.Warc.IMPORTED, path, p.getFileName().toString(), size, digest);
             System.out.println("Registered WARC " + warcId);
         }
     }

@@ -108,7 +108,7 @@ public class ImportJob {
 			String digest = Scrub.calculateDigest("SHA-256", src);
 			Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
 			try (Db db = dbPool.take()) {
-				db.insertWarc(crawlId, dest.toString(), dest.getFileName().toString(), size, digest);
+				db.insertWarc(crawlId, Db.Warc.IMPORTED, dest.toString(), dest.getFileName().toString(), size, digest);
 			}
 		}
 	}

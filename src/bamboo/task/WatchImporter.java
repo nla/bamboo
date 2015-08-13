@@ -85,7 +85,7 @@ public class WatchImporter {
                  * Create the record under the final closed filename as its currently the key wayback uses to request
                  * a particular warc and we don't want to have to deal with it changing.
                  */
-                warcId = db.insertWarc(crawlId, path.toString(), filename, 0L, null);
+                warcId = db.insertWarc(crawlId, Db.Warc.OPEN, path.toString(), filename, 0L, null);
                 prevSize = 0;
             }
         }
@@ -117,9 +117,9 @@ public class WatchImporter {
 
         try (Db db = dbPool.take()) {
             if (warc == null) {
-                db.insertWarc(crawlId, dest.toString(), path.getFileName().toString(), size, digest);
+                db.insertWarc(crawlId, Db.Warc.IMPORTED, dest.toString(), path.getFileName().toString(), size, digest);
             } else {
-                db.updateWarc(crawlId, warc.id, dest.toString(), dest.getFileName().toString(), warc.size, size, digest);
+                db.updateWarc(warc.crawlId, warc.id, Db.Warc.IMPORTED, dest.toString(), dest.getFileName().toString(), warc.size, size, digest);
             }
         }
     }
