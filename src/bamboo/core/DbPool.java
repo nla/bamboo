@@ -18,6 +18,7 @@ public class DbPool implements Closeable {
 
     public DbPool(Config config) {
         HikariConfig hikariConfig = new HikariConfig();
+        hikariConfig.setPoolName("BambooDbPool");
         hikariConfig.setJdbcUrl(config.getDbUrl());
         hikariConfig.setUsername(config.getDbUser());
         hikariConfig.setPassword(config.getDbPassword());

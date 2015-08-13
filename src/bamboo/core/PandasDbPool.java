@@ -16,6 +16,7 @@ public class PandasDbPool implements Closeable {
 
     public PandasDbPool(Config config) {
         HikariConfig hikariConfig = new HikariConfig();
+        hikariConfig.setPoolName("PandasDbPool");
         hikariConfig.setJdbcUrl(config.getPandasDbUrl());
         hikariConfig.setUsername(config.getPandasDbUser());
         hikariConfig.setPassword(config.getPandasDbPassword());
