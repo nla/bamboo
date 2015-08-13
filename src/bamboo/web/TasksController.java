@@ -51,10 +51,14 @@ class TasksController {
         return seeOther(request.contextUri().resolve("tasks").toString());
     }
 
+    Pager<Db.Warc> paginateWarcs(Request request, Db db, int stateId) {
+        return new Pager<>(request, "page", db.countWarcsInState(stateId),
+                (offset, limit) -> db.paginateWarcsInState(stateId, offset, limit));
+    }
+
     Response cdxQueue(Request request) {
         try (Db db = bamboo.dbPool.take()) {
-            Pager<Db.Warc> pager = new Pager<>(request, "page", db.countWarcsToBeCdxIndexed(),
-                    db::paginateWarcsToBeCdxIndexed);
+            Pager<Db.Warc> pager = paginateWarcs(request, db, Db.Warc.IMPORTED);
             return render("tasks/warcs.ftl",
                     "queueName", "CDX Indexing",
                     "warcs", pager.items,
@@ -64,8 +68,7 @@ class TasksController {
 
     Response solrQueue(Request request) {
         try (Db db = bamboo.dbPool.take()) {
-            Pager<Db.Warc> pager = new Pager<>(request, "page", db.countWarcsToBeSolrIndexed(),
-                    db::paginateWarcsToBeSolrIndexed);
+            Pager<Db.Warc> pager = paginateWarcs(request, db, Db.Warc.CDX_INDEXED);
             return render("tasks/warcs.ftl",
                     "queueName", "Solr Indexing",
                     "warcs", pager.items,

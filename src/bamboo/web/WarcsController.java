@@ -200,7 +200,8 @@ class WarcsController {
             Db.Crawl crawl = db.findCrawl(warc.crawlId);
             return render("warc.ftl",
                     "warc", warc,
-                    "crawl", crawl);
+                    "crawl", crawl,
+                    "state", db.findWarcStateName(warc.stateId));
         }
     }
 }

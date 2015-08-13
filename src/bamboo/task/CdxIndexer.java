@@ -28,7 +28,8 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipException;
 
 public class CdxIndexer implements Runnable {
-    final private DbPool dbPool;
+    private static final int BATCH_SIZE = 1024;
+    private final DbPool dbPool;
 
     public CdxIndexer(DbPool dbPool) {
         this.dbPool = dbPool;
@@ -39,7 +40,7 @@ public class CdxIndexer implements Runnable {
             List<Db.Warc> warcs;
 
             try (Db db = dbPool.take()) {
-                warcs = db.findWarcsToCdxIndex();
+                warcs = db.findWarcsInState(Db.Warc.IMPORTED, BATCH_SIZE);
             }
 
             if (warcs.isEmpty()) {
@@ -92,26 +93,21 @@ public class CdxIndexer implements Runnable {
         } catch (RuntimeException e) {
             if (e.getCause() != null && e.getCause() instanceof ZipException) {
                 try (Db db = dbPool.take()) {
-                    db.updateWarcCorrupt(warc.id, Db.GZIP_CORRUPT);
+                    db.updateWarcState(warc.id, Db.Warc.CDX_ERROR);
                     return;
                 }
             } else {
                 throw e;
             }
-        } catch (ZipException e) {
+        } catch (ZipException | FileNotFoundException e) {
             try (Db db = dbPool.take()) {
-                db.updateWarcCorrupt(warc.id, Db.GZIP_CORRUPT);
-                return;
-            }
-        } catch (FileNotFoundException e) {
-            try (Db db = dbPool.take()) {
-                db.updateWarcCorrupt(warc.id, Db.WARC_MISSING);
+                db.updateWarcState(warc.id, Db.Warc.CDX_ERROR);
                 return;
             }
         } catch (IOException e) {
             if (e.getMessage().endsWith(" is not a WARC file.")) {
                 try (Db db = dbPool.take()) {
-                    db.updateWarcCorrupt(warc.id, Db.WARC_CORRUPT);
+                    db.updateWarcState(warc.id, Db.Warc.CDX_ERROR);
                     return;
                 }
             } else {
@@ -127,7 +123,9 @@ public class CdxIndexer implements Runnable {
         // update the records and statistics in the database
         try (Db db = dbPool.take()) {
             db.inTransaction((t, s) -> {
-                db.updateWarcCdxIndexed(warc.id, System.currentTimeMillis(), stats.records, stats.bytes);
+                db.updateWarcStateWithoutHistory(warc.id, Db.Warc.CDX_INDEXED);
+                db.insertWarcHistory(warc.id, Db.Warc.CDX_INDEXED);
+                db.updateWarcRecordStats(warc.id, stats.records, stats.bytes);
 
                 // we subtract the original counts to prevent doubling up the stats when reindexing
                 // if this is a straight reindex with no changes these deltas will be zero

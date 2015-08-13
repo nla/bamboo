@@ -64,9 +64,9 @@ class CrawlsController {
             return render("crawls/show.ftl",
                     "crawl", crawl,
                     "series", db.findCrawlSeriesById(crawl.crawlSeriesId),
-                    "warcsToBeCdxIndexed", db.countWarcsToBeCdxIndexedInCrawl(crawl.id),
-                    "warcsToBeSolrIndexed", db.countWarcsToBeSolrIndexedInCrawl(crawl.id),
-                    "corruptWarcs", db.countCorruptWarcsInCrawl(crawl.id),
+                    "warcsToBeCdxIndexed", db.countWarcsInCrawlAndState(crawl.id, Db.Warc.IMPORTED),
+                    "warcsToBeSolrIndexed", db.countWarcsInCrawlAndState(crawl.id, Db.Warc.CDX_INDEXED),
+                    "corruptWarcs", db.countWarcsInCrawlAndState(crawl.id, Db.Warc.CDX_ERROR),
                     "descriptionHtml", Markdown.render(crawl.description, request.uri())
                     );
         }
@@ -112,8 +112,8 @@ class CrawlsController {
     Response listCorruptWarcs(Request request) {
         try (Db db = bamboo.dbPool.take()) {
             Db.Crawl crawl = findCrawl(db, request);
-            Pager<Db.Warc> pager = new Pager<>(request, "page", db.countCorruptWarcsInCrawl(crawl.id),
-                    (limit, offset) -> db.paginateCorruptWarcsInCrawl(crawl.id, limit, offset));
+            Pager<Db.Warc> pager = new Pager<>(request, "page", db.countWarcsInCrawlAndState(crawl.id, Db.Warc.CDX_ERROR),
+                    (limit, offset) -> db.paginateWarcsInCrawlAndState(crawl.id, Db.Warc.CDX_ERROR, limit, offset));
             return render("crawls/warcs.ftl",
                     "titlePrefix", "Corrupt",
                     "crawl", crawl,

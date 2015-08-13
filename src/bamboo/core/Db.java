@@ -418,30 +418,29 @@ public abstract class Db implements AutoCloseable, Transactional {
 	}
 
 	public static class Warc {
+		public final static int OPEN = 0, IMPORTED = 1, CDX_INDEXED = 2, SOLR_INDEXED = 3;
+		public final static int IMPORT_ERROR = -1, CDX_ERROR = -2, SOLR_ERROR = -3;
+
 		public final long id;
 		public final long crawlId;
+		public final int stateId;
 		public final Path path;
 		public final long size;
-		public final long cdxIndexed;
-		public final long solrIndexed;
 		public final long records;
 		public final long recordBytes;
 		public final String filename;
 		public final String sha256;
-		public final int corrupt;
 
 		public Warc(ResultSet rs) throws SQLException {
 			id = rs.getLong("id");
 			crawlId = rs.getLong("crawl_id");
+			stateId= rs.getInt("warc_state_id");
 			path = Paths.get(rs.getString("path"));
 			size = rs.getLong("size");
-			cdxIndexed = rs.getLong("cdx_indexed");
-			solrIndexed = rs.getLong("solr_indexed");
 			records = rs.getLong("records");
 			recordBytes = rs.getLong("record_bytes");
 			filename = rs.getString("filename");
 			sha256 = rs.getString("sha256");
-			corrupt = rs.getInt("corrupt");
 		}
 	}
 
@@ -488,7 +487,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlUpdate("UPDATE crawl SET warc_files = warc_files + :warc_files, warc_size = warc_size + :warc_size WHERE id = :crawlId")
 	public abstract void incrementWarcStatsForCrawl(@Bind("crawlId") long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
 
-	@SqlUpdate("INSERT INTO warc (crawl_id, path, filename, size, cdx_indexed, sha256) VALUES (:crawlId, :path, :filename, :size, 0, :sha256)")
+	@SqlUpdate("INSERT INTO warc (crawl_id, path, filename, size, warc_state_id, sha256) VALUES (:crawlId, :path, :filename, :size, " + Db.Warc.IMPORTED + ", :sha256)")
 	@GetGeneratedKeys
 	public abstract long insertWarcWithoutRollup(@Bind("crawlId") long crawlId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256);
 
@@ -507,56 +506,48 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId")
 	public abstract List<Warc> findWarcsByCrawlId(@Bind("crawlId") long crawlId);
 
-	@SqlQuery("SELECT * FROM warc WHERE cdx_indexed = 0 AND corrupt = 0")
-	public abstract List<Warc> findWarcsToCdxIndex();
+	@SqlQuery("SELECT * FROM warc WHERE warc_state_id = :stateId LIMIT :limit")
+	public abstract List<Warc> findWarcsInState(@Bind("stateId") int stateId, int limit);
 
-    @SqlQuery("SELECT * FROM warc WHERE solr_indexed = 0 AND corrupt = 0")
-	public abstract List<Warc> findWarcsToSolrIndex();
+	@SqlQuery("SELECT COUNT(*) FROM warc WHERE warc_state_id = :stateId")
+	public abstract long countWarcsInState(@Bind("stateId") int stateId);
+
+	@SqlQuery("SELECT * FROM warc WHERE warc_state_id = :stateId LIMIT :limit OFFSET :offset")
+	public abstract List<Warc> paginateWarcsInState(@Bind("stateId") int stateId, @Bind("limit") long limit, @Bind("offset") long offset);
 
 	@SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId ORDER BY filename LIMIT :limit OFFSET :offset")
 	public abstract List<Warc> paginateWarcsInCrawl(@Bind("crawlId") long crawlId, @Bind("limit") long limit, @Bind("offset") long offset);
 
-	@SqlQuery("SELECT COUNT(*) FROM warc WHERE cdx_indexed = 0 AND corrupt = 0")
-	public abstract long countWarcsToBeCdxIndexed();
+	@SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId AND warc_state_id = :stateId LIMIT :limit OFFSET :offset")
+	public abstract List<Warc> paginateWarcsInCrawlAndState(@Bind("crawlId") long crawlId, @Bind("stateId") int stateId, @Bind("limit") long limit, @Bind("offset") long offset);
 
-	@SqlQuery("SELECT * FROM warc WHERE cdx_indexed = 0 AND corrupt = 0 LIMIT :limit OFFSET :offset")
-	public abstract List<Warc> paginateWarcsToBeCdxIndexed(@Bind("limit") long limit, @Bind("offset") long offset);
+	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND warc_state_id = :stateId")
+	public abstract long countWarcsInCrawlAndState(@Bind long crawlId,  @Bind("stateId") int stateId);
 
-	@SqlQuery("SELECT COUNT(*) FROM warc WHERE solr_indexed = 0 AND corrupt = 0")
-	public abstract long countWarcsToBeSolrIndexed();
+	@Transaction
+	public int updateWarcState(long warcId, int stateId) {
+		int rows = updateWarcStateWithoutHistory(warcId, stateId);
+		if (rows > 0) {
+			insertWarcHistory(warcId, stateId);
+		}
+		return rows;
+	}
 
-	@SqlQuery("SELECT * FROM warc WHERE solr_indexed = 0 AND corrupt = 0 LIMIT :limit OFFSET :offset")
-	public abstract List<Warc> paginateWarcsToBeSolrIndexed(@Bind("limit") long limit, @Bind("offset") long offset);
+	@SqlUpdate("UPDATE warc SET warc_state_id = :stateId WHERE warc_id = :warcId")
+	public abstract int updateWarcStateWithoutHistory(@Bind("warcId") long warcId, @Bind("stateId") int stateId);
 
-	@SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId AND corrupt <> 0 ORDER BY filename LIMIT :limit OFFSET :offset")
-	public abstract List<Warc> paginateCorruptWarcsInCrawl(@Bind("crawlId") long crawlId, @Bind("limit") long limit, @Bind("offset") long offset);
+	@SqlUpdate("INSERT INTO warc_history (warc_id, warc_state_id) VALUES (:warcId, :stateId")
+	public abstract int insertWarcHistory(@Bind("warcId") long warcId, @Bind("stateId") int stateId);
 
-	@SqlUpdate("UPDATE warc SET cdx_indexed = :timestamp, records = :records, record_bytes = :record_bytes WHERE id = :id")
-	public abstract int updateWarcCdxIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp, @Bind("records") long records, @Bind("record_bytes") long recordBytes);
-
-    @SqlUpdate("UPDATE warc SET solr_indexed = :timestamp WHERE id = :id")
-	public abstract int updateWarcSolrIndexed(@Bind("id") long warcId, @Bind("timestamp") long timestamp);
+	@SqlUpdate("UPDATE warc SET records = :records, record_bytes = :record_bytes WHERE id = :id")
+	public abstract int updateWarcRecordStats(@Bind("id") long warcId, @Bind("records") long records, @Bind("record_bytes") long recordBytes);
 
 	@SqlUpdate("UPDATE warc SET size = :size WHERE id = :id")
 	public abstract int updateWarcSizeWithoutRollup(@Bind("id") long warcId, @Bind("size") long size);
 
-	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND cdx_indexed = 0 AND corrupt = 0")
-	public abstract long countWarcsToBeCdxIndexedInCrawl(@Bind long crawlId);
-
-	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND solr_indexed = 0 AND corrupt = 0")
-	public abstract long countWarcsToBeSolrIndexedInCrawl(@Bind long crawlId);
-
-	@SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND corrupt <> 0")
-	public abstract long countCorruptWarcsInCrawl(@Bind long crawlId);
-
-	@SqlUpdate("UPDATE warc SET corrupt = :corrupt WHERE id = :id")
-	public abstract int updateWarcCorrupt(@Bind("id") long warcId, @Bind("corrupt") int corrupt);
-
 	@SqlUpdate("UPDATE warc SET sha256 = :digest WHERE id = :id")
 	public abstract int updateWarcSha256(@Bind("id") long id, @Bind("digest") String digest);
 
-	public static final int GZIP_CORRUPT = 1;
-	public static final int WARC_CORRUPT = 2;
-	public static final int WARC_MISSING = 3;
-
+	@SqlQuery("SELECT name FROM warc_state WHERE id = :stateId")
+	public abstract String findWarcStateName(@Bind("stateId") int stateId);
 }

@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Date;
 
 /**
  * User-defined functions for H2 to make it behave more like MySQL.
@@ -20,6 +21,7 @@ public class DbH2Compat {
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE ALIAS IF NOT EXISTS SUBSTRING_INDEX DETERMINISTIC FOR \"" + DbH2Compat.class.getName() + ".substringIndex\"");
+            stmt.execute("CREATE ALIAS IF NOT EXISTS FROM_UNIXTIME DETERMINISTIC FOR \"" + DbH2Compat.class.getName() + ".fromUnixtime\"");
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -55,5 +57,12 @@ public class DbH2Compat {
         } else {
             return "";
         }
+    }
+
+    /**
+     * Java implementation of MySQL's FROM_UNIXTIME for use by H2.
+     */
+    public static Date fromUnixtime(long time) {
+        return new Date(time);
     }
 }

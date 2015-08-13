@@ -47,6 +47,7 @@ import java.util.regex.Pattern;
 
 public class SolrIndexer implements Runnable {
 
+    static final int BATCH_SIZE = 1024;
     static final int PDF_DISK_OFFLOAD_THRESHOLD = 32 * 1024 * 1024;
     static final int MAX_DOC_SIZE = 0x100000;
     static final int COMMIT_WITHIN_MS = 300000;
@@ -63,7 +64,7 @@ public class SolrIndexer implements Runnable {
             List<Db.Warc> warcs;
 
             try (Db db = dbPool.take()) {
-                warcs = db.findWarcsToSolrIndex();
+                warcs = db.findWarcsInState(Db.Warc.CDX_INDEXED, BATCH_SIZE);
             }
 
             if (warcs.isEmpty()) {
@@ -154,7 +155,7 @@ public class SolrIndexer implements Runnable {
                 }
             }
             try (Db db = dbPool.take()) {
-                db.updateWarcSolrIndexed(warc.id, System.currentTimeMillis());
+                db.updateWarcState(warc.id, Db.Warc.SOLR_INDEXED);
             }
             System.out.println(new Date() + " Finished Solr indexing " + warc.id + " " + warc.path);
         } catch (IOException e) {
