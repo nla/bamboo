@@ -100,9 +100,13 @@ public class Bamboo implements AutoCloseable {
     }
 
     public static void main(String args[]) throws Exception {
-        Bamboo bamboo = new Bamboo();
         if (args.length == 0)
             usage();
+        if (args[0].equals("server")) {
+            Main.main(Arrays.copyOfRange(args, 1, args.length));
+            return;
+        }
+        Bamboo bamboo = new Bamboo();
         switch (args[0]) {
             case "import":
                 bamboo.importHeritrixCrawl(args[1], Long.parseLong(args[2]));
@@ -126,9 +130,6 @@ public class Bamboo implements AutoCloseable {
                 break;
             case "refresh-warc-stats-fs":
                 bamboo.refreshWarcStatsFs();
-                break;
-            case "server":
-                Main.main(Arrays.copyOfRange(args, 1, args.length));
                 break;
             case "scrub":
                 Scrub.scrub(bamboo);
