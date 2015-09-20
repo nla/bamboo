@@ -109,6 +109,13 @@ public abstract class Db implements AutoCloseable, Transactional {
 		}
 	}
 
+	public static class CollectionWarcMapper implements ResultSetMapper<CollectionWarc> {
+		@Override
+		public CollectionWarc map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+			return new CollectionWarc(r);
+		}
+	}
+
 	@SqlQuery("SELECT * FROM collection_warc WHERE collection_id = :collectionId AND warc_id = :warcId")
 	public abstract CollectionWarc findCollectionWarc(@Bind("collectionId") long collectionId, @Bind("warcId") long warcId);
 
