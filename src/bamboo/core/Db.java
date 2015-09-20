@@ -539,7 +539,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 		return rows;
 	}
 
-	@SqlUpdate("UPDATE warc SET warc_state_id = :stateId WHERE warc_id = :warcId")
+	@SqlUpdate("UPDATE warc SET warc_state_id = :stateId WHERE id = :warcId")
 	public abstract int updateWarcStateWithoutHistory(@Bind("warcId") long warcId, @Bind("stateId") int stateId);
 
 	@SqlUpdate("INSERT INTO warc_history (warc_id, warc_state_id) VALUES (:warcId, :stateId)")
