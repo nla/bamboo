@@ -1,12 +1,12 @@
 package bamboo.integration;
 
-import bamboo.core.Bamboo;
 import bamboo.web.Webapp;
 import com.gargoylesoftware.htmlunit.*;
 import com.gargoylesoftware.htmlunit.util.NameValuePair;
 import droute.*;
 import net.sourceforge.jwebunit.htmlunit.HtmlUnitTestingEngineImpl;
 import net.sourceforge.jwebunit.junit.WebTester;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -17,7 +17,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.StringTokenizer;
 
 public class WebTest {
 
@@ -198,6 +201,7 @@ public class WebTest {
     }
 
     @Test
+    @Ignore("not ready yet")
     public void test() {
         WebTester t = new WebTester();
 
