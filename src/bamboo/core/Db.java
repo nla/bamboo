@@ -105,7 +105,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 			collectionId = rs.getLong("collection_id");
 			warcId = rs.getLong("warc_id");
 			records = rs.getLong("records");
-			recordBytes = rs.getLong("recordBytes");
+			recordBytes = rs.getLong("record_bytes");
 		}
 	}
 
