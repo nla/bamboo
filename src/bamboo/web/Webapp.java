@@ -43,6 +43,7 @@ public class Webapp implements Handler, AutoCloseable {
         Handler handler = new FreeMarkerHandler(fremarkerConfig, routes);
         handler = Csrf.protect(handler);
         this.handler = errorHandler(handler);
+        bamboo.startWorkerThreads();
     }
 
     /**

@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -135,7 +136,7 @@ public class Bamboo implements AutoCloseable {
                 Scrub.scrub(bamboo);
                 break;
             case "watch-importer":
-                new WatchImporter(bamboo.dbPool, Long.parseLong(args[1]), Paths.get(args[2])).run();
+                new WatchImporter(bamboo.dbPool, bamboo.config.getWatches()).run();
             default:
                 usage();
         }
@@ -172,5 +173,25 @@ public class Bamboo implements AutoCloseable {
         System.out.println("  server                           - Run web server");
         System.out.println("  watch-importer <crawl-id> <path> - Monitor path for new warcs, incrementally index them and then import them to crawl-id");
         System.exit(1);
+    }
+
+    public void startWorkerThreads() {
+        startWatchImporter();
+    }
+
+    void startWatchImporter() {
+        List<Config.Watch> watches = config.getWatches();
+        if (!watches.isEmpty()) {
+            Thread thread = new Thread(()-> {
+                try {
+                    new WatchImporter(dbPool, watches).run();
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                    throw new RuntimeException(e);
+                }
+            });
+            thread.setDaemon(true);
+            thread.start();
+        }
     }
 }

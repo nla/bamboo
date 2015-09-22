@@ -2,6 +2,9 @@ package bamboo.core;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class Config {
     private String getEnv(String name, String defaultValue) {
@@ -47,5 +50,27 @@ public class Config {
 
     public String getPandasDbPassword() {
         return getEnv("PANDAS_DB_PASSWORD", null);
+    }
+
+    public List<Watch> getWatches() {
+        List<Watch> watches = new ArrayList<>();
+        String value = getEnv("BAMBOO_WATCH", "");
+        if (!value.isEmpty()) {
+            for (String entry : value.split(",")) {
+                String[] fields = entry.split(":");
+                watches.add(new Watch(Paths.get(fields[1]), Long.parseLong(fields[0])));
+            }
+        }
+        return Collections.unmodifiableList(watches);
+    }
+
+    public static class Watch {
+        public final long crawlId;
+        public final Path dir;
+
+        public Watch(Path dir, long crawlId) {
+            this.crawlId = crawlId;
+            this.dir = dir;
+        }
     }
 }

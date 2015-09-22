@@ -1,11 +1,15 @@
 package bamboo.task;
 
+import bamboo.core.Config;
 import bamboo.core.Db;
 import bamboo.core.DbPool;
 import bamboo.core.Scrub;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import static java.nio.file.StandardWatchEventKinds.*;
@@ -16,24 +20,33 @@ import static java.nio.file.StandardWatchEventKinds.*;
  */
 public class WatchImporter {
     final static Logger log = Logger.getLogger(WatchImporter.class.getName());
-    final Path dirToWatch;
     final DbPool dbPool;
-    final long crawlId;
+    final Map<Path,Config.Watch> watches = new HashMap<>();
 
-    public WatchImporter(DbPool dbPool, long crawlId, Path dirToWatch) {
+    public WatchImporter(DbPool dbPool, List<Config.Watch> watches) {
         this.dbPool = dbPool;
-        this.crawlId = crawlId;
-        this.dirToWatch = dirToWatch;
+        for (Config.Watch watch: watches) {
+            this.watches.put(watch.dir, watch);
+        }
     }
 
     public void run() throws IOException, InterruptedException {
-        log.finest("watching " + dirToWatch);
-        try (WatchService watcher = dirToWatch.getFileSystem().newWatchService()) {
-            dirToWatch.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+        try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
+
+
+            for (Config.Watch watch : watches.values()) {
+                log.finest("Watching " + watch.dir + " for new WARCs");
+                watch.dir.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+            }
 
             scanForChanges();
 
             for (WatchKey key = watcher.take(); key.isValid(); key = watcher.take()) {
+                Config.Watch watch = watches.get(key.watchable());
+                if (watch == null) {
+                    log.warning("Ignoring unexpected watch key " + key.watchable());
+                    continue;
+                }
                 for (WatchEvent<?> event : key.pollEvents()) {
                     try {
                         if (event.kind() == OVERFLOW) {
@@ -41,7 +54,7 @@ public class WatchImporter {
                             continue;
                         }
 
-                        Path path = dirToWatch.resolve((Path) event.context());
+                        Path path = watch.dir.resolve((Path) event.context());
                         log.finest("saw event " + path);
 
                         if (!Files.exists(path)) {
@@ -53,9 +66,9 @@ public class WatchImporter {
                         }
 
                         if (event.kind() == ENTRY_MODIFY && path.toString().endsWith(".warc.gz.open")) {
-                            handleOpenWarc(path);
+                            handleOpenWarc(watch, path);
                         } else if (event.kind() == ENTRY_CREATE && path.toString().endsWith(".warc.gz")) {
-                            handleClosedWarc(path);
+                            handleClosedWarc(watch, path);
                         }
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -70,7 +83,7 @@ public class WatchImporter {
     /**
      * Incrementally index any new records.
      */
-    void handleOpenWarc(Path path) throws IOException {
+    void handleOpenWarc(Config.Watch watch, Path path) throws IOException {
         log.finest("handleOpenWarc(" + path + ")");
         long warcId, prevSize;
         long currentSize = Files.size(path);
@@ -85,7 +98,7 @@ public class WatchImporter {
                  * Create the record under the final closed filename as its currently the key wayback uses to request
                  * a particular warc and we don't want to have to deal with it changing.
                  */
-                warcId = db.insertWarc(crawlId, Db.Warc.OPEN, path.toString(), filename, 0L, null);
+                warcId = db.insertWarc(watch.crawlId, Db.Warc.OPEN, path.toString(), filename, 0L, null);
                 prevSize = 0;
             }
         }
@@ -93,7 +106,7 @@ public class WatchImporter {
             log.finest("Indexing " + warcId + " " + path);
             new CdxIndexer(dbPool).indexWarc(warcId);
             try (Db db = dbPool.take()) {
-                db.updateWarcSize(crawlId, warcId, prevSize, currentSize);
+                db.updateWarcSize(watch.crawlId, warcId, prevSize, currentSize);
             }
         }
     }
@@ -101,13 +114,13 @@ public class WatchImporter {
     /**
      * Move the WARC into the crawl's archival directory and finalise the db record.
      */
-    private void handleClosedWarc(Path path) throws IOException {
+    private void handleClosedWarc(Config.Watch watch, Path path) throws IOException {
         log.finest("handleClosedWarc(" + path + ")");
         Db.Warc warc;
         Db.Crawl crawl;
         try (Db db = dbPool.take()) {
             warc = db.findWarcByPath(path.toString());
-            crawl = db.findCrawl(crawlId);
+            crawl = db.findCrawl(watch.crawlId);
         }
 
         long size = Files.size(path);
@@ -117,7 +130,7 @@ public class WatchImporter {
 
         try (Db db = dbPool.take()) {
             if (warc == null) {
-                db.insertWarc(crawlId, Db.Warc.IMPORTED, dest.toString(), path.getFileName().toString(), size, digest);
+                db.insertWarc(watch.crawlId, Db.Warc.IMPORTED, dest.toString(), path.getFileName().toString(), size, digest);
             } else {
                 db.updateWarc(warc.crawlId, warc.id, Db.Warc.IMPORTED, dest.toString(), dest.getFileName().toString(), warc.size, size, digest);
             }
@@ -139,12 +152,14 @@ public class WatchImporter {
      * event queue overflows.
      */
     private void scanForChanges() throws IOException {
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dirToWatch)) {
-            for (Path entry : stream) {
-                if (entry.toString().endsWith(".warc.gz.open")) {
-                    handleOpenWarc(entry);
-                } else if (entry.toString().endsWith(".warc.gz")) {
-                    handleClosedWarc(entry);
+        for (Config.Watch watch : watches.values()) {
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(watch.dir)) {
+                for (Path entry : stream) {
+                    if (entry.toString().endsWith(".warc.gz.open")) {
+                        handleOpenWarc(watch, entry);
+                    } else if (entry.toString().endsWith(".warc.gz")) {
+                        handleClosedWarc(watch, entry);
+                    }
                 }
             }
         }
