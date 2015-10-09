@@ -513,9 +513,6 @@ public abstract class Db implements AutoCloseable, Transactional {
 	@SqlQuery("SELECT * FROM warc WHERE filename = :filename")
 	public abstract Warc findWarcByFilename(@Bind("filename") String filename);
 
-	@SqlQuery("SELECT * FROM warc WHERE path = :path")
-	public abstract Warc findWarcByPath(@Bind("path") String path);
-
 	@SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId")
 	public abstract List<Warc> findWarcsByCrawlId(@Bind("crawlId") long crawlId);
 

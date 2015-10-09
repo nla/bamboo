@@ -6,6 +6,7 @@ import bamboo.core.DbPool;
 import bamboo.core.Scrub;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.*;
 import java.util.HashMap;
 import java.util.List;
@@ -70,7 +71,7 @@ public class WatchImporter {
                         } else if (event.kind() == ENTRY_CREATE && path.toString().endsWith(".warc.gz")) {
                             handleClosedWarc(watch, path);
                         }
-                    } catch (IOException e) {
+                    } catch (IOException | UncheckedIOException e) {
                         e.printStackTrace();
                     }
                 }
@@ -119,7 +120,7 @@ public class WatchImporter {
         Db.Warc warc;
         Db.Crawl crawl;
         try (Db db = dbPool.take()) {
-            warc = db.findWarcByPath(path.toString());
+            warc = db.findWarcByFilename(path.getFileName().toString());
             crawl = db.findCrawl(watch.crawlId);
         }
 
