@@ -55,9 +55,20 @@ public class ImportJob {
 			heritrixJob = HeritrixJob.byName(config.getHeritrixJobs(), crawl.name);
 			heritrixJob.checkSuitableForArchiving();
 
-			Path dest = allocateCrawlPath(crawl, series);
+			Path dest;
+
+			if (crawl.path != null) {
+				dest = crawl.path;
+			} else {
+				dest = allocateCrawlPath(crawl, series);
+			}
+
 			Path warcsDir = dest.resolve("warcs");
-			Files.createDirectory(warcsDir);
+
+			if (!Files.exists(warcsDir)) {
+				Files.createDirectory(warcsDir);
+			}
+
 			copyWarcs(heritrixJob.warcs().collect(Collectors.toList()), warcsDir);
 			constructCrawlBundle(heritrixJob.dir(), dest);
 
