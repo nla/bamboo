@@ -517,7 +517,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 	public abstract List<Warc> findWarcsByCrawlId(@Bind("crawlId") long crawlId);
 
 	@SqlQuery("SELECT * FROM warc WHERE warc_state_id = :stateId LIMIT :limit")
-	public abstract List<Warc> findWarcsInState(@Bind("stateId") int stateId, int limit);
+	public abstract List<Warc> findWarcsInState(@Bind("stateId") int stateId, @Bind("limit") int limit);
 
 	@SqlQuery("SELECT COUNT(*) FROM warc WHERE warc_state_id = :stateId")
 	public abstract long countWarcsInState(@Bind("stateId") int stateId);
