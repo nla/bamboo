@@ -6,6 +6,12 @@
       <rect x="55" width="1194" height="841" y="67" clip-path="url(#clipPath2)" stroke="none"/>
     </g>
     <g text-rendering="geometricPrecision" stroke-miterlimit="1.45" shape-rendering="geometricPrecision" font-family="sans-serif" transform="matrix(1,0,0,1,-55,-67)" stroke-linecap="butt">
+      <text x="141.5977" xml:space="preserve" y="884.1699" clip-path="url(#clipPath2)" stroke="none">DLIR delivery</text>
+    </g>
+    <g stroke-linecap="round" transform="matrix(1,0,0,1,-55,-67)" text-rendering="geometricPrecision" shape-rendering="geometricPrecision" stroke-dasharray="8,6,0,6" stroke-width="2" stroke-miterlimit="1.45">
+      <rect fill="none" x="70" width="223" height="252.76" y="640.24" clip-path="url(#clipPath2)"/>
+    </g>
+    <g text-rendering="geometricPrecision" stroke-miterlimit="1.45" shape-rendering="geometricPrecision" font-family="sans-serif" transform="matrix(1,0,0,1,-55,-67)" stroke-linecap="butt">
       <text x="539.9551" xml:space="preserve" y="884.1699" clip-path="url(#clipPath2)" stroke="none">Trove</text>
     </g>
     <g stroke-linecap="round" transform="matrix(1,0,0,1,-55,-67)" text-rendering="geometricPrecision" shape-rendering="geometricPrecision" stroke-dasharray="8,6,0,6" stroke-width="2" stroke-miterlimit="1.45">
@@ -404,12 +410,6 @@
       <text x="402.2777" xml:space="preserve" y="612.2099" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">Trove websites</text>
       <text x="424.9213" xml:space="preserve" y="626.1786" clip-path="url(#clipPath2)" font-family="sans-serif" stroke="none">indexer</text>
     </g>
-    <g text-rendering="geometricPrecision" stroke-miterlimit="1.45" shape-rendering="geometricPrecision" font-family="sans-serif" transform="matrix(1,0,0,1,-55,-67)" stroke-linecap="butt">
-      <text x="141.5977" xml:space="preserve" y="884.1699" clip-path="url(#clipPath2)" stroke="none">DLIR delivery</text>
-    </g>
-    <g stroke-linecap="round" transform="matrix(1,0,0,1,-55,-67)" text-rendering="geometricPrecision" shape-rendering="geometricPrecision" stroke-dasharray="8,6,0,6" stroke-width="2" stroke-miterlimit="1.45">
-      <rect fill="none" x="70" width="223" height="252.76" y="640.24" clip-path="url(#clipPath2)"/>
-    </g>
     <g fill="url(#linearGradient14)" text-rendering="geometricPrecision" shape-rendering="geometricPrecision" transform="matrix(1,0,0,1,-55,-67)" stroke="url(#linearGradient14)">
       <path d="M561.6365 214.6 L680.6365 214.6 L680.6365 272.4 L561.6365 272.4 Z" stroke="none" clip-path="url(#clipPath2)"/>
     </g>
@@ -450,6 +450,8 @@
       <rect x="149.558" y="595.1013" clip-path="url(#clipPath2)" fill="white" width="110.7109" height="31.9375" stroke="none"/>
       <text x="178.8685" xml:space="preserve" y="608.2399" clip-path="url(#clipPath2)" stroke="none">iframe &amp;</text>
       <text x="151.558" xml:space="preserve" y="622.2087" clip-path="url(#clipPath2)" stroke="none">Wayback XML API</text>
+      <path fill="none" d="M243.8487 735.64 L389.6073 735.64" clip-path="url(#clipPath2)"/>
+      <path d="M397.6073 735.64 L385.6073 730.64 L388.6073 735.64 L385.6073 740.64 Z" clip-path="url(#clipPath2)" stroke="none"/>
       <path fill="none" d="M661.1323 335.9424 L828.9086 344.0908" clip-path="url(#clipPath2)"/>
       <path d="M836.8992 344.4788 L825.1558 338.9026 L827.9098 344.0423 L824.6708 348.8908 Z" clip-path="url(#clipPath2)" stroke="none"/>
       <path fill="none" d="M654.201 314.0145 L826.3207 209.9781" clip-path="url(#clipPath2)"/>
