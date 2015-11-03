@@ -1,7 +1,8 @@
 Architecture
 ============
 
-As at November 2015.
+As at November 2015. The new systems were built around the Australian
+Government Web Archive and .au domain collections.
 
 ![architecture diagram](https://cdn.rawgit.com/nla/bamboo/90ef3d6/doc/architecture.svg)
 
