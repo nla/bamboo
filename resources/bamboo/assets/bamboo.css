@@ -34,7 +34,7 @@ body {
   border-top: none;
 }
 
-.table-no-sep tr.table-sep td {
+tr.table-sep td {
   border-top: 1px solid #DDD;
 }
 
