@@ -8,7 +8,7 @@
 <div class="form-group">
     <label for="description" class="col-lg-2 control-label">Description</label>
     <div class="col-lg-10">
-        <textarea class="form-control" rows="10" id="description" name="description">${(seedlist.description)!}</textarea>
+        <textarea class="form-control" rows="2" id="description" name="description">${(seedlist.description)!}</textarea>
         <span class="help-block"><a href="https://help.github.com/articles/markdown-basics/">Markdown</a> is enabled.</tt></span>
     </div>
 </div>
