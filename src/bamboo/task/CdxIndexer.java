@@ -24,15 +24,21 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.zip.ZipException;
 
 public class CdxIndexer implements Runnable {
     private static final int BATCH_SIZE = 1024;
     private final DbPool dbPool;
+    private final List<Consumer<Long>> warcIndexedListeners = new ArrayList<>();
 
     public CdxIndexer(DbPool dbPool) {
         this.dbPool = dbPool;
+    }
+
+    public void onWarcIndexed(Consumer<Long> callback) {
+        warcIndexedListeners.add(callback);
     }
 
     public void run() {
@@ -164,6 +170,13 @@ public class CdxIndexer implements Runnable {
             });
         }
         System.out.println("Finished CDX indexing " + warc.id + " " + warc.path + " (" + stats.records + " records with " + stats.bytes + " bytes)");
+        sendWarcIndexedNotification(warc.id);
+    }
+
+    private void sendWarcIndexedNotification(long warcId) {
+        for (Consumer<Long> listener : warcIndexedListeners) {
+            listener.accept(warcId);
+        }
     }
 
     void indexWarc(long warcId) throws IOException {

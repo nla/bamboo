@@ -15,8 +15,15 @@ public class Taskmaster {
     public Taskmaster(Config config, DbPool dbPool) {
         importer = new Task(new Importer(config, dbPool, this::startIndexing));
         tasks.add(importer);
-        indexers.add(new Task(new CdxIndexer(dbPool)));
-        indexers.add(new Task(new SolrIndexer(dbPool)));
+
+        Task solrIndexerTask = new Task(new SolrIndexer(dbPool));
+
+        CdxIndexer cdxIndexer = new CdxIndexer(dbPool);
+        cdxIndexer.onWarcIndexed(warcId -> solrIndexerTask.start());
+
+        indexers.add(new Task(cdxIndexer));
+        indexers.add(solrIndexerTask);
+
         tasks.addAll(indexers);
     }
 
