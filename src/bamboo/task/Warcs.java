@@ -35,6 +35,7 @@ public class Warcs {
         if (warcType != null && warcType.equals("resource")) {
             return true;
         }
+        return false;
     }
 
     static String cleanUrl(String url) {
