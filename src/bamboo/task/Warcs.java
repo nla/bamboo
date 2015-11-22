@@ -30,8 +30,19 @@ public class Warcs {
         return true;
     }
 
+    static boolean isResourceRecord(ArchiveRecordHeader h) {
+        String warcType = (String)h.getHeaderValue("WARC-Type");
+        if (warcType != null && warcType.equals("resource")) {
+            return true;
+        }
+    }
+
+    static String cleanUrl(String url) {
+        return url.replace(" ", "%20").replace("\r", "%0a").replace("\n", "%0d");
+    }
+
     static String getCleanUrl(ArchiveRecordHeader h) {
-        return h.getUrl().replace(" ", "%20").replace("\r", "%0a").replace("\n", "%0d");
+        return cleanUrl(h.getUrl());
     }
 
     static String getArcDate(ArchiveRecordHeader h) {

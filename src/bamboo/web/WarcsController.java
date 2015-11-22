@@ -8,9 +8,6 @@ import droute.Handler;
 import droute.Request;
 import droute.Response;
 import droute.Streamable;
-import org.archive.io.ArchiveReader;
-import org.archive.io.ArchiveReaderFactory;
-import org.archive.io.ArchiveRecord;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -178,19 +175,8 @@ class WarcsController {
         String filename = path.getFileName().toString();
         return response(200, (Streamable) (OutputStream outStream) -> {
             Writer out = new BufferedWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
-            try (ArchiveReader reader = ArchiveReaderFactory.get(path.toFile())) {
-                for (ArchiveRecord record : reader) {
-                    String line = CdxIndexer.formatCdxLine(filename, record);
-                    if (line != null) {
-                        out.write(line);
-                    }
-                }
-            } catch (Exception e) {
-                out.write("\n\nError reading " + path + "\n");
-                e.printStackTrace(new PrintWriter(out));
-            } finally {
-                out.flush();
-            }
+            CdxIndexer.writeCdx(path, out);
+            out.flush();
         }).withHeader("Content-Type", "text/plain");
     }
 
