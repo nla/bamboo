@@ -24,7 +24,7 @@ public class Cdx {
     public static void writeCdx(Path warc, Writer out) throws IOException {
         records(Warcs.open(warc)).forEach(record -> {
             try {
-                out.write(record.toCdxLine());
+                out.write(record.toCdxLine() + "\n");
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }

@@ -209,7 +209,7 @@ public class CdxIndexer implements Runnable {
         void append(String surt, long recordLength, String cdxLine, Date time) {
             if (filter == null || filter.accepts(surt)) {
                 try {
-                    buf.write(cdxLine);
+                    buf.write(cdxLine + "\n");
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
