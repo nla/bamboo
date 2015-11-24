@@ -1,10 +1,14 @@
 package bamboo.task;
 
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
+import org.archive.io.warc.WARCReaderFactory;
 import org.archive.util.Base32;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
@@ -149,5 +153,16 @@ public class Warcs {
     public static Date parseArcDate(String arcDate) {
         LocalDateTime parsed = LocalDateTime.parse(arcDate, arcDateFormat);
         return Date.from(parsed.toInstant(ZoneOffset.UTC));
+    }
+
+    public static ArchiveReader open(Path path) throws IOException {
+        /*
+         * ArchiveReaderFactor.get doesn't understand the .open extension.
+         */
+        if (path.toString().endsWith(".warc.gz.open")) {
+            return WARCReaderFactory.get(path.toFile());
+        } else {
+            return ArchiveReaderFactory.get(path.toFile());
+        }
     }
 }

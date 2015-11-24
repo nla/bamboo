@@ -2,7 +2,7 @@ package bamboo.web;
 
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
-import bamboo.task.CdxIndexer;
+import bamboo.task.Cdx;
 import com.google.common.base.Charsets;
 import droute.Handler;
 import droute.Request;
@@ -175,7 +175,7 @@ class WarcsController {
         String filename = path.getFileName().toString();
         return response(200, (Streamable) (OutputStream outStream) -> {
             Writer out = new BufferedWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
-            CdxIndexer.writeCdx(path, out);
+            Cdx.writeCdx(path, out);
             out.flush();
         }).withHeader("Content-Type", "text/plain");
     }

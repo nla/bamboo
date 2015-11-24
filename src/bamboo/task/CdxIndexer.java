@@ -4,10 +4,6 @@ import bamboo.core.Db;
 import bamboo.core.DbPool;
 import bamboo.util.SurtFilter;
 import org.archive.io.ArchiveReader;
-import org.archive.io.ArchiveReaderFactory;
-import org.archive.io.ArchiveRecord;
-import org.archive.io.ArchiveRecordHeader;
-import org.archive.io.warc.WARCReaderFactory;
 import org.archive.url.SURT;
 
 import java.io.*;
@@ -25,7 +21,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipException;
 
@@ -281,7 +276,6 @@ public class CdxIndexer implements Runnable {
     }
 
     final static Pattern schemeRegex = Pattern.compile("^[a-zA-Z][a-zA-Z+.-]*://?");
-    final static Pattern PANDORA_URL_MAP = Pattern.compile("^http://pandora.nla.gov.au/pan/([0-9]+/[0-9-]+)/url.map$");
 
     static String stripScheme(String surt) {
         return schemeRegex.matcher(surt).replaceFirst("");
@@ -293,140 +287,30 @@ public class CdxIndexer implements Runnable {
 
     private static Stats writeCdx(Path warc, String filename, List<CdxBuffer> buffers) throws IOException {
         Stats stats = new Stats();
-        try (ArchiveReader reader = openWarc(warc)) {
-            for (ArchiveRecord record : reader) {
-                Matcher m = PANDORA_URL_MAP.matcher(record.getHeader().getUrl());
-                if (m.matches()) {
-                    convertPandoraUrlMapToAliases(m.group(1), buffers, record);
+        try (ArchiveReader reader = Warcs.open(warc)) {
+            Cdx.records(reader).forEach(record -> {
+                if (record instanceof Cdx.Alias) {
+                    Cdx.Alias alias = (Cdx.Alias) record;
+                    for (CdxBuffer buffer : buffers) {
+                        buffer.appendAlias(alias.alias, alias.target);
+                    }
                 } else {
-                    String cdxLine = formatCdxLine(filename, record);
-                    if (cdxLine != null) {
-                        long recordLength = record.getHeader().getContentLength();
-                        Date time;
-                        try {
-                            time = Warcs.parseArcDate(Warcs.getArcDate(record.getHeader()));
-                        } catch (DateTimeParseException e) {
-                            continue; // skip record if we can't get a sane time
-                        }
-                        stats.update(recordLength, time);
-                        String surt = toSchemalessSURT(Warcs.getCleanUrl(record.getHeader()));
-                        for (CdxBuffer buffer : buffers) {
-                            buffer.append(surt, recordLength, cdxLine, time);
-                        }
-
+                    Cdx.Capture capture = (Cdx.Capture) record;
+                    Date time;
+                    try {
+                        time = Warcs.parseArcDate(capture.date);
+                    } catch (DateTimeParseException e) {
+                        return; // skip record if we can't get a sane time
+                    }
+                    stats.update(capture.contentLength, time);
+                    String surt = toSchemalessSURT(capture.url);
+                    for (CdxBuffer buffer : buffers) {
+                        buffer.append(surt, capture.contentLength, capture.toCdxLine(), time);
                     }
                 }
-            }
+            });
         }
         return stats;
-    }
-
-    /**
-     * PANDORA WARCs have a url.map file which maps the original site's URL to the filename written by HTTrack.  Index
-     * this mapping as aliases.
-     */
-    private static void convertPandoraUrlMapToAliases(String instancePath, List<CdxBuffer> buffers, ArchiveRecord record) throws IOException {
-        BufferedReader rdr = new BufferedReader(new InputStreamReader(record, StandardCharsets.US_ASCII));
-        while (true) {
-            String line = rdr.readLine();
-            if (line == null) {
-                break;
-            }
-
-            String[] fields = line.trim().split("\\^\\^");
-            String originalUrl = addImplicitHttpScheme(fields[0]);
-            String httrackPath = fields[1];
-
-            String legacyInstancePath = instancePath.replace("-0000", "");
-            String rewrittenUrl = "http://pandora.nla.gov.au/pan";
-            if (httrackPath.startsWith("/" + instancePath + "/")) {
-                rewrittenUrl += httrackPath;
-            } else if (httrackPath.startsWith("/" + legacyInstancePath + "/")){
-                rewrittenUrl += "/" + instancePath + "/" + httrackPath.substring(legacyInstancePath.length() + 2);
-            } else {
-                rewrittenUrl += "/" + instancePath + "/" + httrackPath;
-            }
-
-            for (CdxBuffer buffer : buffers) {
-                buffer.appendAlias(rewrittenUrl, originalUrl);
-            }
-        }
-    }
-
-    private static String addImplicitHttpScheme(String url) {
-        if (schemeRegex.matcher(url).matches()) {
-            return url;
-        } else {
-            return "http://" + url;
-        }
-    }
-
-    private static ArchiveReader openWarc(Path path) throws IOException {
-        /*
-         * ArchiveReaderFactor.get doesn't understand the .open extension.
-         */
-        if (path.toString().endsWith(".warc.gz.open")) {
-            return WARCReaderFactory.get(path.toFile());
-        } else {
-            return ArchiveReaderFactory.get(path.toFile());
-        }
-    }
-
-    public static String formatCdxLine(String filename, ArchiveRecord record) throws IOException {
-        ArchiveRecordHeader h = record.getHeader();
-        String url = Warcs.getCleanUrl(h);
-        String contentType;
-        int status;
-        String location;
-
-        if (Warcs.isResponseRecord(h)) {
-            HttpHeader http = HttpHeader.parse(record, url);
-            if (http == null) {
-                return null;
-            }
-            contentType = http.getCleanContentType();
-            status = http.status;
-            location = http.location;
-        } else if (Warcs.isResourceRecord(h)) {
-            contentType = h.getMimetype();
-            status = 200;
-            location = null;
-        } else {
-            return null;
-        }
-
-        StringBuilder out = new StringBuilder();
-        out.append('-').append(' '); // let server do canonicalization
-        out.append(Warcs.getArcDate(h)).append(' ');
-        out.append(url).append(' ');
-        out.append(optional(contentType)).append(' ');
-        out.append(status == -1 ? "-" : Integer.toString(status)).append(' ');
-        out.append(optional(Warcs.getOrCalcDigest(record))).append(' ');
-        out.append(optional(location)).append(' ');
-        out.append("- "); // TODO: X-Robots-Tag http://noarchive.net/xrobots/
-        out.append(Long.toString(h.getContentLength())).append(' ');
-        out.append(Long.toString(h.getOffset())).append(' ');
-        out.append(filename).append('\n');
-        return out.toString();
-    }
-
-    private static String optional(String s) {
-        if (s == null) {
-            return "-";
-        }
-        return s.replace(" ", "%20").replace("\n", "%0A").replace("\r", "%0D");
-    }
-
-
-    public static class DummyCdxBuffer extends CdxBuffer {
-
-        DummyCdxBuffer(Writer out) {
-            super(out);
-        }
-
-        @Override
-        void submit() throws IOException {
-        }
     }
 
     public static void main(String args[]) throws IOException {
@@ -435,12 +319,7 @@ public class CdxIndexer implements Runnable {
             System.exit(1);
         }
         Path warc = Paths.get(args[0]);
-        writeCdx(warc, new OutputStreamWriter(System.out));
+        Cdx.writeCdx(warc, new OutputStreamWriter(System.out));
     }
 
-    public static void writeCdx(Path warc, Writer out) throws IOException {
-        List<CdxBuffer> buffers = new ArrayList<>();
-        buffers.add(new DummyCdxBuffer(out));
-        writeCdx(warc, warc.getFileName().toString(), buffers);
-    }
 }
