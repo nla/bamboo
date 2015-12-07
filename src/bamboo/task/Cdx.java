@@ -85,8 +85,13 @@ public class Cdx {
         String[] fields = line.trim().split("\\^\\^");
         String target = Urls.addImplicitScheme(fields[0]);
         String instanceBaseUrl = "http://pandora.nla.gov.au/pan/" + piAndDate + "/";
-        return Stream.of(new Alias(instanceBaseUrl + cleanHttrackPath(fields[1], piAndDate), target),
-                         new Alias(instanceBaseUrl + Urls.removeScheme(target), target));
+        String alias1 = instanceBaseUrl + cleanHttrackPath(fields[1], piAndDate);
+        String alias2 = instanceBaseUrl + Urls.removeScheme(target);
+        if (alias1.equals(alias2)) {
+            return Stream.of(new Alias(alias1, target));
+        } else {
+            return Stream.of(new Alias(alias1, target), new Alias(alias2, target));
+        }
     }
 
     /**

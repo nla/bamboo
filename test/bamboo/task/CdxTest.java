@@ -31,6 +31,14 @@ public class CdxTest {
     }
 
     @Test
+    public void testParseUrlMapLineSimple() {
+        List<Cdx.Alias> aliases = Cdx.parseUrlMapLine("http://www.example.org/hello.html^^14137/20130308-1342/www.example.org/hello.html", "14137/20130308-1342").collect(Collectors.toList());
+        assertEquals(1, aliases.size());
+        assertEquals("http://www.example.org/hello.html", aliases.get(0).target);
+        assertEquals("http://pandora.nla.gov.au/pan/14137/20130308-1342/www.example.org/hello.html", aliases.get(0).alias);
+    }
+
+    @Test
     public void testCleanHttrackPath() {
         String piAndDate = "1234/20010101-0000";
         assertEquals("example.org/index.html", Cdx.cleanHttrackPath("/1234/20010101-0000/example.org/index.html", piAndDate));
