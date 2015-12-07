@@ -52,9 +52,9 @@ public class Cdx {
                     ArchiveRecord record = iterator.next();
                     Matcher m = PANDORA_URL_MAP.matcher(record.getHeader().getUrl());
                     if (m.matches()) {
-                        String instancePath = m.group(1);
+                        String piAndDate = m.group(1);
                         BufferedReader reader = new BufferedReader(new InputStreamReader(record, StandardCharsets.US_ASCII));
-                        urlMapIterator = reader.lines().map((line) -> parseUrlMapLine(instancePath, line)).iterator();
+                        urlMapIterator = reader.lines().flatMap((line) -> parseUrlMapLine(line, piAndDate)).iterator();
                         return next();
                     } else {
                         Capture capture = Capture.parseWarcRecord(warc.getFileName(), record);
@@ -74,30 +74,47 @@ public class Cdx {
         String toCdxLine();
     }
 
-    static Alias parseUrlMapLine(String instancePath, String line) {
+    /**
+     * Parses a line from a PANDORA url.map file and returns a list of corresponding aliases.
+     *
+     * Sometimes HTTrack's url-rewriting is only partially successful, often due to JavaScript constructing
+     * URLs.  So we return two aliases, one using HTTrack's rewritten URL and the other using the original URL
+     * but relative to the PANDORA instance.
+     */
+    static Stream<Alias> parseUrlMapLine(String line, String piAndDate) {
         String[] fields = line.trim().split("\\^\\^");
-        Alias alias = new Alias();
-        alias.target = Urls.addImplicitScheme(fields[0]);
-        String httrackPath = fields[1];
+        String target = Urls.addImplicitScheme(fields[0]);
+        String instanceBaseUrl = "http://pandora.nla.gov.au/pan/" + piAndDate + "/";
+        return Stream.of(new Alias(instanceBaseUrl + cleanHttrackPath(fields[1], piAndDate), target),
+                         new Alias(instanceBaseUrl + Urls.removeScheme(target), target));
+    }
 
-        String legacyInstancePath = instancePath.replace("-0000", "");
-        String rewrittenUrl = "http://pandora.nla.gov.au/pan";
-        if (httrackPath.startsWith("/" + instancePath + "/")) {
-            rewrittenUrl += httrackPath;
-        } else if (httrackPath.startsWith(instancePath + "/")) {
-            rewrittenUrl += "/" + httrackPath;
-        } else if (httrackPath.startsWith("/" + legacyInstancePath + "/")){
-            rewrittenUrl += "/" + instancePath + "/" + httrackPath.substring(legacyInstancePath.length() + 2);
-        } else {
-            rewrittenUrl += "/" + instancePath + "/" + httrackPath;
+    /**
+     * Strips the pi and instance date from a PANDORA path if present.
+     */
+    static String cleanHttrackPath(String path, String piAndDate) {
+        if (path.startsWith("/")) {
+            path = path.substring(1);
         }
-        alias.alias = rewrittenUrl;
-        return alias;
+
+        String piAndLegacyDate = piAndDate.replace("-0000", "");
+        if (path.startsWith(piAndDate + "/")) {
+            return path.substring(piAndDate.length() + 1); // 1234/20010101-1234/(example.org/index.html)
+        } else if (path.startsWith(piAndLegacyDate + "/")){
+            return path.substring(piAndLegacyDate.length() + 1); // 1234/20010101/(example.org/index.html)
+        } else {
+            return path; // (example.org/index.html)
+        }
     }
 
     public static class Alias implements CdxRecord {
         public String alias;
         public String target;
+
+        public Alias(String alias, String target) {
+            this.alias = alias;
+            this.target = target;
+        }
 
         @Override
         public String toCdxLine() {

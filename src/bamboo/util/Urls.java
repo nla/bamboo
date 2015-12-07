@@ -1,5 +1,6 @@
 package bamboo.util;
 
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Urls {
@@ -14,6 +15,15 @@ public class Urls {
             return url;
         } else {
             return scheme + "://" + url;
+        }
+    }
+
+    public static String removeScheme(String url) {
+        Matcher m = SCHEME_PATTERN.matcher(url);
+        if (m.find()) {
+            return url.substring(m.end());
+        } else {
+            return url;
         }
     }
 }
