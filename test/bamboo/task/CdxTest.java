@@ -47,5 +47,6 @@ public class CdxTest {
         assertEquals("example.org/index.html", Cdx.cleanHttrackPath("1234/20010101-0000/example.org/index.html", piAndDate));
         assertEquals("example.org/index.html", Cdx.cleanHttrackPath("1234/20010101/example.org/index.html", piAndDate));
         assertEquals("example.org/index.html", Cdx.cleanHttrackPath("example.org/index.html", piAndDate));
+        assertEquals("example.org/index.html", Cdx.cleanHttrackPath("pandora.nla.gov.au/pan/1234/20010101-0000/example.org/index.html", piAndDate));
     }
 }

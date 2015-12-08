@@ -2,6 +2,7 @@ package bamboo.task;
 
 import bamboo.util.Urls;
 import com.codepoetics.protonpack.StreamUtils;
+import org.apache.commons.lang.StringUtils;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
@@ -98,11 +99,9 @@ public class Cdx {
      * Strips the pi and instance date from a PANDORA path if present.
      */
     static String cleanHttrackPath(String path, String piAndDate) {
-        if (path.startsWith("/")) {
-            path = path.substring(1);
-        }
-
-        String piAndLegacyDate = piAndDate.replace("-0000", "");
+        path = StringUtils.removeStart(path, "/");
+        path = StringUtils.removeStartIgnoreCase(path, "pandora.nla.gov.au/pan/");
+        String piAndLegacyDate = StringUtils.removeEnd(piAndDate, "-0000");
         if (path.startsWith(piAndDate + "/")) {
             return path.substring(piAndDate.length() + 1); // 1234/20010101-1234/(example.org/index.html)
         } else if (path.startsWith(piAndLegacyDate + "/")){
