@@ -100,7 +100,6 @@ public class Cdx {
      */
     static String cleanHttrackPath(String path, String piAndDate) {
         path = StringUtils.removeStart(path, "/");
-        path = StringUtils.removeStartIgnoreCase(path, "pandora.nla.gov.au/pan/");
         String piAndLegacyDate = StringUtils.removeEnd(piAndDate, "-0000");
         if (path.startsWith(piAndDate + "/")) {
             return path.substring(piAndDate.length() + 1); // 1234/20010101-1234/(example.org/index.html)
