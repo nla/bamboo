@@ -1,5 +1,7 @@
 # Bamboo
 
+Keeps track of our web archiving collection, manages indexing and calculates statistics.
+
 ## Status
 
 Usable for basic collection management but some functionality is unfinished or unpolished.
@@ -24,7 +26,7 @@ The following environment variables tell Bamboo where to look for Heritrix jobs.
 
 ### PANDAS integration
 
-Bamboo has optional, limited integration with the National Library of Australia's legacy PANDAS collection management
+Bamboo has optional, limited integration with the National Library of Australia's legacy PANDAS 3 collection management
 system.  It can be enabled by building with `mvn -Ppandas` and setting the following environment variables:
 
     PANDAS_DB_URL=
