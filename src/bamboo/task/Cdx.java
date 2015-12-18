@@ -10,7 +10,7 @@ import org.archive.io.ArchiveRecordHeader;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.Iterator;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -53,9 +53,7 @@ public class Cdx {
                     ArchiveRecord record = iterator.next();
                     Matcher m = PANDORA_URL_MAP.matcher(record.getHeader().getUrl());
                     if (m.matches()) {
-                        String piAndDate = m.group(1);
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(record, StandardCharsets.US_ASCII));
-                        urlMapIterator = reader.lines().flatMap((line) -> parseUrlMapLine(line, piAndDate)).iterator();
+                        urlMapIterator = parseUrlMap(record, m.group(1)).iterator();
                         return next();
                     } else {
                         Capture capture = Capture.parseWarcRecord(warc.getFileName(), record);
@@ -75,24 +73,53 @@ public class Cdx {
         String toCdxLine();
     }
 
+    static List<Alias> parseUrlMap(InputStream in, String piAndDate) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.US_ASCII));
+        List<Alias> aliases = primaryAliases(reader, piAndDate);
+        aliases.addAll(secondaryAliases(aliases, piAndDate));
+        return aliases;
+    }
+
+    /**
+     * Sometimes HTTrack's url-rewriting is only partially successful, often due to JavaScript constructing
+     * URLs.  So we build a second set of aliases that include original URL but relative to the PANDORA instance.
+     *
+     * We don't include a secondary alias if there's already a primary alias covering it.
+     */
+    static List<Alias> secondaryAliases(List<Alias> primaryAliases, String piAndDate) {
+        Set<String> primaryUrls = new HashSet<>();
+        for (Alias alias : primaryAliases) {
+            primaryUrls.add(alias.alias);
+        }
+
+        List<Alias> out = new ArrayList<>();
+        for (Alias alias : primaryAliases) {
+            String secondaryUrl = "http://pandora.nla.gov.au/pan/" + piAndDate + "/" + Urls.removeScheme(alias.target);
+            if (!primaryUrls.contains(secondaryUrl)) {
+                out.add(new Alias(secondaryUrl, alias.target));
+            }
+        }
+        return out;
+    }
+
+    static List<Alias> primaryAliases(BufferedReader reader, String piAndDate) throws IOException {
+        List<Alias> aliases = new ArrayList<>();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            aliases.add(parseUrlMapLine(line, piAndDate));
+        }
+        return aliases;
+    }
+
     /**
      * Parses a line from a PANDORA url.map file and returns a list of corresponding aliases.
-     *
-     * Sometimes HTTrack's url-rewriting is only partially successful, often due to JavaScript constructing
-     * URLs.  So we return two aliases, one using HTTrack's rewritten URL and the other using the original URL
-     * but relative to the PANDORA instance.
      */
-    static Stream<Alias> parseUrlMapLine(String line, String piAndDate) {
+    static Alias parseUrlMapLine(String line, String piAndDate) {
         String[] fields = line.trim().split("\\^\\^");
-        String target = Urls.addImplicitScheme(fields[0]);
+        String targetUrl = Urls.addImplicitScheme(fields[0]);
         String instanceBaseUrl = "http://pandora.nla.gov.au/pan/" + piAndDate + "/";
-        String alias1 = instanceBaseUrl + cleanHttrackPath(fields[1], piAndDate);
-        String alias2 = instanceBaseUrl + Urls.removeScheme(target);
-        if (alias1.equals(alias2)) {
-            return Stream.of(new Alias(alias1, target));
-        } else {
-            return Stream.of(new Alias(alias1, target), new Alias(alias2, target));
-        }
+        String aliasUrl = instanceBaseUrl + cleanHttrackPath(fields[1], piAndDate);
+        return new Alias(aliasUrl, targetUrl);
     }
 
     /**
