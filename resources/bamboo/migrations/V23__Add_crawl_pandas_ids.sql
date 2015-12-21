@@ -1,0 +1,1 @@
+ALTER TABLE crawl ADD pandas_instance_id BIGINT;

@@ -140,6 +140,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 		public final String description;
 		public final Date startTime;
 		public final Date endTime;
+		public final Long pandasInstanceId;
 
 		public Crawl(ResultSet rs) throws SQLException {
 			String path = rs.getString("path");
@@ -158,6 +159,7 @@ public abstract class Db implements AutoCloseable, Transactional {
 			description = rs.getString("description");
 			startTime = (Date)rs.getObject("start_time");
 			endTime = (Date)rs.getObject("end_time");
+			pandasInstanceId = (Long)rs.getObject("pandas_instance_id");
 		}
 
 		private static final String[] STATE_NAMES = {"Archived", "Importing", "Import Failed"};

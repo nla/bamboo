@@ -2,6 +2,7 @@ package bamboo.web;
 
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
+import bamboo.core.PandasDb;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
 import droute.*;
@@ -61,13 +62,22 @@ class CrawlsController {
     Response show(Request request) {
         try (Db db = bamboo.dbPool.take()) {
             Db.Crawl crawl = findCrawl(db, request);
+
+            PandasDb.InstanceSummary pandasInstance = null;
+            if (crawl.pandasInstanceId != null && bamboo.pandasDbPool != null) {
+                try (PandasDb pandasDb = bamboo.pandasDbPool.take()) {
+                    pandasInstance = pandasDb.fetchInstanceSummary(crawl.pandasInstanceId);
+                }
+            }
+
             return render("crawls/show.ftl",
                     "crawl", crawl,
                     "series", db.findCrawlSeriesById(crawl.crawlSeriesId),
                     "warcsToBeCdxIndexed", db.countWarcsInCrawlAndState(crawl.id, Db.Warc.IMPORTED),
                     "warcsToBeSolrIndexed", db.countWarcsInCrawlAndState(crawl.id, Db.Warc.CDX_INDEXED),
                     "corruptWarcs", db.countWarcsInCrawlAndState(crawl.id, Db.Warc.CDX_ERROR),
-                    "descriptionHtml", Markdown.render(crawl.description, request.uri())
+                    "descriptionHtml", Markdown.render(crawl.description, request.uri()),
+                    "pandasInstance", pandasInstance
                     );
         }
     }

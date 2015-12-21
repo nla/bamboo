@@ -2,6 +2,7 @@ package bamboo.core;
 
 import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.sqlobject.Bind;
 import org.skife.jdbi.v2.sqlobject.SqlQuery;
 import org.skife.jdbi.v2.sqlobject.customizers.FetchSize;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
@@ -57,6 +58,23 @@ public interface PandasDb extends Closeable {
             return new Title(resultSet);
         }
     }
+
+    class InstanceSummary {
+        public final long id;
+        public final long pi;
+        public final String date;
+        public final String titleName;
+
+        InstanceSummary(ResultSet rs) throws SQLException {
+            id = rs.getLong("instance_id");
+            pi = rs.getLong("pi");
+            date = rs.getString("dt");
+            titleName = rs.getString("name");
+        }
+    }
+
+    @SqlQuery("SELECT instance_id, pi, TO_CHAR(instance_date, 'YYYYMMDD-HH24MI') dt, name FROM instance, title WHERE instance.title_id = title.title_id AND instance_id = ?")
+    InstanceSummary fetchInstanceSummary(@Bind("instanceId") long instanceId);
 
     void close();
 }

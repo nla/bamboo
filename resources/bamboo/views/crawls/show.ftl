@@ -1,3 +1,4 @@
+[#-- @ftlvariable name="pandasInstance" type="bamboo.core.PandasDb.InstanceSummary" --]
 [@page title="Crawl: ${crawl.name}"]
 
 [#macro indexingProgress type todo]
@@ -49,6 +50,12 @@
             <tr><th>Collected</th>
                 <td>${crawl.startTime!"unknown"}&ndash;<br>${crawl.endTime!"unknown"}</td>
             </tr>
+            [#if pandasInstance != null]
+                <tr>
+                    <th>PANDORA</th>
+                    <td>${pandasInstance.pi}/${pandasInstance.date}: ${pandasInstance.titleName}</td>
+                </tr>
+            [/#if]
             <tr><th>Series</th><td><a href="series/${series.id?c}">${series.name}</a></td></tr>
             <tr>
                 <th>Size</th>
