@@ -1,10 +1,12 @@
-package bamboo.web;
+package bamboo.seedlist;
 
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
 import bamboo.core.PandasDb;
 import bamboo.util.Markdown;
+import bamboo.web.Webapp;
 import droute.*;
+import droute.Request;
 import org.archive.url.SURT;
 import org.archive.url.SURTTokenizer;
 import org.archive.url.WaybackURLKeyMaker;
@@ -20,29 +22,31 @@ import java.util.function.UnaryOperator;
 import static droute.Response.*;
 import static droute.Route.GET;
 import static droute.Route.POST;
+import static java.util.function.UnaryOperator.identity;
 
-class SeedlistsController {
+public class SeedlistsController {
 
-    final Bamboo bamboo;
+    Bamboo bamboo;
 
-    final Handler routes = Route.routes(
+    public final Handler routes = Route.routes(
             GET("/seedlists", this::index),
             GET("/seedlists/new", this::newForm),
-            POST("/seedlists/new", this::create),
+            POST("/seedlists/create", this::create),
             GET("/seedlists/:id", this::show, "id", "[0-9]+"),
             GET("/seedlists/:id/edit", this::edit, "id", "[0-9]+"),
             POST("/seedlists/:id/edit", this::update, "id", "[0-9]+"),
             POST("/seedlists/:id/delete", this::delete, "id", "[0-9]+"),
-            GET("/seedlists/:id/export/urls", this::exportUrls, "id", "[0-9]+"),
-            GET("/seedlists/:id/export/surts", this::exportSurts, "id", "[0-9]+"),
+            GET("/seedlists/:id/export/:format", this::export, "id", "[0-9]+"),
             GET("/seedlists/:id/compare", this::compare, "id", "[0-9]+"),
             GET("/seedlists/:id/compare/pandas", this::compareWithPandas, "id", "[0-9]+"),
-            GET("/seedlists/:id1/compare/:id2", this::comparison, "id1", "[0-9]+", "id2", "[0-9]+")
+            GET("/seedlists/:id1/compare/:id2", this::showComparison, "id1", "[0-9]+", "id2", "[0-9]+"),
+            GET("/seedlists/:id1/compare/:id2/:sublist/export/:format", this::exportComparison, "id1", "[0-9]+", "id2", "[0-9]+"),
+            GET("/seedlists/:id1/compare/:id2/:sublist/saveas", this::saveComparison, "id1", "[0-9]+", "id2", "[0-9]+")
     );
 
     final static WaybackURLKeyMaker keyMaker = new WaybackURLKeyMaker();
 
-    SeedlistsController(Bamboo bamboo) {
+    public SeedlistsController(Bamboo bamboo) {
             this.bamboo = bamboo;
         }
 
@@ -66,6 +70,14 @@ class SeedlistsController {
         return render("seedlists/new.ftl",
                 "csrfToken", Csrf.token(request));
     }
+
+    Response saveComparison(Request request) {
+        Comparison comparison = new Comparison(bamboo, request);
+        return render("seedlists/new.ftl",
+                "seeds", comparison.sublist(request.param("sublist")),
+                "csrfToken", Csrf.token(request));
+    }
+
 
     Response create(Request request) {
         String name = request.formParam("name");
@@ -151,12 +163,22 @@ class SeedlistsController {
         return seeOther(request.contextUri().resolve("seedlists").toString());
     }
 
-    Response export(Request request, UnaryOperator<String> transformation) {
+    Response export(Request request) {
         long seedlistId = Long.parseLong(request.urlParam("id"));
         List<Db.Seed> seeds;
         try (Db db = bamboo.dbPool.take()) {
             seeds = db.findSeedsBySeedListId(seedlistId);
         }
+        return export(seeds, exportFormat(request.param("format")));
+    }
+
+    private Response exportComparison(Request request) {
+        List<Db.Seed> sublist = new Comparison(bamboo, request).sublist(request.param("sublist"));
+        UnaryOperator<String> format = exportFormat(request.param("format"));
+        return export(sublist, format);
+    }
+
+    private Response export(List<Db.Seed> seeds, UnaryOperator<String> transformation) {
         return response((Streamable) out -> {
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
             for (Db.Seed seed : seeds) {
@@ -167,12 +189,12 @@ class SeedlistsController {
         });
     }
 
-    Response exportUrls(Request request) {
-        return export(request, UnaryOperator.<String>identity());
-    }
-
-    Response exportSurts(Request request) {
-        return export(request, SURT::toSURT);
+    UnaryOperator<String> exportFormat(String formatName) {
+        switch (formatName) {
+            case "urls": return UnaryOperator.identity();
+            case "surts": return SURT::toSURT;
+            default: throw new IllegalArgumentException("unsupported export format");
+        }
     }
 
     Map<String, Db.Seed> seedsByCanonicalizedUrl(Db db, long seedlistId) {
@@ -196,68 +218,14 @@ class SeedlistsController {
         }
     }
 
-    Response comparison(Request request) {
-        Db.Seedlist seedlist1, seedlist2;
-        List<Db.Seed> seeds1, seeds2;
-
-        long id1 = Long.parseLong(request.urlParam("id1"));
-        long id2 = Long.parseLong(request.urlParam("id2"));
-
-        try (Db db = bamboo.dbPool.take()) {
-            seedlist1 = db.findSeedlist(id1);
-            seedlist2 = db.findSeedlist(id2);
-            seeds1 = db.findSeedsBySeedListId(id1);
-            seeds2 = db.findSeedsBySeedListId(id2);
-        }
-
-        List<Db.Seed> onlyIn1 = new ArrayList<>();
-        List<Db.Seed> onlyIn2 = new ArrayList<>();
-        List<Db.Seed> common = new ArrayList<>();
-
-        Iterator<Db.Seed> it1 = seeds1.iterator();
-        Iterator<Db.Seed> it2 = seeds2.iterator();
-
-        Db.Seed seed1 = null, seed2 = null;
-
-        for (;;) {
-            if (seed1 == null && it1.hasNext()) {
-                seed1 = it1.next();
-            }
-            if (seed2 == null && it2.hasNext()) {
-                seed2 = it2.next();
-            }
-
-            int cmp;
-            if (seed1 == null) {
-                if (seed2 == null) {
-                    break;
-                }
-                cmp = 1;
-            } else if (seed2 == null) {
-                cmp = -1;
-            } else {
-                cmp = seed1.surt.compareTo(seed2.surt);
-            }
-
-            if (cmp < 0) {
-                onlyIn1.add(seed1);
-                seed1 = null;
-            } else if (cmp > 0) {
-                onlyIn2.add(seed2);
-                seed2 = null;
-            } else {
-                common.add(seed1);
-                seed1 = null;
-                seed2 = null;
-            }
-        }
-
+    Response showComparison(Request request) {
+        Comparison comparison = new Comparison(bamboo, request);
         return render("seedlists/comparison.ftl",
-                "seedlist1", seedlist1,
-                "seedlist2", seedlist2,
-                "onlyIn1", onlyIn1,
-                "onlyIn2", onlyIn2,
-                "common", common);
+                "seedlist1", comparison.seedlist1,
+                "seedlist2", comparison.seedlist2,
+                "onlyIn1", comparison.onlyIn1,
+                "onlyIn2", comparison.onlyIn2,
+                "common", comparison.common);
     }
 
     public static class PandasMatch {

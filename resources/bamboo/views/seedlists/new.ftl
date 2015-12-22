@@ -3,7 +3,7 @@
 <h3>New Seedlist</h3>
 
 <div class="well">
-    <form method="post" class="form-horizontal">
+    <form method="post" action="seedlists/create" class="form-horizontal">
         <input name="csrfToken" value="${csrfToken}" type="hidden">
 
         <fieldset>

@@ -3,6 +3,7 @@ package bamboo.web;
 import bamboo.core.Bamboo;
 import bamboo.core.Db;
 import bamboo.io.HeritrixJob;
+import bamboo.seedlist.SeedlistsController;
 import droute.*;
 import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.Configuration;
@@ -109,7 +110,7 @@ public class Webapp implements Handler, AutoCloseable {
         bamboo.close();
     }
 
-    static class NotFound extends RuntimeException {
+    public static class NotFound extends RuntimeException {
         public NotFound(String message) {
             super(message);
         }
