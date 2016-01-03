@@ -17,13 +17,13 @@ import java.util.stream.Stream;
 
 public class Cdx {
 
-    public static Stream<CdxRecord> records(ArchiveReader warcReader) {
-        Stream<CdxRecord> stream = Stream.generate(new CdxRecordProducer(warcReader)::next);
+    public static Stream<CdxRecord> records(ArchiveReader warcReader, String filename) {
+        Stream<CdxRecord> stream = Stream.generate(new CdxRecordProducer(warcReader, filename)::next);
         return StreamUtils.takeWhile(stream, (record) -> record != null);
     }
 
-    public static void writeCdx(Path warc, Writer out) throws IOException {
-        records(Warcs.open(warc)).forEach(record -> {
+    public static void writeCdx(Path warc, String filename, Writer out) throws IOException {
+        records(Warcs.open(warc), filename).forEach(record -> {
             try {
                 out.write(record.toCdxLine() + "\n");
             } catch (IOException e) {
@@ -37,11 +37,13 @@ public class Cdx {
 
         private final ArchiveReader warc;
         private final Iterator<ArchiveRecord> iterator;
+        private final String filename;
         private Iterator<Alias> urlMapIterator = null;
 
-        CdxRecordProducer(ArchiveReader warc) {
+        CdxRecordProducer(ArchiveReader warc, String filename) {
             this.warc = warc;
             iterator = warc.iterator();
+            this.filename = filename;
         }
 
         public CdxRecord next() {
@@ -61,7 +63,7 @@ public class Cdx {
                         }
                     }
 
-                    Capture capture = Capture.parseWarcRecord(warc.getFileName(), record);
+                    Capture capture = Capture.parseWarcRecord(filename, record);
                     if (capture != null) {
                         return capture;
                     }
