@@ -51,15 +51,19 @@ public class Cdx {
                 }
                 while (iterator.hasNext()) {
                     ArchiveRecord record = iterator.next();
-                    Matcher m = PANDORA_URL_MAP.matcher(record.getHeader().getUrl());
-                    if (m.matches()) {
-                        urlMapIterator = parseUrlMap(record, m.group(1)).iterator();
-                        return next();
-                    } else {
-                        Capture capture = Capture.parseWarcRecord(warc.getFileName(), record);
-                        if (capture != null) {
-                            return capture;
+
+                    String url = record.getHeader().getUrl();
+                    if (url != null) {
+                        Matcher m = PANDORA_URL_MAP.matcher(url);
+                        if (m.matches()) {
+                            urlMapIterator = parseUrlMap(record, m.group(1)).iterator();
+                            return next();
                         }
+                    }
+
+                    Capture capture = Capture.parseWarcRecord(warc.getFileName(), record);
+                    if (capture != null) {
+                        return capture;
                     }
                 }
                 return null;
@@ -181,7 +185,6 @@ public class Cdx {
             ArchiveRecordHeader header = record.getHeader();
 
             Capture capture = new Capture();
-            capture.url = Warcs.getCleanUrl(header);
 
             if (Warcs.isResponseRecord(header)) {
                 HttpHeader http = HttpHeader.parse(record, capture.url);
@@ -199,6 +202,7 @@ public class Cdx {
                 return null;
             }
 
+            capture.url = Warcs.getCleanUrl(header);
             capture.date = Warcs.getArcDate(header);
             capture.contentLength = header.getContentLength();
             capture.offset = header.getOffset();
