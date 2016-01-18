@@ -288,7 +288,7 @@ public class CdxIndexer implements Runnable {
     private static Stats writeCdx(Path warc, String filename, List<CdxBuffer> buffers) throws IOException {
         Stats stats = new Stats();
         try (ArchiveReader reader = Warcs.open(warc)) {
-            Cdx.records(reader).forEach(record -> {
+            Cdx.records(reader, filename).forEach(record -> {
                 if (record instanceof Cdx.Alias) {
                     Cdx.Alias alias = (Cdx.Alias) record;
                     for (CdxBuffer buffer : buffers) {
@@ -319,7 +319,7 @@ public class CdxIndexer implements Runnable {
             System.exit(1);
         }
         Path warc = Paths.get(args[0]);
-        Cdx.writeCdx(warc, new OutputStreamWriter(System.out));
+        Cdx.writeCdx(warc, warc.getFileName().toString(), new OutputStreamWriter(System.out));
     }
 
 }
