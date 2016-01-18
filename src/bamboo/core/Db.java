@@ -250,12 +250,16 @@ public abstract class Db implements AutoCloseable, Transactional {
 		public CrawlSeries(ResultSet rs) throws SQLException {
 			id = rs.getLong("id");
 			name = rs.getString("name");
-			path = Paths.get(rs.getString("path"));
+			path = maybePath(rs.getString("path"));
 			warcFiles = rs.getLong("warc_files");
 			warcSize = rs.getLong("warc_size");
 			records = rs.getLong("records");
 			recordBytes = rs.getLong("record_bytes");
 			description = rs.getString("description");
+		}
+
+		private static Path maybePath(String path) {
+			return path == null ? null : Paths.get(path);
 		}
 	}
 
@@ -289,6 +293,9 @@ public abstract class Db implements AutoCloseable, Transactional {
 
 	@SqlQuery("SELECT * FROM crawl_series ORDER BY name")
 	public abstract List<CrawlSeries> listCrawlSeries();
+
+	@SqlQuery("SELECT * FROM crawl_series WHERE path IS NOT NULL ORDER BY name")
+	public abstract List<CrawlSeries> listImportableCrawlSeries();
 
 	@SqlQuery("SELECT COUNT(*) FROM crawl_series")
 	public abstract long countCrawlSeries();

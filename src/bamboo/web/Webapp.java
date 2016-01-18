@@ -76,7 +76,7 @@ public class Webapp implements Handler, AutoCloseable {
     Response showImportForm(Request request) {
         try (Db db = bamboo.dbPool.take()) {
             return render("import.ftl",
-                    "allCrawlSeries", db.listCrawlSeries(),
+                    "allCrawlSeries", db.listImportableCrawlSeries(),
                     "selectedCrawlSeriesId", parseLongOrDefault(request.queryParam("crawlSeries"), -1),
                     "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()),
                     "csrfToken", Csrf.token(request));

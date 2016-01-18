@@ -46,7 +46,12 @@
 </div>
 
 
-<h4>Crawls <a href="import?crawlSeries=${series.id?c}" class="btn btn-primary pull-right">Import from Heritrix</a></h4>
+<h4>Crawls
+    [#if (series.path!"") != ""]
+        <a href="import?crawlSeries=${series.id?c}" class="btn btn-primary pull-right">Import from Heritrix</a>
+    [/#if]
+</h4>
+
 
 <table class="table">
     <thead>

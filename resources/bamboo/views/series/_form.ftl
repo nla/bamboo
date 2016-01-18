@@ -9,7 +9,7 @@
 <div class="form-group">
     <label for="path" class="col-lg-2 control-label">Archival Path</label>
     <div class="col-lg-10">
-        <input class="form-control" id="path" value="${(series.path)!}" name="path" required>
+        <input class="form-control" id="path" value="${(series.path)!}" name="path">
     </div>
 </div>
 

@@ -7,9 +7,6 @@
 
 <h3>Import Crawl from Heritrix</h3>
 
-<div class="alert alert-danger"><b>Not functional yet!</b> Check with Alex before using this.
-</div>
-
 <div class="well">
     <form method="POST" class="form-horizontal">
         <input name="csrfToken" value="${csrfToken}" type="hidden">

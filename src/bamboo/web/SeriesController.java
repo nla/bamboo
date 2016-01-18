@@ -92,7 +92,8 @@ class SeriesController {
         }
 
         try (Db db = bamboo.dbPool.take()) {
-            int rows = db.updateCrawlSeries(seriesId, request.formParam("name"), request.formParam("path"),
+            int rows = db.updateCrawlSeries(seriesId, request.formParam("name"),
+                    blankToNull(request.formParam("path")),
                     request.formParam("description"),
                     collectionIds, collectionUrlFilters);
             if (rows == 0) {
@@ -100,5 +101,9 @@ class SeriesController {
             }
         }
         return seeOther(request.contextUri().resolve("series/" + seriesId).toString());
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isEmpty() ? null : s;
     }
 }
