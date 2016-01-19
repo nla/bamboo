@@ -1,6 +1,7 @@
 package bamboo.core;
 
 import bamboo.io.HeritrixJob;
+import bamboo.seedlist.Seedlists;
 import bamboo.task.*;
 import bamboo.web.Main;
 import doss.BlobStore;
@@ -17,10 +18,16 @@ import java.util.regex.Pattern;
 
 public class Bamboo implements AutoCloseable {
     public final Config config;
-    public final DbPool dbPool;
+    private final DbPool dbPool;
     public final PandasDbPool pandasDbPool;
     public final Taskmaster taskmaster;
     public final BlobStore blobStore;
+
+    public final Crawls crawls;
+    public final Serieses serieses;
+    public final Warcs warcs;
+    public final Collections collections;
+    public final Seedlists seedlists;
 
     public Bamboo(Config config, DbPool dbPool) {
         this.config = config;
@@ -29,6 +36,12 @@ public class Bamboo implements AutoCloseable {
         this.taskmaster = new Taskmaster(config, dbPool);
         //blobStore = LocalBlobStore.open(config.getDossHome());
         blobStore = null; // coming soon
+
+        crawls = new Crawls(dbPool);
+        serieses = new Serieses(dbPool);
+        warcs = new Warcs(dbPool);
+        collections = new Collections(dbPool);
+        seedlists = new Seedlists(dbPool);
     }
 
     public Bamboo() {
@@ -43,6 +56,12 @@ public class Bamboo implements AutoCloseable {
         this.taskmaster = new Taskmaster(config, dbPool);
         //blobStore = LocalBlobStore.open(config.getDossHome());
         blobStore = null; // coming soon
+
+        crawls = new Crawls(dbPool);
+        serieses = new Serieses(dbPool);
+        warcs = new Warcs(dbPool);
+        collections = new Collections(dbPool);
+        seedlists = new Seedlists(dbPool);
     }
 
     @Override
@@ -68,7 +87,7 @@ public class Bamboo implements AutoCloseable {
             Path p = Paths.get(path);
             long size = Files.size(p);
             String digest = Scrub.calculateDigest("SHA-256", p);
-            long warcId = db.insertWarc(crawlId, Db.Warc.IMPORTED, path, p.getFileName().toString(), size, digest);
+            long warcId = db.insertWarc(crawlId, Warc.IMPORTED, path, p.getFileName().toString(), size, digest);
             System.out.println("Registered WARC " + warcId);
         }
     }
@@ -90,10 +109,10 @@ public class Bamboo implements AutoCloseable {
 
     public void refreshWarcStatsFs() throws IOException {
         try (Db db = dbPool.take()) {
-            for (Db.Warc warc : db.listWarcs()) {
-                long size = Files.size(warc.path);
-                System.out.println(warc.size + " -> " + size + " " + warc.id + " " + warc.path);
-                db.updateWarcSizeWithoutRollup(warc.id, size);
+            for (Warc warc : db.listWarcs()) {
+                long size = Files.size(warc.getPath());
+                System.out.println(warc.getSize() + " -> " + size + " " + warc.getId() + " " + warc.getPath());
+                db.updateWarcSizeWithoutRollup(warc.getId(), size);
             }
             db.refreshWarcStatsOnCrawls();
             db.refreshWarcStatsOnCrawlSeries();
@@ -137,6 +156,10 @@ public class Bamboo implements AutoCloseable {
                 break;
             case "watch-importer":
                 new WatchImporter(bamboo.dbPool, bamboo.config.getWatches()).run();
+                break;
+            case "import-pandas-instance":
+                //new PandasImport(bamboo).importInstance(Long.parseLong(args[1]), Long.parseLong(args[2]));
+                break;
             default:
                 usage();
         }
@@ -149,12 +172,12 @@ public class Bamboo implements AutoCloseable {
     public void recalcCrawlTimes() {
         Pattern p = Pattern.compile(".*-((?:20|19)[0-9]{12,15})-[0-9]{5}-.*");
         try (Db db = dbPool.take()) {
-            for (Db.Warc warc : db.listWarcs()) {
-                Matcher m = p.matcher(warc.filename);
+            for (Warc warc : db.listWarcs()) {
+                Matcher m = p.matcher(warc.getFilename());
                 if (m.matches()) {
-                    Date date = Warcs.parseArcDate(m.group(1).substring(0, 14));
-                    db.conditionallyUpdateCrawlStartTime(warc.crawlId, date);
-                    db.conditionallyUpdateCrawlEndTime(warc.crawlId, date);
+                    Date date = WarcUtils.parseArcDate(m.group(1).substring(0, 14));
+                    db.conditionallyUpdateCrawlStartTime(warc.getCrawlId(), date);
+                    db.conditionallyUpdateCrawlEndTime(warc.getCrawlId(), date);
                 }
             }
         }
@@ -172,6 +195,7 @@ public class Bamboo implements AutoCloseable {
         System.out.println("  refresh-warc-stats-fs            - Refresh warc stats tables based on disk");
         System.out.println("  server                           - Run web server");
         System.out.println("  watch-importer <crawl-id> <path> - Monitor path for new warcs, incrementally index them and then import them to crawl-id");
+        System.out.println("  import-pandas-instance  <series-id> <instance-id>");
         System.exit(1);
     }
 

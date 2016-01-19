@@ -23,7 +23,7 @@ public class Cdx {
     }
 
     public static void writeCdx(Path warc, String filename, Writer out) throws IOException {
-        records(Warcs.open(warc), filename).forEach(record -> {
+        records(WarcUtils.open(warc), filename).forEach(record -> {
             try {
                 out.write(record.toCdxLine() + "\n");
             } catch (IOException e) {
@@ -188,7 +188,7 @@ public class Cdx {
 
             Capture capture = new Capture();
 
-            if (Warcs.isResponseRecord(header)) {
+            if (WarcUtils.isResponseRecord(header)) {
                 HttpHeader http = HttpHeader.parse(record, capture.url);
                 if (http == null) {
                     return null;
@@ -196,7 +196,7 @@ public class Cdx {
                 capture.contentType = http.getCleanContentType();
                 capture.status = http.status;
                 capture.location = http.location;
-            } else if (Warcs.isResourceRecord(header)) {
+            } else if (WarcUtils.isResourceRecord(header)) {
                 capture.contentType = header.getMimetype();
                 capture.status = 200;
                 capture.location = null;
@@ -204,12 +204,12 @@ public class Cdx {
                 return null;
             }
 
-            capture.url = Warcs.getCleanUrl(header);
-            capture.date = Warcs.getArcDate(header);
+            capture.url = WarcUtils.getCleanUrl(header);
+            capture.date = WarcUtils.getArcDate(header);
             capture.contentLength = header.getContentLength();
             capture.offset = header.getOffset();
             capture.filename = filename;
-            capture.digest = Warcs.getOrCalcDigest(record);
+            capture.digest = WarcUtils.getOrCalcDigest(record);
             return capture;
         }
     }

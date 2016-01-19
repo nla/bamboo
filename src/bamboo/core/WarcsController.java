@@ -1,7 +1,5 @@
-package bamboo.web;
+package bamboo.core;
 
-import bamboo.core.Bamboo;
-import bamboo.core.Db;
 import bamboo.task.Cdx;
 import com.google.common.base.Charsets;
 import droute.Handler;
@@ -28,9 +26,9 @@ import static droute.Response.response;
 import static droute.Route.GET;
 import static droute.Route.routes;
 
-class WarcsController {
+public class WarcsController {
     final Bamboo bamboo;
-    final Handler routes = routes(
+    public final Handler routes = routes(
             GET("/warcs/:id", this::serve, "id", "[0-9]+"),
             GET("/warcs/:id/cdx", this::showCdx, "id", "[0-9]+"),
             GET("/warcs/:id/details", this::details, "id", "[0-9]+"),
@@ -38,7 +36,7 @@ class WarcsController {
             GET("/warcs/:filename/cdx", this::showCdx, "filename", "[^/]+")
             );
 
-    WarcsController(Bamboo bamboo) {
+    public WarcsController(Bamboo bamboo) {
         this.bamboo = bamboo;
     }
 
@@ -94,39 +92,34 @@ class WarcsController {
         }
     }
 
-    Db.Warc findWarc(Request request) {
-        Db.Warc warc = null;
-        try (Db db = bamboo.dbPool.take()) {
-            if (request.param("id") != null) {
-                long warcId = Long.parseLong(request.param("id"));
-                warc = db.findWarc(warcId);
-            } else if (request.param("filename") != null) {
-                warc = db.findWarcByFilename(request.param("filename"));
-            }
+    Warc findWarc(Request request) {
+        if (request.param("id") != null) {
+            long warcId = Long.parseLong(request.param("id"));
+            return bamboo.warcs.get(warcId);
+        } else if (request.param("filename") != null) {
+            return bamboo.warcs.getByFilename(request.param("filename"));
+        } else {
+            throw new IllegalStateException("id or filename is required");
         }
-        if (warc == null) {
-            throw new RuntimeException("No such warc file");
-        }
-        return warc;
     }
 
     Response serve(Request request) {
         return serve(request, findWarc(request));
     }
 
-    private Response serve(Request request, Db.Warc warc) {
-        List<Range> ranges = Range.parseHeader(request.header("Range"), warc.size);
+    private Response serve(Request request, Warc warc) {
+        List<Range> ranges = Range.parseHeader(request.header("Range"), warc.getSize());
         try {
             if (ranges == null || ranges.isEmpty()) {
-                return response(200, Files.newInputStream(warc.path))
-                        .withHeader("Content-Length", Long.toString(warc.size))
+                return response(200, Files.newInputStream(warc.getPath()))
+                        .withHeader("Content-Length", Long.toString(warc.getSize()))
                         .withHeader("Content-Type", "application/warc")
-                        .withHeader("Content-Disposition", "filename=" + warc.filename)
+                        .withHeader("Content-Disposition", "filename=" + warc.getFilename())
                         .withHeader("Accept-Ranges", "bytes");
             } else if (ranges.size() == 1) {
-                return singleRangeResponse(warc.path, ranges.get(0));
+                return singleRangeResponse(warc.getPath(), ranges.get(0));
             } else {
-                return multipleRangeResponse(warc.path, ranges);
+                return multipleRangeResponse(warc.getPath(), ranges);
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -147,7 +140,6 @@ class WarcsController {
     }
 
     private static final String boundary = "Te2akaimeeThe8eip5oh";
-    private static ByteBuffer CRLF = asciiBuffer("\r\n");
 
     private Response multipleRangeResponse(Path path, List<Range> ranges) throws IOException {
         return response(206, (Streamable) (OutputStream outStream) -> {
@@ -170,24 +162,21 @@ class WarcsController {
     }
 
     private Response showCdx(Request request) {
-        Db.Warc warc = findWarc(request);
-        Path path = warc.path;
+        Warc warc = findWarc(request);
+        Path path = warc.getPath();
         String filename = path.getFileName().toString();
         return response(200, (Streamable) (OutputStream outStream) -> {
             Writer out = new BufferedWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
-            Cdx.writeCdx(path, warc.filename, out);
+            Cdx.writeCdx(path, warc.getFilename(), out);
             out.flush();
         }).withHeader("Content-Type", "text/plain");
     }
 
     Response details(Request request) {
-        Db.Warc warc = findWarc(request);
-        try (Db db = bamboo.dbPool.take()) {
-            Db.Crawl crawl = db.findCrawl(warc.crawlId);
-            return render("warc.ftl",
-                    "warc", warc,
-                    "crawl", crawl,
-                    "state", db.findWarcStateName(warc.stateId));
-        }
+        Warc warc = findWarc(request);
+        return render("warc.ftl",
+                "warc", warc,
+                "crawl", bamboo.crawls.get(warc.getCrawlId()),
+                "state", bamboo.warcs.stateName(warc.getStateId()));
     }
 }

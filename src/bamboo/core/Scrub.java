@@ -75,38 +75,32 @@ public class Scrub {
         }
     }
 
-    static Result scrub(Db.Warc warc) {
+    static Result scrub(Warc warc) {
         String digest;
         try {
-            digest = calculateDigest("SHA-256", warc.path);
+            digest = calculateDigest("SHA-256", warc.getPath());
         } catch (IOException e) {
-            return new Result(ResultType.ERROR, warc.id, warc.path, warc.sha256, e);
+            return new Result(ResultType.ERROR, warc.getId(), warc.getPath(), warc.getSha256(), e);
         }
 
-        if (warc.sha256 == null) {
-            return new Result(ResultType.NEW, warc.id, warc.path, digest, digest);
-        } else if (warc.sha256.equals(digest)) {
-            return new Result(ResultType.OK, warc.id, warc.path, digest, digest);
+        if (warc.getSha256() == null) {
+            return new Result(ResultType.NEW, warc.getId(), warc.getPath(), digest, digest);
+        } else if (warc.getSha256().equals(digest)) {
+            return new Result(ResultType.OK, warc.getId(), warc.getPath(), digest, digest);
         } else {
-            return new Result(ResultType.MISMATCH, warc.id, warc.path, warc.sha256, digest);
+            return new Result(ResultType.MISMATCH, warc.getId(), warc.getPath(), warc.getSha256(), digest);
         }
     }
 
     public static void scrub(Bamboo bamboo) {
-        List<Db.Warc> warcs;
-
-        try (Db db = bamboo.dbPool.take()) {
-            warcs = db.listWarcs();
-        }
+        List<Warc> warcs = bamboo.warcs.listAll();
 
         warcs.parallelStream()
                 .map(Scrub::scrub)
                 .forEach(result -> {
                     System.out.println(result);
                     if (result.type == ResultType.NEW) {
-                        try (Db db = bamboo.dbPool.take()) {
-                            db.updateWarcSha256(result.warcId, result.calculatedDigest);
-                        }
+                        bamboo.warcs.updateSha256(result.warcId, result.calculatedDigest);
                     }
                 });
     }

@@ -1,7 +1,6 @@
 package bamboo.web;
 
-import bamboo.core.Bamboo;
-import bamboo.core.Db;
+import bamboo.core.*;
 import bamboo.io.HeritrixJob;
 import bamboo.seedlist.SeedlistsController;
 import droute.*;
@@ -54,6 +53,8 @@ public class Webapp implements Handler, AutoCloseable {
         return request -> {
             try {
                 return handler.handle(request);
+            } catch (NotFoundException e) {
+                return notFound("Not found: " + e.getMessage());
             } catch (NotFound e) {
                 return notFound(e.getMessage());
             } catch (Throwable t) {
@@ -66,34 +67,24 @@ public class Webapp implements Handler, AutoCloseable {
     }
 
     Response index(Request request) {
-        try (Db db = bamboo.dbPool.take()) {
-            return render("index.ftl",
-                    "seriesList", db.listCrawlSeries(),
-                    "collections", db.listCollections());
-        }
+        return render("index.ftl",
+                "seriesList", bamboo.serieses.listAll(),
+                "collections", bamboo.collections.listAll());
     }
 
     Response showImportForm(Request request) {
-        try (Db db = bamboo.dbPool.take()) {
-            return render("import.ftl",
-                    "allCrawlSeries", db.listImportableCrawlSeries(),
-                    "selectedCrawlSeriesId", parseLongOrDefault(request.queryParam("crawlSeries"), -1),
-                    "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()),
-                    "csrfToken", Csrf.token(request));
-        }
+        return render("import.ftl",
+                "allCrawlSeries", bamboo.serieses.listImportable(),
+                "selectedCrawlSeriesId", parseLongOrDefault(request.queryParam("crawlSeries"), -1),
+                "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()),
+                "csrfToken", Csrf.token(request));
     }
 
     Response performImport(Request request) {
-        try (Db db = bamboo.dbPool.take()) {
-            String jobName = request.param("heritrixJob");
-            long crawlSeriesId = Long.parseLong(request.param("crawlSeriesId"));
-            Db.CrawlSeries crawlSeries = db.findCrawlSeriesById(crawlSeriesId);
-            if (crawlSeries == null) {
-                return badRequest("No such crawl series: " + crawlSeriesId);
-            }
-            long crawlId = bamboo.importHeritrixCrawl(jobName, crawlSeriesId);
-            return seeOther(request.contextUri().resolve("crawls/" + crawlId).toString());
-        }
+        String jobName = request.param("heritrixJob");
+        long crawlSeriesId = Long.parseLong(request.param("crawlSeriesId"));
+        long crawlId = bamboo.importHeritrixCrawl(jobName, crawlSeriesId);
+        return seeOther(request.contextUri().resolve("crawls/" + crawlId).toString());
     }
 
     Response badRequest(String message) {

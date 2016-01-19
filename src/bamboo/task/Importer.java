@@ -1,6 +1,7 @@
 package bamboo.task;
 
 import bamboo.core.Config;
+import bamboo.core.Crawl;
 import bamboo.core.Db;
 import bamboo.core.DbPool;
 
@@ -20,15 +21,15 @@ public class Importer implements Runnable {
     @Override
     public void run() {
         for (;;) {
-            List<Db.Crawl> crawls;
+            List<Crawl> crawls;
             try (Db db = dbPool.take()) {
                 crawls = db.findCrawlsByState(Db.IMPORTING);
             }
             if (crawls.isEmpty()) {
                 break; // nothing left to do, go idle
             }
-            for (Db.Crawl crawl : crawls) {
-                new ImportJob(config, dbPool, crawl.id).run();
+            for (Crawl crawl : crawls) {
+                new ImportJob(config, dbPool, crawl.getId()).run();
                 completionHook.run();
             }
         }

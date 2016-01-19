@@ -23,6 +23,7 @@ public class PandasDbPool implements Closeable {
         ds = new HikariDataSource(hikariConfig);
         dbi = new DBI(ds);
         dbi.registerMapper(new PandasDb.TitleMapper());
+        dbi.registerMapper(new PandasDb.InstanceSummaryMapper());
         dbi.setSQLLog(new PrintStreamLog() {
             @Override
             public void logReleaseHandle(Handle h) {

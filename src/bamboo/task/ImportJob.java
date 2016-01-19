@@ -1,9 +1,6 @@
 package bamboo.task;
 
-import bamboo.core.Config;
-import bamboo.core.Db;
-import bamboo.core.DbPool;
-import bamboo.core.Scrub;
+import bamboo.core.*;
 import bamboo.io.HeritrixJob;
 
 import java.io.IOException;
@@ -33,32 +30,32 @@ public class ImportJob {
 	}
 	
 	public void run()  {
-		Db.Crawl crawl;
-		Db.CrawlSeries series;
+		Crawl crawl;
+		Series series;
 
 		try (Db db = dbPool.take()) {
 			crawl = db.findCrawl(crawlId);
 			if (crawl == null)
 				throw new RuntimeException("Crawl " + crawlId + " not found");
-			if (crawl.state != Db.IMPORTING) {
+			if (crawl.getState() != Db.IMPORTING) {
 				return; // sanity check
 			}
-			if (crawl.crawlSeriesId == null)
+			if (crawl.getCrawlSeriesId() == null)
 				throw new RuntimeException("TODO: implement imports without a series");
 
-			series = db.findCrawlSeriesById(crawl.crawlSeriesId);
+			series = db.findCrawlSeriesById(crawl.getCrawlSeriesId());
 			if (series == null)
-				throw new RuntimeException("Couldn't find crawl series " + crawl.crawlSeriesId);
+				throw new RuntimeException("Couldn't find crawl series " + crawl.getCrawlSeriesId());
 		}
 
 		try {
-			heritrixJob = HeritrixJob.byName(config.getHeritrixJobs(), crawl.name);
+			heritrixJob = HeritrixJob.byName(config.getHeritrixJobs(), crawl.getName());
 			heritrixJob.checkSuitableForArchiving();
 
 			Path dest;
 
-			if (crawl.path != null) {
-				dest = crawl.path;
+			if (crawl.getPath() != null) {
+				dest = crawl.getPath();
 			} else {
 				dest = allocateCrawlPath(crawl, series);
 			}
@@ -73,22 +70,22 @@ public class ImportJob {
 			constructCrawlBundle(heritrixJob.dir(), dest);
 
 			try (Db db = dbPool.take()) {
-				db.updateCrawlState(crawl.id, Db.ARCHIVED);
+				db.updateCrawlState(crawl.getId(), Db.ARCHIVED);
 			}
 		} catch (IOException e) {
 			try (Db db = dbPool.take()) {
-				db.updateCrawlState(crawl.id, Db.IMPORT_FAILED);
+				db.updateCrawlState(crawl.getId(), Db.IMPORT_FAILED);
 			}
 			throw new UncheckedIOException(e);
 		}
 	}
 
-	private Path allocateCrawlPath(Db.Crawl crawl, Db.CrawlSeries series) throws IOException {
-		if (crawl.path != null)
-			return crawl.path;
+	private Path allocateCrawlPath(Crawl crawl, Series series) throws IOException {
+		if (crawl.getPath() != null)
+			return crawl.getPath();
 		Path path;
 		for (int i = 1;; i++) {
-			path = series.path.resolve(String.format("%03d", i));
+			path = series.getPath().resolve(String.format("%03d", i));
 			try {
 				Files.createDirectory(path);
 				break;
@@ -97,8 +94,8 @@ public class ImportJob {
 			}
 		}
 		try (Db db = dbPool.take()) {
-			if (db.updateCrawlPath(crawl.id, path.toString()) == 0) {
-				throw new RuntimeException("No such crawl: " + crawl.id);
+			if (db.updateCrawlPath(crawl.getId(), path.toString()) == 0) {
+				throw new RuntimeException("No such crawl: " + crawl.getId());
 			}
 		}
 		return path;
@@ -119,7 +116,7 @@ public class ImportJob {
 			String digest = Scrub.calculateDigest("SHA-256", src);
 			Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
 			try (Db db = dbPool.take()) {
-				db.insertWarc(crawlId, Db.Warc.IMPORTED, dest.toString(), dest.getFileName().toString(), size, digest);
+				db.insertWarc(crawlId, Warc.IMPORTED, dest.toString(), dest.getFileName().toString(), size, digest);
 			}
 		}
 	}

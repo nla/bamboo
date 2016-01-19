@@ -1,9 +1,6 @@
 package bamboo.task;
 
-import bamboo.core.Config;
-import bamboo.core.Db;
-import bamboo.core.DbPool;
-import bamboo.core.Scrub;
+import bamboo.core.*;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -90,16 +87,16 @@ public class WatchImporter {
         long currentSize = Files.size(path);
         String filename = path.getFileName().toString().replaceFirst(".open$", "");
         try (Db db = dbPool.take()) {
-            Db.Warc warc = db.findWarcByFilename(filename);
+            Warc warc = db.findWarcByFilename(filename);
             if (warc != null) {
-                warcId = warc.id;
-                prevSize = warc.size;
+                warcId = warc.getId();
+                prevSize = warc.getSize();
             } else {
                 /*
                  * Create the record under the final closed filename as its currently the key wayback uses to request
                  * a particular warc and we don't want to have to deal with it changing.
                  */
-                warcId = db.insertWarc(watch.crawlId, Db.Warc.OPEN, path.toString(), filename, 0L, null);
+                warcId = db.insertWarc(watch.crawlId, Warc.OPEN, path.toString(), filename, 0L, null);
                 prevSize = 0;
             }
         }
@@ -117,8 +114,8 @@ public class WatchImporter {
      */
     private void handleClosedWarc(Config.Watch watch, Path path) throws IOException {
         log.finest("handleClosedWarc(" + path + ")");
-        Db.Warc warc;
-        Db.Crawl crawl;
+        Warc warc;
+        Crawl crawl;
         try (Db db = dbPool.take()) {
             warc = db.findWarcByFilename(path.getFileName().toString());
             crawl = db.findCrawl(watch.crawlId);
@@ -131,15 +128,15 @@ public class WatchImporter {
 
         try (Db db = dbPool.take()) {
             if (warc == null) {
-                db.insertWarc(watch.crawlId, Db.Warc.IMPORTED, dest.toString(), path.getFileName().toString(), size, digest);
+                db.insertWarc(watch.crawlId, Warc.IMPORTED, dest.toString(), path.getFileName().toString(), size, digest);
             } else {
-                db.updateWarc(warc.crawlId, warc.id, Db.Warc.IMPORTED, dest.toString(), dest.getFileName().toString(), warc.size, size, digest);
+                db.updateWarc(warc.getCrawlId(), warc.getId(), Warc.IMPORTED, dest.toString(), dest.getFileName().toString(), warc.getSize(), size, digest);
             }
         }
     }
 
-    private Path moveWarcToCrawlDir(Path path, Db.Crawl crawl) throws IOException {
-        Path destDir = crawl.path.resolve(String.format("%03d", crawl.warcFiles / 1000));
+    private Path moveWarcToCrawlDir(Path path, Crawl crawl) throws IOException {
+        Path destDir = crawl.getPath().resolve(String.format("%03d", crawl.getWarcFiles() / 1000));
         if (!Files.isDirectory(destDir)) {
             Files.createDirectory(destDir);
         }

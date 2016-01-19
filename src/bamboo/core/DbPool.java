@@ -5,10 +5,15 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.logging.PrintStreamLog;
+import org.skife.jdbi.v2.tweak.Argument;
+import org.skife.jdbi.v2.tweak.ArgumentFactory;
 
 import java.io.Closeable;
+import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -34,6 +39,9 @@ public class DbPool implements Closeable {
         dbi.registerMapper(new Db.SeedMapper());
         dbi.registerMapper(new Db.SeedlistMapper());
         dbi.registerMapper(new Db.WarcMapper());
+
+        dbi.registerArgumentFactory(new PathArgumentFactory());
+
         dbi.setSQLLog(new PrintStreamLog() {
             @Override
             public void logReleaseHandle(Handle h) {
@@ -74,4 +82,17 @@ public class DbPool implements Closeable {
     public void close() {
         ds.close();
     }
+
+    public static class PathArgumentFactory implements ArgumentFactory<Path> {
+        @Override
+        public boolean accepts(Class<?> aClass, Object o, StatementContext statementContext) {
+            return o instanceof Path;
+        }
+
+        @Override
+        public Argument build(Class<?> aClass, Path path, StatementContext statementContext) {
+            return (i, stmt, ctx) -> stmt.setString(i, path.toString());
+        }
+    }
+
 }

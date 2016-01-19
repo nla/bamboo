@@ -1,9 +1,10 @@
 package bamboo.web;
 
 import bamboo.core.Bamboo;
-import bamboo.core.Db;
+import bamboo.core.Warc;
 import bamboo.task.Task;
 import bamboo.util.Pager;
+import bamboo.util.Parsing;
 import droute.Csrf;
 import droute.Handler;
 import droute.Request;
@@ -51,28 +52,19 @@ class TasksController {
         return seeOther(request.contextUri().resolve("tasks").toString());
     }
 
-    Pager<Db.Warc> paginateWarcs(Request request, Db db, int stateId) {
-        return new Pager<>(request, "page", db.countWarcsInState(stateId),
-                (offset, limit) -> db.paginateWarcsInState(stateId, offset, limit));
-    }
-
     Response cdxQueue(Request request) {
-        try (Db db = bamboo.dbPool.take()) {
-            Pager<Db.Warc> pager = paginateWarcs(request, db, Db.Warc.IMPORTED);
-            return render("tasks/warcs.ftl",
-                    "queueName", "CDX Indexing",
-                    "warcs", pager.items,
-                    "warcsPager", pager);
-        }
+        Pager<Warc> pager = bamboo.warcs.paginateWithState(Parsing.parseLongOrDefault(request.queryParam("page"), 1), Warc.IMPORTED);
+        return render("tasks/warcs.ftl",
+                "queueName", "CDX Indexing",
+                "warcs", pager.items,
+                "warcsPager", pager);
     }
 
     Response solrQueue(Request request) {
-        try (Db db = bamboo.dbPool.take()) {
-            Pager<Db.Warc> pager = paginateWarcs(request, db, Db.Warc.CDX_INDEXED);
-            return render("tasks/warcs.ftl",
-                    "queueName", "Solr Indexing",
-                    "warcs", pager.items,
-                    "warcsPager", pager);
-        }
+        Pager<Warc> pager = bamboo.warcs.paginateWithState(Parsing.parseLongOrDefault(request.queryParam("page"), 1), Warc.CDX_INDEXED);
+        return render("tasks/warcs.ftl",
+                "queueName", "Solr Indexing",
+                "warcs", pager.items,
+                "warcsPager", pager);
     }
 }

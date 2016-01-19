@@ -1,5 +1,6 @@
-package bamboo.web;
+package bamboo.core;
 
+import bamboo.core.WarcsController;
 import org.junit.Test;
 
 import java.util.List;

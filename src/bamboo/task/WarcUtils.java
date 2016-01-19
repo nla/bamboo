@@ -17,12 +17,12 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Date;
 
-public class Warcs {
+public class WarcUtils {
 
     public final static DateTimeFormatter warcDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
     public final static DateTimeFormatter arcDateFormat = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
-    private Warcs() {
+    private WarcUtils() {
     }
 
     static boolean isResponseRecord(ArchiveRecordHeader h) {

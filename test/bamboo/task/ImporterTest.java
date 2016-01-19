@@ -2,6 +2,7 @@ package bamboo.task;
 
 import bamboo.TestConfig;
 import bamboo.core.Bamboo;
+import bamboo.core.Crawl;
 import bamboo.core.Db;
 import bamboo.core.DbPool;
 import org.junit.Rule;
@@ -43,8 +44,8 @@ public class ImporterTest {
 			long crawlId = db.createCrawl("testcrawl", seriesId, Db.IMPORTING);
 			new ImportJob(config, dbPool, crawlId).run();
 
-			Db.Crawl crawl = db.findCrawl(crawlId);
-			assertEquals(Db.ARCHIVED, crawl.state);
+			Crawl crawl = db.findCrawl(crawlId);
+			assertEquals(Db.ARCHIVED, crawl.getState());
 			assertTrue(Files.exists(seriesPath.resolve("001/warcs/000/TEST-1234.warc.gz")));
 		}
 	}

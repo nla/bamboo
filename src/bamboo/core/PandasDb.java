@@ -73,7 +73,14 @@ public interface PandasDb extends Closeable {
         }
     }
 
-    @SqlQuery("SELECT instance_id, pi, TO_CHAR(instance_date, 'YYYYMMDD-HH24MI') dt, name FROM instance, title WHERE instance.title_id = title.title_id AND instance_id = ?")
+    class InstanceSummaryMapper implements ResultSetMapper<InstanceSummary> {
+        @Override
+        public InstanceSummary map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+            return new InstanceSummary(resultSet);
+        }
+    }
+
+    @SqlQuery("SELECT instance_id, pi, TO_CHAR(instance_date, 'YYYYMMDD-HH24MI') dt, name FROM instance, title WHERE instance.title_id = title.title_id AND instance_id = :instanceId")
     InstanceSummary fetchInstanceSummary(@Bind("instanceId") long instanceId);
 
     void close();

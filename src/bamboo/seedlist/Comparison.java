@@ -9,29 +9,27 @@ import java.util.Iterator;
 import java.util.List;
 
 class Comparison {
-    final Db.Seedlist seedlist1;
-    final Db.Seedlist seedlist2;
-    final List<Db.Seed> onlyIn1 = new ArrayList<>();
-    final List<Db.Seed> onlyIn2 = new ArrayList<>();
-    final List<Db.Seed> common = new ArrayList<>();
+    final Seedlist seedlist1;
+    final Seedlist seedlist2;
+    final List<Seed> onlyIn1 = new ArrayList<>();
+    final List<Seed> onlyIn2 = new ArrayList<>();
+    final List<Seed> common = new ArrayList<>();
 
     Comparison(Bamboo bamboo, Request request) {
-        List<Db.Seed> seeds1, seeds2;
+        List<Seed> seeds1, seeds2;
 
         long id1 = Long.parseLong(request.urlParam("id1"));
         long id2 = Long.parseLong(request.urlParam("id2"));
 
-        try (Db db = bamboo.dbPool.take()) {
-            seedlist1 = db.findSeedlist(id1);
-            seedlist2 = db.findSeedlist(id2);
-            seeds1 = db.findSeedsBySeedListId(id1);
-            seeds2 = db.findSeedsBySeedListId(id2);
-        }
+        seedlist1 = bamboo.seedlists.get(id1);
+        seedlist2 = bamboo.seedlists.get(id2);
+        seeds1 = bamboo.seedlists.listSeeds(id1);
+        seeds2 = bamboo.seedlists.listSeeds(id2);
 
-        Iterator<Db.Seed> it1 = seeds1.iterator();
-        Iterator<Db.Seed> it2 = seeds2.iterator();
+        Iterator<Seed> it1 = seeds1.iterator();
+        Iterator<Seed> it2 = seeds2.iterator();
 
-        Db.Seed seed1 = null, seed2 = null;
+        Seed seed1 = null, seed2 = null;
 
         for (;;) {
             if (seed1 == null && it1.hasNext()) {
@@ -50,7 +48,7 @@ class Comparison {
             } else if (seed2 == null) {
                 cmp = -1;
             } else {
-                cmp = seed1.surt.compareTo(seed2.surt);
+                cmp = seed1.getSurt().compareTo(seed2.getSurt());
             }
 
             if (cmp < 0) {
@@ -67,7 +65,7 @@ class Comparison {
         }
     }
 
-    public List<Db.Seed> sublist(String name) {
+    public List<Seed> sublist(String name) {
         switch (name) {
             case "onlyin1": return onlyIn1;
             case "onlyin2": return onlyIn2;
