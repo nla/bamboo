@@ -1,4 +1,4 @@
-package bamboo.core;
+package bamboo.crawl;
 
 import java.io.IOException;
 import java.nio.file.Files;

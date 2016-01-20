@@ -1,4 +1,4 @@
-package bamboo.core;
+package bamboo.crawl;
 
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;

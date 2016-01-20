@@ -1,9 +1,9 @@
 package bamboo.core;
 
-import bamboo.io.HeritrixJob;
+import bamboo.crawl.*;
+import bamboo.task.HeritrixJob;
 import bamboo.seedlist.Seedlists;
 import bamboo.task.*;
-import bamboo.web.Main;
 import doss.BlobStore;
 
 import java.io.IOException;
@@ -41,7 +41,7 @@ public class Bamboo implements AutoCloseable {
         serieses = new Serieses(dbPool);
         warcs = new Warcs(dbPool);
         collections = new Collections(dbPool);
-        seedlists = new Seedlists(dbPool);
+        seedlists = new Seedlists(dbPool.dbi);
     }
 
     public Bamboo() {
@@ -61,7 +61,7 @@ public class Bamboo implements AutoCloseable {
         serieses = new Serieses(dbPool);
         warcs = new Warcs(dbPool);
         collections = new Collections(dbPool);
-        seedlists = new Seedlists(dbPool);
+        seedlists = new Seedlists(dbPool.dbi);
     }
 
     @Override
@@ -123,7 +123,7 @@ public class Bamboo implements AutoCloseable {
         if (args.length == 0)
             usage();
         if (args[0].equals("server")) {
-            Main.main(Arrays.copyOfRange(args, 1, args.length));
+            Webapp.main(Arrays.copyOfRange(args, 1, args.length));
             return;
         }
         Bamboo bamboo = new Bamboo();

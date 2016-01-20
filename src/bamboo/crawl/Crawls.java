@@ -1,5 +1,7 @@
-package bamboo.core;
+package bamboo.crawl;
 
+import bamboo.core.DbPool;
+import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
 
 import java.io.IOException;
@@ -9,10 +11,10 @@ import java.util.Collection;
 import java.util.List;
 
 public class Crawls {
-    final DbPool dbPool;
+    private final CrawlsDAO dao;
 
     public Crawls(DbPool dbPool) {
-        this.dbPool = dbPool;
+        this.dao = dbPool.dbi.onDemand(CrawlsDAO.class);
     }
 
     /**
@@ -26,15 +28,17 @@ public class Crawls {
             warcs.add(Warc.fromFile(path));
         }
 
-        try (Db db = dbPool.take()) {
-            return db.createCrawlWithWarcs(metadata, warcs);
-        }
+        return dao.inTransaction((dao1, ts) -> {
+            long totalBytes = warcs.stream().mapToLong(Warc::getSize).sum();
+            long crawlId = dao.createCrawl(metadata);
+            dao.warcs().batchInsertWarcsWithoutRollup(crawlId, warcs.iterator());
+            dao.warcs().incrementWarcStatsForCrawl(crawlId, warcs.size(), totalBytes);
+            return crawlId;
+        });
     }
 
     public Crawl getOrNull(long crawlId) {
-        try (Db db = dbPool.take()) {
-            return db.findCrawl(crawlId);
-        }
+            return dao.findCrawl(crawlId);
     }
 
     /**
@@ -50,9 +54,7 @@ public class Crawls {
      * Retrieve various statistics about this crawl (number of WARC files etc).
      */
     public CrawlStats stats(long crawlId) {
-        try (Db db = dbPool.take()) {
-            return new CrawlStats(db, crawlId);
-        }
+            return new CrawlStats(dao, crawlId);
     }
 
     /**
@@ -65,24 +67,18 @@ public class Crawls {
             description = null;
         }
 
-        try (Db db = dbPool.take()) {
-            int rows = db.updateCrawl(crawlId, name, description);
+            int rows = dao.updateCrawl(crawlId, name, description);
             if (rows == 0) {
                 throw new NotFoundException("crawl", crawlId);
             }
-        }
     }
 
     public Pager<CrawlAndSeriesName> pager(long page) {
-        try (Db db = dbPool.take()) {
-            return new Pager<>(page, db.countCrawls(), db::paginateCrawlsWithSeriesName);
-        }
+            return new Pager<>(page, dao.countCrawls(), dao::paginateCrawlsWithSeriesName);
     }
 
     public List<Crawl> listWhereSeriesId(long seriesId) {
-        try (Db db = dbPool.take()) {
-            return db.findCrawlsByCrawlSeriesId(seriesId);
-        }
-
+            return dao.findCrawlsByCrawlSeriesId(seriesId);
     }
+
 }

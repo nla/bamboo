@@ -1,7 +1,7 @@
-package bamboo.web;
+package bamboo.task;
 
 import bamboo.core.Bamboo;
-import bamboo.core.Warc;
+import bamboo.crawl.Warc;
 import bamboo.task.Task;
 import bamboo.util.Pager;
 import bamboo.util.Parsing;
@@ -15,16 +15,16 @@ import static droute.Response.render;
 import static droute.Response.seeOther;
 import static droute.Route.*;
 
-class TasksController {
+public class TasksController {
     final Bamboo bamboo;
-    final Handler routes = routes(
+    public final Handler routes = routes(
             GET("/tasks", this::index),
             GET("/tasks/CdxIndexer/queue", this::cdxQueue),
             GET("/tasks/SolrIndexer/queue", this::solrQueue),
             POST("/tasks/:id/disable", this::disable),
             POST("/tasks/:id/enable", this::enable));
 
-    TasksController(Bamboo bamboo) {
+    public TasksController(Bamboo bamboo) {
         this.bamboo = bamboo;
     }
 

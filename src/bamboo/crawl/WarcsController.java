@@ -1,5 +1,6 @@
-package bamboo.core;
+package bamboo.crawl;
 
+import bamboo.core.Bamboo;
 import bamboo.task.Cdx;
 import com.google.common.base.Charsets;
 import droute.Handler;

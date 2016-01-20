@@ -1,5 +1,7 @@
-package bamboo.core;
+package bamboo.crawl;
 
+import bamboo.core.Bamboo;
+import bamboo.core.Db;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
 import bamboo.util.Parsing;
@@ -31,7 +33,7 @@ public class SeriesController {
     }
 
     Response index(Request request) {
-        Pager<Db.CrawlSeriesWithCount> pager = bamboo.serieses.paginate(Parsing.parseLongOrDefault(request.queryParam("page"), 1));
+        Pager<SeriesDAO.CrawlSeriesWithCount> pager = bamboo.serieses.paginate(Parsing.parseLongOrDefault(request.queryParam("page"), 1));
         return render("series/index.ftl",
                 "seriesList", pager.items,
                 "seriesPager", pager);

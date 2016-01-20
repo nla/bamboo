@@ -1,8 +1,8 @@
 package bamboo.task;
 
-import bamboo.TestConfig;
+import bamboo.core.TestConfig;
 import bamboo.core.Bamboo;
-import bamboo.core.Crawl;
+import bamboo.crawl.Crawl;
 import bamboo.core.Db;
 import bamboo.core.DbPool;
 import org.junit.Rule;

@@ -1,7 +1,7 @@
 package bamboo.task;
 
 import bamboo.core.Config;
-import bamboo.core.Crawl;
+import bamboo.crawl.Crawl;
 import bamboo.core.Db;
 import bamboo.core.DbPool;
 

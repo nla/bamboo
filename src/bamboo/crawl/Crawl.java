@@ -1,4 +1,4 @@
-package bamboo.core;
+package bamboo.crawl;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;

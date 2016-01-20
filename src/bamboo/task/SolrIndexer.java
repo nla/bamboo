@@ -1,6 +1,9 @@
 package bamboo.task;
 
 import bamboo.core.*;
+import bamboo.crawl.Collection;
+import bamboo.crawl.Crawl;
+import bamboo.crawl.Warc;
 import bamboo.util.SurtFilter;
 import com.google.common.net.InternetDomainName;
 import com.lowagie.text.exceptions.InvalidPdfException;

@@ -1,6 +1,7 @@
 package bamboo.task;
 
 import bamboo.core.*;
+import bamboo.crawl.*;
 import bamboo.util.SurtFilter;
 import org.archive.io.ArchiveReader;
 import org.archive.url.SURT;
@@ -27,6 +28,10 @@ import static bamboo.task.WarcUtils.cleanUrl;
 
 public class CdxIndexer implements Runnable {
     private static final int BATCH_SIZE = 1024;
+    private Warcs warcs;
+    private Crawls crawls;
+    private Serieses serieses;
+    private Collections collections;
     private final DbPool dbPool;
     private final List<Consumer<Long>> warcIndexedListeners = new ArrayList<>();
 
@@ -40,25 +45,25 @@ public class CdxIndexer implements Runnable {
 
     public void run() {
         while (true) {
-            List<Warc> warcs;
+            List<Warc> candidates;
 
             try (Db db = dbPool.take()) {
-                warcs = db.findWarcsInState(Warc.IMPORTED, BATCH_SIZE);
+                candidates = warcs.findByState(Warc.IMPORTED, BATCH_SIZE);
             }
 
-            if (warcs.isEmpty()) {
+            if (candidates.isEmpty()) {
                 break;
             }
 
-            indexWarcs(warcs);
+            indexWarcs(candidates);
         }
     }
 
-    public void indexWarcs(List<Warc> warcs) {
+    public void indexWarcs(List<Warc> candidates) {
         int threads = Runtime.getRuntime().availableProcessors();
         ExecutorService threadPool = Executors.newFixedThreadPool(threads);
         try {
-            for (Warc warc : warcs) {
+            for (Warc warc : candidates) {
                 threadPool.submit(() -> {
                     try {
                         indexWarc(warc);
@@ -83,8 +88,8 @@ public class CdxIndexer implements Runnable {
 
         // fetch the list of collections from the database
         try (Db db = dbPool.take()) {
-            crawl = db.findCrawl(warc.getCrawlId());
-            for (Db.CollectionWithFilters collection: db.listCollectionsForCrawlSeries(crawl.getCrawlSeriesId())) {
+            crawl = crawls.get(warc.getCrawlId());
+            for (CollectionWithFilters collection: collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())) {
                 buffers.add(new CdxBuffer(collection));
             }
         }
@@ -95,24 +100,18 @@ public class CdxIndexer implements Runnable {
             stats = writeCdx(warc.getPath(), warc.getFilename(), buffers);
         } catch (RuntimeException e) {
             if (e.getCause() != null && e.getCause() instanceof ZipException) {
-                try (Db db = dbPool.take()) {
-                    db.updateWarcState(warc.getId(), Warc.CDX_ERROR);
-                    return;
-                }
+                warcs.updateState(warc.getId(), Warc.CDX_ERROR);
+                return;
             } else {
                 throw e;
             }
         } catch (ZipException | FileNotFoundException e) {
-            try (Db db = dbPool.take()) {
-                db.updateWarcState(warc.getId(), Warc.CDX_ERROR);
-                return;
-            }
+            warcs.updateState(warc.getId(), Warc.CDX_ERROR);
+            return;
         } catch (IOException e) {
             if (e.getMessage().endsWith(" is not a WARC file.")) {
-                try (Db db = dbPool.take()) {
-                    db.updateWarcState(warc.getId(), Warc.CDX_ERROR);
-                    return;
-                }
+                warcs.updateState(warc.getId(), Warc.CDX_ERROR);
+                return;
             } else {
                 throw e;
             }
@@ -177,11 +176,7 @@ public class CdxIndexer implements Runnable {
     }
 
     void indexWarc(long warcId) throws IOException {
-        Warc warc;
-        try (Db db = dbPool.take()) {
-            warc = db.findWarc(warcId);
-        }
-        indexWarc(warc);
+        indexWarc(warcs.get(warcId));
     }
 
     private static class CdxBuffer {
@@ -191,7 +186,7 @@ public class CdxIndexer implements Runnable {
         final Writer buf;
         final Stats stats = new Stats();
 
-        CdxBuffer(Db.CollectionWithFilters collection) throws MalformedURLException {
+        CdxBuffer(CollectionWithFilters collection) throws MalformedURLException {
             this.collection = collection;
             cdxServer = new URL(collection.getCdxUrl());
             filter = new SurtFilter(collection.urlFilters);

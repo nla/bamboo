@@ -1,4 +1,4 @@
-package bamboo.core;
+package bamboo.crawl;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

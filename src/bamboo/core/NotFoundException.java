@@ -26,7 +26,6 @@ public class NotFoundException extends RuntimeException {
         this(type + " " + id);
     }
 
-
     public static <T> T check(T object, String type, long id) {
         if (object == null) {
             throw new NotFoundException(type, id);

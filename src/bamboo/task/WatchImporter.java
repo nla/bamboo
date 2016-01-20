@@ -1,6 +1,9 @@
 package bamboo.task;
 
 import bamboo.core.*;
+import bamboo.crawl.Crawl;
+import bamboo.crawl.Scrub;
+import bamboo.crawl.Warc;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;

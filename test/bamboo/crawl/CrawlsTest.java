@@ -1,6 +1,6 @@
-package bamboo.core;
+package bamboo.crawl;
 
-import bamboo.Fixtures;
+import bamboo.core.Fixtures;
 import bamboo.util.Pager;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -54,7 +54,6 @@ public class CrawlsTest {
 
         Pager pager = crawls.pager(1);
         assertTrue(pager.totalItems > 0);
-
     }
 
 }

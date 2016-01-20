@@ -1,8 +1,8 @@
 package bamboo.seedlist;
 
 import bamboo.core.Bamboo;
-import bamboo.core.Db;
 import bamboo.core.PandasDb;
+import bamboo.core.PandasDbPool;
 import bamboo.util.Markdown;
 import droute.*;
 import droute.Request;
@@ -25,7 +25,8 @@ import static java.util.function.UnaryOperator.identity;
 
 public class SeedlistsController {
 
-    Bamboo bamboo;
+    private final Seedlists seedlists;
+    private final PandasDbPool pandasDbPool;
 
     public final Handler routes = Route.routes(
             GET("/seedlists", this::index),
@@ -46,91 +47,105 @@ public class SeedlistsController {
     final static WaybackURLKeyMaker keyMaker = new WaybackURLKeyMaker();
 
     public SeedlistsController(Bamboo bamboo) {
-            this.bamboo = bamboo;
-        }
+        seedlists = bamboo.seedlists;
+        pandasDbPool = bamboo.pandasDbPool;
+    }
+
+    Response render(String view, Object... model) {
+        // FIXME: load templates relative to class?
+        return Response.render("/" + getClass().getName().replaceFirst("\\.[^.]*$","").replace('.', '/') + "/" + view, model);
+    }
 
     Response index(Request request) {
-        return render("seedlists/index.ftl",
-                "seedlists", bamboo.seedlists.listAll());
+        return render("views/index.ftl",
+                "seedlists", seedlists.listAll());
     }
 
     Response newForm(Request request) {
-        return render("seedlists/new.ftl",
+        return render("views/new.ftl",
                 "csrfToken", Csrf.token(request));
     }
 
     Response saveComparison(Request request) {
-        Comparison comparison = new Comparison(bamboo, request);
-        return render("seedlists/new.ftl",
+        Comparison comparison = new Comparison(seedlists, request);
+        return render("views/new.ftl",
                 "seeds", comparison.sublist(request.param("sublist")),
                 "csrfToken", Csrf.token(request));
     }
 
 
     Response create(Request request) {
-        Seedlist seedlist = parseForm(request);
-        String seeds = request.formParam("seeds");
-        long seedlistId = bamboo.seedlists.create(seedlist, parseSeeds(seeds));
+        long seedlistId = seedlists.create(new Form(request));
         return seeOther(request.contextUri().resolve("seedlists/" + seedlistId).toString());
-    }
-
-    private Seedlist parseForm(Request request) {
-        Seedlist seedlist = new Seedlist();
-        seedlist.setName(request.formParam("name"));
-        seedlist.setDescription(request.formParam("description"));
-        return seedlist;
-    }
-
-    Response show(Request request) {
-        long id = Long.parseLong(request.urlParam("id"));
-        Seedlist seedlist = bamboo.seedlists.get(id);
-        return render("seedlists/show.ftl",
-                "seedlist", seedlist,
-                "descriptionHtml", Markdown.render(seedlist.getDescription(), request.uri()),
-                "seeds", bamboo.seedlists.listSeeds(id));
-    }
-
-    Response edit(Request request) {
-        long id = Long.parseLong(request.urlParam("id"));
-        Seedlist seedlist = bamboo.seedlists.get(id);
-        return render("seedlists/edit.ftl",
-                "csrfToken", Csrf.token(request),
-                "seedlist", seedlist,
-                "seeds", bamboo.seedlists.listSeeds(id));
     }
 
     Response update(Request request) {
         long seedlistId = Long.parseLong(request.urlParam("id"));
-        bamboo.seedlists.update(seedlistId, parseForm(request), parseSeeds(request.formParam("seeds")));
+        seedlists.update(seedlistId, new Form(request));
         return seeOther(request.contextUri().resolve("seedlists/" + seedlistId).toString());
     }
 
-    List<Seed> parseSeeds(String seedText) {
-        List<Seed> seeds = new ArrayList<>();
-        HashSet<String> seen = new HashSet<>();
-        for (String url : seedText.split("\n")) {
-            url = SURTTokenizer.addImpliedHttpIfNecessary(url.trim());
-            if (!url.isEmpty() && seen.add(url)) {
+    private static class Form implements Seedlists.Update {
+
+        private final Request request;
+
+        public Form(Request request) {
+            this.request = request;
+        }
+
+        @Override
+        public String getName() {
+            return request.formParam("name");
+        }
+
+        @Override
+        public String getDescription() {
+            return request.formParam("description");
+        }
+
+        @Override
+        public Collection<Seed> getSeeds() {
+            Set<Seed> seeds = new HashSet<>();
+            for (String url : request.formParam("seeds").split("\n")) {
+                url = SURTTokenizer.addImpliedHttpIfNecessary(url.trim());
                 seeds.add(new Seed(url));
             }
+            return seeds;
         }
-        return seeds;
+    }
+
+    Response show(Request request) {
+        long id = Long.parseLong(request.urlParam("id"));
+        Seedlist seedlist = seedlists.get(id);
+        return render("views/show.ftl",
+                "seedlist", seedlist,
+                "descriptionHtml", Markdown.render(seedlist.getDescription(), request.uri()),
+                "seeds", seedlists.listSeeds(id));
+    }
+
+    Response edit(Request request) {
+        long id = Long.parseLong(request.urlParam("id"));
+        Seedlist seedlist = seedlists.get(id);
+        return render("views/edit.ftl",
+                "csrfToken", Csrf.token(request),
+                "seedlist", seedlist,
+                "seeds", seedlists.listSeeds(id));
     }
 
 
     Response delete(Request request) {
         long seedlistId = Long.parseLong(request.urlParam("id"));
-        bamboo.seedlists.delete(seedlistId);
+        seedlists.delete(seedlistId);
         return seeOther(request.contextUri().resolve("seedlists").toString());
     }
 
     Response export(Request request) {
         long seedlistId = Long.parseLong(request.urlParam("id"));
-        return export(bamboo.seedlists.listSeeds(seedlistId), exportFormat(request.param("format")));
+        return export(seedlists.listSeeds(seedlistId), exportFormat(request.param("format")));
     }
 
     private Response exportComparison(Request request) {
-        List<Seed> sublist = new Comparison(bamboo, request).sublist(request.param("sublist"));
+        List<Seed> sublist = new Comparison(seedlists, request).sublist(request.param("sublist"));
         UnaryOperator<String> format = exportFormat(request.param("format"));
         return export(sublist, format);
     }
@@ -156,7 +171,7 @@ public class SeedlistsController {
 
     Map<String, Seed> seedsByCanonicalizedUrl(long seedlistId) {
         Map<String, Seed> seeds = new HashMap<>();
-        for (Seed seed : bamboo.seedlists.listSeeds(seedlistId)) {
+        for (Seed seed : seedlists.listSeeds(seedlistId)) {
             try {
                 seeds.put(keyMaker.makeKey(seed.getUrl()), seed);
             } catch (URISyntaxException e) {
@@ -168,15 +183,15 @@ public class SeedlistsController {
 
     Response compare(Request request) {
         long id = Long.parseLong(request.urlParam("id"));
-        Seedlist seedlist = bamboo.seedlists.get(id);
-        return render("seedlists/compare.ftl",
+        Seedlist seedlist = seedlists.get(id);
+        return render("views/compare.ftl",
                 "seedlist", seedlist,
-                "seedlists", bamboo.seedlists.listAll());
+                "seedlists", seedlists.listAll());
     }
 
     Response showComparison(Request request) {
-        Comparison comparison = new Comparison(bamboo, request);
-        return render("seedlists/comparison.ftl",
+        Comparison comparison = new Comparison(seedlists, request);
+        return render("views/comparison.ftl",
                 "seedlist1", comparison.seedlist1,
                 "seedlist2", comparison.seedlist2,
                 "onlyIn1", comparison.onlyIn1,
@@ -195,7 +210,7 @@ public class SeedlistsController {
     }
 
     Response compareWithPandas(Request request) {
-        if (bamboo.pandasDbPool == null) {
+        if (pandasDbPool == null) {
             return notFound("PANDAS integration is not configured");
         }
 
@@ -216,7 +231,7 @@ public class SeedlistsController {
          */
 
         long id = Long.parseLong(request.urlParam("id"));
-        seedlist = bamboo.seedlists.get(id);
+        seedlist = seedlists.get(id);
         seeds = seedsByCanonicalizedUrl(seedlistId);
         unmatched.addAll(seeds.values());
 
@@ -226,7 +241,7 @@ public class SeedlistsController {
          * gets a lot more titles but for now it's acceptable (< 2 seconds)
          * and doesn't require any caching or schema changes.
          */
-        try (PandasDb pandasDb = bamboo.pandasDbPool.take();
+        try (PandasDb pandasDb = pandasDbPool.take();
              ResultIterator<PandasDb.Title> it = pandasDb.iterateTitles()) {
             while (it.hasNext()) {
                 PandasDb.Title title = it.next();
@@ -255,7 +270,7 @@ public class SeedlistsController {
         List<Seed> unmatchedSorted = new ArrayList<>(unmatched);
         unmatchedSorted.sort((a, b) -> a.getSurt().compareTo(b.getSurt()));
 
-        return render("seedlists/pandas.ftl",
+        return render("views/pandas.ftl",
                 "seedlist", seedlist,
                 "matches", matches,
                 "unmatched", unmatchedSorted);

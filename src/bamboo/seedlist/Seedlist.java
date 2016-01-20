@@ -9,45 +9,26 @@ public class Seedlist {
     private String description;
     private long totalSeeds;
 
-	public Seedlist() {
+    Seedlist(ResultSet rs) throws SQLException {
+		this.id = rs.getLong("id");
+		this.name = rs.getString("name");
+		this.description = rs.getString("description");
+		this.totalSeeds = rs.getLong("total_seeds");
 	}
-
-    public Seedlist(ResultSet rs) throws SQLException {
-        setId(rs.getLong("id"));
-        setName(rs.getString("name"));
-        setDescription(rs.getString("description"));
-        setTotalSeeds(rs.getLong("total_seeds"));
-    }
 
 	public long getId() {
 		return id;
-	}
-
-	public void setId(long id) {
-		this.id = id;
 	}
 
 	public String getName() {
 		return name;
 	}
 
-	public void setName(String name) {
-		this.name = name;
-	}
-
 	public String getDescription() {
 		return description;
 	}
 
-	public void setDescription(String description) {
-		this.description = description;
-	}
-
 	public long getTotalSeeds() {
 		return totalSeeds;
-	}
-
-	public void setTotalSeeds(long totalSeeds) {
-		this.totalSeeds = totalSeeds;
 	}
 }

@@ -1,23 +1,27 @@
 package bamboo.seedlist;
 
-import bamboo.core.Db;
-import bamboo.core.DbPool;
 import bamboo.core.NotFoundException;
+import org.skife.jdbi.v2.DBI;
+import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Collection;
 import java.util.List;
 
 public class Seedlists {
-    private final DbPool dbPool;
 
-    public Seedlists(DbPool dbPool) {
-        this.dbPool = dbPool;
+    private final SeedlistsDAO dao;
+
+    public Seedlists(DBI dbi) {
+        this.dao = dbi.onDemand(SeedlistsDAO.class);
     }
 
     public Seedlist getOrNull(long id) {
-        try (Db db = dbPool.take()) {
-            return db.findSeedlist(id);
-        }
+        return dao.findSeedlist(id);
     }
+
     /**
      * Retrieve a series's metadata.
      *
@@ -28,34 +32,51 @@ public class Seedlists {
     }
 
     public List<Seedlist> listAll() {
-        try (Db db = dbPool.take()) {
-            return db.listSeedlists();
-        }
+        return dao.listSeedlists();
     }
 
-    public long create(Seedlist seedlist, List<Seed> seeds) {
-        try (Db db = dbPool.take()) {
-            long seedlistId = db.createSeedlist(seedlist);
-            db.insertSeeds(seedlistId, seeds);
+    public long create(Update update) {
+        return dao.inTransaction((dao, ts) -> {
+            Collection<Seed> seeds = update.getSeeds();
+            long seedlistId = dao.insertSeedlist(update, seeds.size());
+            dao.insertSeedsOnly(seedlistId, seeds);
             return seedlistId;
-        }
+        });
     }
 
     public List<Seed> listSeeds(long seedlistId) {
-        try (Db db = dbPool.take()) {
-            return db.findSeedsBySeedListId(seedlistId);
-        }
+        return dao.findSeedsBySeedListId(seedlistId);
     }
 
-    public void update(long seedlistId, Seedlist seedlist, List<Seed> seeds) {
-        try (Db db = dbPool.take()) {
-            db.updateSeedlist(seedlistId, seedlist, seeds);
-        }
+    public void update(long seedlistId, Update update) {
+        dao.inTransaction((dao, ts) -> {
+            int rows = dao.updateSeedlist(seedlistId, update, update.getSeeds().size());
+            if (rows == 0) {
+                throw new NotFoundException("seedlist", seedlistId);
+            }
+            dao.deleteSeedsBySeedlistId(seedlistId);
+            dao.insertSeedsOnly(seedlistId, update.getSeeds());
+            return null;
+        });
     }
 
     public void delete(long seedlistId) {
-        try (Db db = dbPool.take()) {
-            db.deleteSeedlist(seedlistId);
-        }
+        dao.inTransaction((dao, ts) -> {
+            dao.deleteSeedsBySeedlistId(seedlistId);
+            int rows = dao.deleteSeedlistOnly(seedlistId);
+            if (rows == 0) {
+                throw new NotFoundException("seedlist", seedlistId);
+            }
+            return null;
+        });
     }
+
+    public interface Update {
+        String getName();
+
+        String getDescription();
+
+        Collection<Seed> getSeeds();
+    }
+
 }

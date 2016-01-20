@@ -15,16 +15,16 @@ class Comparison {
     final List<Seed> onlyIn2 = new ArrayList<>();
     final List<Seed> common = new ArrayList<>();
 
-    Comparison(Bamboo bamboo, Request request) {
+    Comparison(Seedlists seedlists, Request request) {
         List<Seed> seeds1, seeds2;
 
         long id1 = Long.parseLong(request.urlParam("id1"));
         long id2 = Long.parseLong(request.urlParam("id2"));
 
-        seedlist1 = bamboo.seedlists.get(id1);
-        seedlist2 = bamboo.seedlists.get(id2);
-        seeds1 = bamboo.seedlists.listSeeds(id1);
-        seeds2 = bamboo.seedlists.listSeeds(id2);
+        seedlist1 = seedlists.get(id1);
+        seedlist2 = seedlists.get(id2);
+        seeds1 = seedlists.listSeeds(id1);
+        seeds2 = seedlists.listSeeds(id2);
 
         Iterator<Seed> it1 = seeds1.iterator();
         Iterator<Seed> it2 = seeds2.iterator();

@@ -1,7 +1,4 @@
-package bamboo;
-
-import bamboo.core.Config;
-import bamboo.core.DbPool;
+package bamboo.core;
 
 import java.nio.file.Path;
 

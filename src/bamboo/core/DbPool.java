@@ -19,7 +19,7 @@ import java.sql.Statement;
 
 public class DbPool implements Closeable {
     final HikariDataSource ds;
-    final DBI dbi;
+    public final DBI dbi;
 
     public DbPool(Config config) {
         HikariConfig hikariConfig = new HikariConfig();
@@ -29,17 +29,6 @@ public class DbPool implements Closeable {
         hikariConfig.setPassword(config.getDbPassword());
         ds = new HikariDataSource(hikariConfig);
         dbi = new DBI(ds);
-        dbi.registerMapper(new Db.CollectionMapper());
-        dbi.registerMapper(new Db.CollectionWithFiltersMapper());
-        dbi.registerMapper(new Db.CollectionWarcMapper());
-        dbi.registerMapper(new Db.CrawlMapper());
-        dbi.registerMapper(new Db.CrawlWithSeriesNameMapper());
-        dbi.registerMapper(new Db.CrawlSeriesMapper());
-        dbi.registerMapper(new Db.CrawlSeriesWithCountMapper());
-        dbi.registerMapper(new Db.SeedMapper());
-        dbi.registerMapper(new Db.SeedlistMapper());
-        dbi.registerMapper(new Db.WarcMapper());
-
         dbi.registerArgumentFactory(new PathArgumentFactory());
 
         dbi.setSQLLog(new PrintStreamLog() {

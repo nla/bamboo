@@ -1,11 +1,7 @@
-package bamboo;
+package bamboo.core;
 
-import bamboo.core.Db;
-import bamboo.core.DbPool;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
-
-import java.io.IOException;
 
 public class Fixtures extends ExternalResource {
 

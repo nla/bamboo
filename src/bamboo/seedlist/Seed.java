@@ -25,7 +25,7 @@ public class Seed {
         this.setUrl(url);
     }
 
-    String getSurt() {
+    public String getSurt() {
         return SURT.toSURT(getUrl().replaceFirst("^[a-z]+://", "http://"));
     }
 
@@ -65,5 +65,21 @@ public class Seed {
 
     public void setSeedlistId(long seedlistId) {
         this.seedlistId = seedlistId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Seed seed = (Seed) o;
+
+        return url.equals(seed.url);
+
+    }
+
+    @Override
+    public int hashCode() {
+        return url.hashCode();
     }
 }

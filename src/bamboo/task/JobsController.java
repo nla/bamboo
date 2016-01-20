@@ -1,7 +1,6 @@
-package bamboo.web;
+package bamboo.task;
 
 import bamboo.core.Bamboo;
-import bamboo.io.HeritrixJob;
 import droute.Csrf;
 import droute.Handler;
 import droute.Request;
@@ -13,13 +12,13 @@ import java.io.IOException;
 import static droute.Response.*;
 import static droute.Route.*;
 
-class JobsController {
+public class JobsController {
     final Bamboo bamboo;
-    final Handler routes = routes(
+    public final Handler routes = routes(
             GET("/jobs", this::index),
             POST("/jobs/:job/delete", this::delete));
 
-    JobsController(Bamboo bamboo) {
+    public JobsController(Bamboo bamboo) {
         this.bamboo = bamboo;
     }
 
