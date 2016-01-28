@@ -2,7 +2,10 @@ package bamboo.task;
 
 import bamboo.core.*;
 import bamboo.crawl.*;
+import bamboo.crawl.Collection;
+import bamboo.crawl.Collections;
 import bamboo.util.SurtFilter;
+import org.apache.jute.Record;
 import org.archive.io.ArchiveReader;
 import org.archive.url.SURT;
 
@@ -14,9 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -28,15 +29,17 @@ import static bamboo.task.WarcUtils.cleanUrl;
 
 public class CdxIndexer implements Runnable {
     private static final int BATCH_SIZE = 1024;
-    private Warcs warcs;
-    private Crawls crawls;
-    private Serieses serieses;
-    private Collections collections;
-    private final DbPool dbPool;
+    private final Warcs warcs;
+    private final Crawls crawls;
+    private final Serieses serieses;
+    private final Collections collections;
     private final List<Consumer<Long>> warcIndexedListeners = new ArrayList<>();
 
-    public CdxIndexer(DbPool dbPool) {
-        this.dbPool = dbPool;
+    public CdxIndexer(Warcs warcs, Crawls crawls, Serieses serieses, Collections collections) {
+        this.warcs = warcs;
+        this.crawls = crawls;
+        this.serieses = serieses;
+        this.collections = collections;
     }
 
     public void onWarcIndexed(Consumer<Long> callback) {
@@ -45,11 +48,7 @@ public class CdxIndexer implements Runnable {
 
     public void run() {
         while (true) {
-            List<Warc> candidates;
-
-            try (Db db = dbPool.take()) {
-                candidates = warcs.findByState(Warc.IMPORTED, BATCH_SIZE);
-            }
+            List<Warc> candidates = warcs.findByState(Warc.IMPORTED, BATCH_SIZE);
 
             if (candidates.isEmpty()) {
                 break;
@@ -83,19 +82,16 @@ public class CdxIndexer implements Runnable {
 
     private void indexWarc(Warc warc) throws IOException {
         System.out.println("\nCDX indexing " + warc.getId() + " " + warc.getPath());
-        Crawl crawl;
-        List<CdxBuffer> buffers = new ArrayList<>();
 
         // fetch the list of collections from the database
-        try (Db db = dbPool.take()) {
-            crawl = crawls.get(warc.getCrawlId());
-            for (CollectionWithFilters collection: collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())) {
-                buffers.add(new CdxBuffer(collection));
-            }
+        List<CdxBuffer> buffers = new ArrayList<>();
+        Crawl crawl = crawls.get(warc.getCrawlId());
+        for (CollectionWithFilters collection: collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())) {
+            buffers.add(new CdxBuffer(collection));
         }
 
         // parse the warc file
-        Stats stats;
+        RecordStats stats;
         try {
             stats = writeCdx(warc.getPath(), warc.getFilename(), buffers);
         } catch (RuntimeException e) {
@@ -118,54 +114,20 @@ public class CdxIndexer implements Runnable {
         }
 
         // submit the records to each collection
+        Map<Long,RecordStats> collectionStats = new HashMap<>();
         for (CdxBuffer buffer: buffers) {
             buffer.submit();
+            collectionStats.put(buffer.collection.getId(), buffer.stats);
         }
 
-        // update the records and statistics in the database
-        try (Db db = dbPool.take()) {
-            db.inTransaction((t, s) -> {
-                db.updateWarcStateWithoutHistory(warc.getId(), Warc.CDX_INDEXED);
-                db.insertWarcHistory(warc.getId(), Warc.CDX_INDEXED);
-                db.updateWarcRecordStats(warc.getId(), stats.records, stats.bytes);
+        // update the statistics in the database
+        warcs.updateRecordStats(warc.getId(), stats);
+        warcs.updateCollections(warc.getId(), collectionStats);
 
-                // we subtract the original counts to prevent doubling up the stats when reindexing
-                // if this is a straight reindex with no changes these deltas will be zero
-                long warcRecordsDelta = stats.records - warc.getRecords();
-                long warcBytesDelta = stats.bytes - warc.getRecordBytes();
+        // mark indexing as finished
+        warcs.updateState(warc.getId(), Warc.CDX_INDEXED);
 
-                db.incrementRecordStatsForCrawl(warc.getCrawlId(), warcRecordsDelta, warcBytesDelta);
-
-                if (crawl.getCrawlSeriesId() != null) {
-                    db.incrementRecordStatsForCrawlSeries(crawl.getCrawlSeriesId(), warcRecordsDelta, warcBytesDelta);
-                }
-
-                if (stats.startTime != null) {
-                    db.conditionallyUpdateCrawlStartTime(warc.getCrawlId(), stats.startTime);
-                }
-                if (stats.endTime != null) {
-                    db.conditionallyUpdateCrawlEndTime(warc.getCrawlId(), stats.endTime);
-                }
-
-                // update each of the per-collection stats
-                for (CdxBuffer buffer : buffers) {
-                    long recordsDelta = buffer.stats.records;
-                    long bytesDelta = buffer.stats.bytes;
-
-                    Db.CollectionWarc old = db.findCollectionWarc(buffer.collection.getId(), warc.getId());
-                    if (old != null) {
-                        recordsDelta -= old.records;
-                        bytesDelta -= old.recordBytes;
-                    }
-
-                    db.deleteCollectionWarc(buffer.collection.getId(), warc.getId());
-                    db.insertCollectionWarc(buffer.collection.getId(), warc.getId(), buffer.stats.records, buffer.stats.bytes);
-                    db.incrementRecordStatsForCollection(buffer.collection.getId(), recordsDelta, bytesDelta);
-                }
-                return null;
-            });
-        }
-        System.out.println("Finished CDX indexing " + warc.getId() + " " + warc.getPath() + " (" + stats.records + " records with " + stats.bytes + " bytes)");
+        System.out.println("Finished CDX indexing " + warc.getId() + " " + warc.getPath() + " " + stats);
         sendWarcIndexedNotification(warc.getId());
     }
 
@@ -179,12 +141,12 @@ public class CdxIndexer implements Runnable {
         indexWarc(warcs.get(warcId));
     }
 
-    private static class CdxBuffer {
+    public static class CdxBuffer {
         final Collection collection;
         final URL cdxServer;
         final SurtFilter filter;
         final Writer buf;
-        final Stats stats = new Stats();
+        final RecordStats stats = new RecordStats();
 
         CdxBuffer(CollectionWithFilters collection) throws MalformedURLException {
             this.collection = collection;
@@ -249,26 +211,6 @@ public class CdxIndexer implements Runnable {
         }
     }
 
-    private static class Stats {
-        long records = 0;
-        long bytes = 0;
-        Date startTime = null;
-        Date endTime = null;
-
-        void update(long recordLength, Date time) {
-            records += 1;
-            bytes += recordLength;
-
-            if (startTime == null || time.before(startTime)) {
-                startTime = time;
-            }
-
-            if (endTime == null || time.after(endTime)) {
-                endTime = time;
-            }
-        }
-    }
-
     final static Pattern schemeRegex = Pattern.compile("^[a-zA-Z][a-zA-Z+.-]*://?");
 
     static String stripScheme(String surt) {
@@ -279,8 +221,8 @@ public class CdxIndexer implements Runnable {
         return SURT.toSURT(stripScheme(url));
     }
 
-    private static Stats writeCdx(Path warc, String filename, List<CdxBuffer> buffers) throws IOException {
-        Stats stats = new Stats();
+    private static RecordStats writeCdx(Path warc, String filename, List<CdxBuffer> buffers) throws IOException {
+        RecordStats stats = new RecordStats();
         try (ArchiveReader reader = WarcUtils.open(warc)) {
             Cdx.records(reader, filename).forEach(record -> {
                 if (record instanceof Cdx.Alias) {

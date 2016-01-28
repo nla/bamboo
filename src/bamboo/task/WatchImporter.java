@@ -1,9 +1,7 @@
 package bamboo.task;
 
 import bamboo.core.*;
-import bamboo.crawl.Crawl;
-import bamboo.crawl.Scrub;
-import bamboo.crawl.Warc;
+import bamboo.crawl.*;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -19,19 +17,25 @@ import static java.nio.file.StandardWatchEventKinds.*;
  * Watches a directory for new WARC files.  As open (*.warc.gz.open) files are updated incrementally index them.  When
  * they're closed (renamed to *.warc.gz) finish importing them.
  */
-public class WatchImporter {
+public class WatchImporter implements Runnable {
     final static Logger log = Logger.getLogger(WatchImporter.class.getName());
-    final DbPool dbPool;
     final Map<Path,Config.Watch> watches = new HashMap<>();
+    final Warcs warcs;
+    final Crawls crawls;
+    final Collections collections;
+    final CdxIndexer cdxIndexer;
 
-    public WatchImporter(DbPool dbPool, List<Config.Watch> watches) {
-        this.dbPool = dbPool;
+    public WatchImporter(Collections collections, Crawls crawls, CdxIndexer cdxIndexer, Warcs warcs, List<Config.Watch> watches) {
+        this.collections = collections;
+        this.crawls = crawls;
+        this.cdxIndexer = cdxIndexer;
+        this.warcs = warcs;
         for (Config.Watch watch: watches) {
             this.watches.put(watch.dir, watch);
         }
     }
 
-    public void run() throws IOException, InterruptedException {
+    public void run() {
         try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
 
 
@@ -78,6 +82,11 @@ public class WatchImporter {
 
                 key.reset();
             }
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -89,26 +98,22 @@ public class WatchImporter {
         long warcId, prevSize;
         long currentSize = Files.size(path);
         String filename = path.getFileName().toString().replaceFirst(".open$", "");
-        try (Db db = dbPool.take()) {
-            Warc warc = db.findWarcByFilename(filename);
-            if (warc != null) {
-                warcId = warc.getId();
-                prevSize = warc.getSize();
-            } else {
-                /*
-                 * Create the record under the final closed filename as its currently the key wayback uses to request
-                 * a particular warc and we don't want to have to deal with it changing.
-                 */
-                warcId = db.insertWarc(watch.crawlId, Warc.OPEN, path.toString(), filename, 0L, null);
-                prevSize = 0;
-            }
+        Warc warc = warcs.getOrNullByFilename(filename);
+        if (warc != null) {
+            warcId = warc.getId();
+            prevSize = warc.getSize();
+        } else {
+            /*
+             * Create the record under the final closed filename as its currently the key wayback uses to request
+             * a particular warc and we don't want to have to deal with it changing.
+             */
+            warcId = warcs.create(watch.crawlId, Warc.OPEN, path, filename, 0L, null);
+            prevSize = 0;
         }
         if (currentSize > prevSize) {
             log.finest("Indexing " + warcId + " " + path);
-            new CdxIndexer(dbPool).indexWarc(warcId);
-            try (Db db = dbPool.take()) {
-                db.updateWarcSize(watch.crawlId, warcId, prevSize, currentSize);
-            }
+            cdxIndexer.indexWarc(warcId);
+            warcs.updateSize(warcId, currentSize);
         }
     }
 
@@ -117,24 +122,20 @@ public class WatchImporter {
      */
     private void handleClosedWarc(Config.Watch watch, Path path) throws IOException {
         log.finest("handleClosedWarc(" + path + ")");
-        Warc warc;
-        Crawl crawl;
-        try (Db db = dbPool.take()) {
-            warc = db.findWarcByFilename(path.getFileName().toString());
-            crawl = db.findCrawl(watch.crawlId);
-        }
+
+        String filename = path.getFileName().toString();
+        Warc warc = warcs.getOrNullByFilename(filename);
+        Crawl crawl = crawls.get(watch.crawlId);
 
         long size = Files.size(path);
         String digest = Scrub.calculateDigest("SHA-256", path);
 
         Path dest = moveWarcToCrawlDir(path, crawl);
 
-        try (Db db = dbPool.take()) {
-            if (warc == null) {
-                db.insertWarc(watch.crawlId, Warc.IMPORTED, dest.toString(), path.getFileName().toString(), size, digest);
-            } else {
-                db.updateWarc(warc.getCrawlId(), warc.getId(), Warc.IMPORTED, dest.toString(), dest.getFileName().toString(), warc.getSize(), size, digest);
-            }
+        if (warc == null) {
+            warcs.create(watch.crawlId, Warc.IMPORTED, dest, filename, size, digest);
+        } else {
+            warcs.update(warc.getId(), Warc.IMPORTED, dest, filename, size, digest);
         }
     }
 

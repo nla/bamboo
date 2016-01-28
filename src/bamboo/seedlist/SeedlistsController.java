@@ -1,8 +1,8 @@
 package bamboo.seedlist;
 
-import bamboo.core.Bamboo;
 import bamboo.core.PandasDb;
 import bamboo.core.PandasDbPool;
+import bamboo.app.Bamboo;
 import bamboo.util.Markdown;
 import droute.*;
 import droute.Request;

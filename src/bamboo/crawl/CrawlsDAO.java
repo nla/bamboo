@@ -12,7 +12,7 @@ import java.util.Date;
 import java.util.List;
 
 @RegisterMapper({CrawlsDAO.CrawlMapper.class, CrawlsDAO.CrawlWithSeriesNameMapper.class})
-interface CrawlsDAO extends Transactional<CrawlsDAO> {
+public interface CrawlsDAO extends Transactional<CrawlsDAO> {
 
     class CrawlMapper implements ResultSetMapper<Crawl> {
         @Override
@@ -27,10 +27,6 @@ interface CrawlsDAO extends Transactional<CrawlsDAO> {
             return new CrawlAndSeriesName(r);
         }
     }
-
-    int ARCHIVED = 0;
-    int IMPORTING = 1;
-    int IMPORT_FAILED = 2;
 
     @CreateSqlObject
     WarcsDAO warcs();
@@ -67,12 +63,6 @@ interface CrawlsDAO extends Transactional<CrawlsDAO> {
 
     @SqlUpdate("UPDATE crawl SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCrawl(@Bind("id") long crawlId, @Bind("records") long records, @Bind("bytes") long bytes);
-
-    @SqlUpdate("UPDATE crawl SET start_time = :time WHERE id = :crawlId AND (start_time IS NULL OR start_time > :time)")
-    int conditionallyUpdateCrawlStartTime(@Bind("crawlId") long crawlId, @Bind("time") Date time);
-
-    @SqlUpdate("UPDATE crawl SET end_time = :time WHERE id = :crawlId AND (end_time IS NULL OR end_time < :time)")
-    int conditionallyUpdateCrawlEndTime(@Bind("crawlId") long crawlId, @Bind("time") Date time);
 
     @SqlQuery("SELECT crawl.*, crawl_series.name FROM crawl LEFT JOIN crawl_series ON crawl.crawl_series_id = crawl_series.id ORDER BY crawl.end_time DESC, crawl.id DESC LIMIT :limit OFFSET :offset")
     List<CrawlAndSeriesName> paginateCrawlsWithSeriesName(@Bind("limit") long limit, @Bind("offset") long offset);

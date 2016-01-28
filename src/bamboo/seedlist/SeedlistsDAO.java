@@ -12,7 +12,7 @@ import java.util.Collection;
 import java.util.List;
 
 @RegisterMapper({SeedlistsDAO.SeedlistMapper.class, SeedlistsDAO.SeedMapper.class})
-interface SeedlistsDAO extends Transactional<SeedlistsDAO> {
+public interface SeedlistsDAO extends Transactional<SeedlistsDAO> {
     @SqlQuery("SELECT * FROM seed WHERE seedlist_id = :id ORDER BY surt")
     List<Seed> findSeedsBySeedListId(@Bind("id") long seedlistId);
 

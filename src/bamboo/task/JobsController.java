@@ -1,6 +1,6 @@
 package bamboo.task;
 
-import bamboo.core.Bamboo;
+import bamboo.app.Bamboo;
 import droute.Csrf;
 import droute.Handler;
 import droute.Request;

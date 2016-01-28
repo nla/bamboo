@@ -12,14 +12,11 @@ import org.skife.jdbi.v2.tweak.ArgumentFactory;
 
 import java.io.Closeable;
 import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Statement;
 
 public class DbPool implements Closeable {
     final HikariDataSource ds;
     public final DBI dbi;
+    private final DAO dao;
 
     public DbPool(Config config) {
         HikariConfig hikariConfig = new HikariConfig();
@@ -42,6 +39,8 @@ public class DbPool implements Closeable {
                 // suppress
             }
         });
+
+        dao = dbi.onDemand(DAO.class);
     }
 
     public void migrate() {
@@ -54,17 +53,12 @@ public class DbPool implements Closeable {
         flyway.migrate();
     }
 
-    private void registerMysqlCompatibilityFunctionsWithH2() {
-        try (Connection conn = ds.getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("CREATE ALIAS IF NOT EXISTS SUBSTRING_INDEX DETERMINISTIC FOR \"" + DbH2Compat.class.getName() + ".substringIndex\"");
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+    public DAO dao() {
+        return dao;
     }
 
-    public Db take() {
-        return dbi.open(Db.class);
+    public DAO take() {
+        return dbi.open(DAO.class);
     }
 
     @Override

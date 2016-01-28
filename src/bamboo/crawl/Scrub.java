@@ -1,6 +1,6 @@
 package bamboo.crawl;
 
-import bamboo.core.Bamboo;
+import bamboo.app.Bamboo;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;

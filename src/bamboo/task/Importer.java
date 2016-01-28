@@ -2,36 +2,47 @@ package bamboo.task;
 
 import bamboo.core.Config;
 import bamboo.crawl.Crawl;
-import bamboo.core.Db;
-import bamboo.core.DbPool;
+import bamboo.crawl.Crawls;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
 
 public class Importer implements Runnable {
-    final Config config;
-    final DbPool dbPool;
-    final Runnable completionHook;
+    final Crawls crawls;
+    private Config config;
 
-    public Importer(Config config, DbPool dbPool, Runnable completionHook) {
+    public Importer(Config config, Crawls crawls) {
         this.config = config;
-        this.dbPool = dbPool;
-        this.completionHook = completionHook;
+        this.crawls = crawls;
+
+        crawls.onStateChange((crawlId, stateId) -> {
+            if (stateId == Crawl.IMPORTING) {
+                synchronized (this) {
+                    notify();
+                }
+            }
+        });
     }
 
     @Override
     public void run() {
-        for (;;) {
-            List<Crawl> crawls;
-            try (Db db = dbPool.take()) {
-                crawls = db.findCrawlsByState(Db.IMPORTING);
+        try {
+            for (;;) {
+                List<Crawl> candidates = crawls.listByStateId(Crawl.IMPORTING);
+                if (candidates.isEmpty()) {
+                    synchronized (this) {
+                        TimeUnit.MINUTES.timedWait(this, 1);
+                    }
+                    continue;
+                }
+
+                for (Crawl crawl : candidates) {
+                    new ImportJob(config, crawls, crawl.getId()).run();
+                }
             }
-            if (crawls.isEmpty()) {
-                break; // nothing left to do, go idle
-            }
-            for (Crawl crawl : crawls) {
-                new ImportJob(config, dbPool, crawl.getId()).run();
-                completionHook.run();
-            }
+        } catch (InterruptedException e) {
+            // shutdown
         }
     }
 }

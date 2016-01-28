@@ -9,6 +9,7 @@ public class Fixtures extends ExternalResource {
     public long crawlSeriesId;
     public TestConfig config;
     public DbPool dbPool;
+    public DAO dao;
 
     @Override
     protected void before() throws Throwable {
@@ -18,9 +19,9 @@ public class Fixtures extends ExternalResource {
 
         dbPool.migrate();
 
-        try (Db db = dbPool.take()) {
-            crawlSeriesId = db.createCrawlSeries("Series fixture", tmp.newFolder("series-fixture").getPath());
-        }
+        dao = dbPool.dao();
+
+        dao.serieses().createCrawlSeries("Series fixture", tmp.newFolder("series-fixture").getPath());
     }
 
     @Override

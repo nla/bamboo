@@ -9,12 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PandasImport {
-    final Bamboo bamboo;
-    final Path pandasWarcDir = Paths.get("/derivative/data/nla.arc/warc");
-
-    public PandasImport(Bamboo bamboo) {
-        this.bamboo = bamboo;
-    }
 
     /*
     void importInstance(long seriesId, long instanceId) throws IOException {

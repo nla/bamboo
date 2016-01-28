@@ -1,9 +1,7 @@
 package bamboo.task;
 
 import bamboo.core.*;
-import bamboo.crawl.Collection;
-import bamboo.crawl.Crawl;
-import bamboo.crawl.Warc;
+import bamboo.crawl.*;
 import bamboo.util.SurtFilter;
 import com.google.common.net.InternetDomainName;
 import com.lowagie.text.exceptions.InvalidPdfException;
@@ -54,26 +52,26 @@ public class SolrIndexer implements Runnable {
     static final int MAX_DOC_SIZE = 0x100000;
     static final int COMMIT_WITHIN_MS = 300000;
 
-    private final DbPool dbPool;
+    private final Crawls crawls;
+    private final Warcs warcs;
+    private final Collections collections;
     private SolrServer solr;
 
-    public SolrIndexer(DbPool dbPool) {
-        this.dbPool = dbPool;
+    public SolrIndexer(Collections collections, Crawls crawls, Warcs warcs) {
+        this.crawls = crawls;
+        this.collections = collections;
+        this.warcs = warcs;
     }
 
     public void run() {
         while (true) {
-            List<Warc> warcs;
+            List<Warc> warcList = warcs.findByState(Warc.CDX_INDEXED, BATCH_SIZE);
 
-            try (Db db = dbPool.take()) {
-                warcs = db.findWarcsInState(Warc.CDX_INDEXED, BATCH_SIZE);
-            }
-
-            if (warcs.isEmpty()) {
+            if (warcList.isEmpty()) {
                 break;
             }
 
-            indexWarcs(warcs);
+            indexWarcs(warcList);
         }
     }
 
@@ -98,7 +96,7 @@ public class SolrIndexer implements Runnable {
         private final SolrServer server;
         private final Collection collection;
 
-        public Solr(Db.CollectionWithFilters collection) {
+        public Solr(CollectionWithFilters collection) {
             this.collection = collection;
             server = new HttpSolrServer(collection.getSolrUrl());
             filter = new SurtFilter(collection.urlFilters);
@@ -125,13 +123,11 @@ public class SolrIndexer implements Runnable {
 
         List<Solr> solrs = new ArrayList<>();
 
-        try (Db db = dbPool.take()) {
-            Crawl crawl = db.findCrawl(warc.getCrawlId());
-            List<Db.CollectionWithFilters> collections = db.listCollectionsForCrawlSeries(crawl.getCrawlSeriesId());
-            for (Db.CollectionWithFilters collection : collections) {
-                if (collection.getSolrUrl() != null && !collection.getSolrUrl().isEmpty()) {
-                    solrs.add(new Solr(collection));
-                }
+        Crawl crawl = crawls.get(warc.getCrawlId());
+        List<CollectionWithFilters> collectionList = collections.listWhereSeriesId(crawl.getCrawlSeriesId());
+        for (CollectionWithFilters collection : collectionList) {
+            if (collection.getSolrUrl() != null && !collection.getSolrUrl().isEmpty()) {
+                solrs.add(new Solr(collection));
             }
         }
 
@@ -156,9 +152,8 @@ public class SolrIndexer implements Runnable {
                     }
                 }
             }
-            try (Db db = dbPool.take()) {
-                db.updateWarcState(warc.getId(), Warc.SOLR_INDEXED);
-            }
+
+            warcs.updateState(warc.getId(), Warc.SOLR_INDEXED);
             System.out.println(new Date() + " Finished Solr indexing " + warc.getId() + " " + warc.getPath());
         } catch (IOException e) {
             e.printStackTrace();

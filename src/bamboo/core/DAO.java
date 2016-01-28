@@ -1,6 +1,7 @@
 package bamboo.core;
 
 import bamboo.crawl.*;
+import bamboo.seedlist.SeedlistsDAO;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.*;
 import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
@@ -12,13 +13,13 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-public abstract class Db implements AutoCloseable, Transactional {
+public interface DAO {
+	// crawl package
+	@CreateSqlObject CollectionsDAO collections();
+	@CreateSqlObject CrawlsDAO crawls();
+	@CreateSqlObject SeriesDAO serieses();
+	@CreateSqlObject WarcsDAO warcs();
 
-	public abstract  void close();
-
-
-
-
-
-
+	// seedlists package
+	@CreateSqlObject SeedlistsDAO seedlists();
 }

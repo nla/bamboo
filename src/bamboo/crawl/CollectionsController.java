@@ -1,6 +1,6 @@
 package bamboo.crawl;
 
-import bamboo.core.Bamboo;
+import bamboo.app.Bamboo;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
 import bamboo.util.Parsing;

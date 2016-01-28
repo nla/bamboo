@@ -1,6 +1,6 @@
 package bamboo.crawl;
 
-import bamboo.core.Bamboo;
+import bamboo.app.Bamboo;
 import bamboo.task.Cdx;
 import com.google.common.base.Charsets;
 import droute.Handler;
@@ -28,7 +28,7 @@ import static droute.Route.GET;
 import static droute.Route.routes;
 
 public class WarcsController {
-    final Bamboo bamboo;
+    final Bamboo wa;
     public final Handler routes = routes(
             GET("/warcs/:id", this::serve, "id", "[0-9]+"),
             GET("/warcs/:id/cdx", this::showCdx, "id", "[0-9]+"),
@@ -37,8 +37,8 @@ public class WarcsController {
             GET("/warcs/:filename/cdx", this::showCdx, "filename", "[^/]+")
             );
 
-    public WarcsController(Bamboo bamboo) {
-        this.bamboo = bamboo;
+    public WarcsController(Bamboo wa) {
+        this.wa = wa;
     }
 
     static class Range {
@@ -96,9 +96,9 @@ public class WarcsController {
     Warc findWarc(Request request) {
         if (request.param("id") != null) {
             long warcId = Long.parseLong(request.param("id"));
-            return bamboo.warcs.get(warcId);
+            return wa.warcs.get(warcId);
         } else if (request.param("filename") != null) {
-            return bamboo.warcs.getByFilename(request.param("filename"));
+            return wa.warcs.getByFilename(request.param("filename"));
         } else {
             throw new IllegalStateException("id or filename is required");
         }
@@ -177,7 +177,7 @@ public class WarcsController {
         Warc warc = findWarc(request);
         return render("warc.ftl",
                 "warc", warc,
-                "crawl", bamboo.crawls.get(warc.getCrawlId()),
-                "state", bamboo.warcs.stateName(warc.getStateId()));
+                "crawl", wa.crawls.get(warc.getCrawlId()),
+                "state", wa.warcs.stateName(warc.getStateId()));
     }
 }

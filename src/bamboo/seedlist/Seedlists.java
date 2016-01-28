@@ -1,12 +1,7 @@
 package bamboo.seedlist;
 
 import bamboo.core.NotFoundException;
-import org.skife.jdbi.v2.DBI;
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
 
@@ -14,8 +9,8 @@ public class Seedlists {
 
     private final SeedlistsDAO dao;
 
-    public Seedlists(DBI dbi) {
-        this.dao = dbi.onDemand(SeedlistsDAO.class);
+    public Seedlists(SeedlistsDAO dao) {
+        this.dao = dao;
     }
 
     public Seedlist getOrNull(long id) {

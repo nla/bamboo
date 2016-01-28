@@ -9,8 +9,8 @@ import java.util.List;
 public class Serieses {
     private final SeriesDAO dao;
 
-    public Serieses(DbPool dbPool) {
-        this.dao = dbPool.dbi.onDemand(SeriesDAO.class);
+    public Serieses(SeriesDAO seriesDAO) {
+        this.dao = seriesDAO;
     }
 
     public Series getOrNull(long id) {

@@ -7,7 +7,10 @@ import java.sql.SQLException;
 import java.util.Date;
 
 public class Crawl {
-    private long id;
+	public static final int ARCHIVED = 0;
+	public static final int IMPORTING = 1;
+	public static final int IMPORT_FAILED = 2;
+	private long id;
     private String name;
     private Long totalDocs;
     private Long totalBytes;

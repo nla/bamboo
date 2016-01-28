@@ -1,7 +1,6 @@
 package bamboo.crawl;
 
-import bamboo.core.Bamboo;
-import bamboo.core.Db;
+import bamboo.app.Bamboo;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
 import bamboo.util.Parsing;
@@ -19,7 +18,7 @@ import static droute.Response.*;
 import static droute.Route.*;
 
 public class SeriesController {
-    final Bamboo bamboo;
+    final Bamboo wa;
     public final Handler routes = routes(
             GET("/series", this::index),
             GET("/series/new", this::newForm),
@@ -28,12 +27,12 @@ public class SeriesController {
             GET("/series/:id/edit", this::edit, "id", "[0-9]+"),
             POST("/series/:id/edit", this::update, "id", "[0-9]+"));
 
-    public SeriesController(Bamboo bamboo) {
-        this.bamboo = bamboo;
+    public SeriesController(Bamboo wa) {
+        this.wa = wa;
     }
 
     Response index(Request request) {
-        Pager<SeriesDAO.CrawlSeriesWithCount> pager = bamboo.serieses.paginate(Parsing.parseLongOrDefault(request.queryParam("page"), 1));
+        Pager<SeriesDAO.CrawlSeriesWithCount> pager = wa.serieses.paginate(Parsing.parseLongOrDefault(request.queryParam("page"), 1));
         return render("series/index.ftl",
                 "seriesList", pager.items,
                 "seriesPager", pager);
@@ -44,7 +43,7 @@ public class SeriesController {
     }
 
     Response createSeries(Request request) {
-        long seriesId = bamboo.serieses.create(parseForm(request));
+        long seriesId = wa.serieses.create(parseForm(request));
         return seeOther(request.contextUri().resolve("series/" + seriesId).toString());
     }
 
@@ -63,21 +62,21 @@ public class SeriesController {
 
     Response show(Request request) {
         long id = Long.parseLong(request.urlParam("id"));
-        Series series = bamboo.serieses.get(id);
+        Series series = wa.serieses.get(id);
         return render("series/show.ftl",
                 "series", series,
                 "descriptionHtml", Markdown.render(series.getDescription(), request.uri()),
-                "crawls", bamboo.crawls.listWhereSeriesId(id),
-                "collections", bamboo.collections.listWhereSeriesId(id));
+                "crawls", wa.crawls.listBySeriesId(id),
+                "collections", wa.collections.listWhereSeriesId(id));
     }
 
     Response edit(Request request) {
         long id = Long.parseLong(request.urlParam("id"));
-        Series series = bamboo.serieses.get(id);
+        Series series = wa.serieses.get(id);
         return render("series/edit.ftl",
                 "series", series,
-                "collections", bamboo.collections.listWhereSeriesId(id),
-                "allCollections", bamboo.collections.listAll(),
+                "collections", wa.collections.listWhereSeriesId(id),
+                "allCollections", wa.collections.listAll(),
                 "csrfToken", Csrf.token(request));
     }
 
@@ -91,7 +90,7 @@ public class SeriesController {
             return response(400, "collection.id and collection.urlFilters mismatch");
         }
 
-        bamboo.serieses.update(seriesId, parseForm(request),
+        wa.serieses.update(seriesId, parseForm(request),
                 collectionIds, collectionUrlFilters);
         return seeOther(request.contextUri().resolve("series/" + seriesId).toString());
     }

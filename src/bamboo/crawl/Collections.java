@@ -9,8 +9,8 @@ import java.util.List;
 public class Collections {
     private final CollectionsDAO dao;
 
-    public Collections(DbPool dbPool) {
-        this.dao = dbPool.dbi.onDemand(CollectionsDAO.class);
+    public Collections(CollectionsDAO dao) {
+        this.dao = dao;
     }
 
     public List<CollectionWithFilters> listWhereSeriesId(long seriesId) {

@@ -4,13 +4,15 @@ import bamboo.core.DbPool;
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
 
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 public class Warcs {
     private final WarcsDAO dao;
 
-    public Warcs(DbPool dbPool) {
-        this.dao = dbPool.dbi.onDemand(WarcsDAO.class);
+    public Warcs(WarcsDAO warcsDAO) {
+        this.dao = warcsDAO;
     }
 
     public List<Warc> findByCrawlId(long crawlId) {
@@ -45,8 +47,12 @@ public class Warcs {
         return NotFoundException.check(getOrNull(id), "warc", id);
     }
 
+    public Warc getOrNullByFilename(String filename) {
+        return dao.findWarcByFilename(filename);
+    }
+
     public Warc getByFilename(String filename) {
-        return NotFoundException.check(dao.findWarcByFilename(filename), "warc with filename: " + filename, 0);
+        return NotFoundException.check(getOrNullByFilename(filename), "warc with filename: " + filename, 0);
     }
 
     public String stateName(int stateId) {
@@ -59,7 +65,10 @@ public class Warcs {
     }
 
     public void updateSha256(long warcId, String calculatedDigest) {
-        dao.updateWarcSha256(warcId, calculatedDigest);
+        int rows = dao.updateWarcSha256(warcId, calculatedDigest);
+        if (rows == 0) {
+            throw new NotFoundException("warc", warcId);
+        }
     }
 
     public List<Warc> findByState(int stateId, int limit) {
@@ -67,6 +76,74 @@ public class Warcs {
     }
 
     public void updateState(long id, int stateId) {
-        dao.updateWarcState(id, stateId)
+        dao.inTransaction((dao, ts) -> {
+            updateState0(id, stateId);
+            return null;
+        });
+    }
+
+    private void updateState0(long id, int stateId) {
+        int rows = dao.updateWarcStateWithoutHistory(id, stateId);
+        if (rows == 0) {
+            throw new NotFoundException("warc", id);
+        }
+        dao.insertWarcHistory(id, stateId);
+    }
+
+    public void updateRecordStats(long warcId, RecordStats stats) {
+        dao.inTransaction((dao, ts) -> {
+            Warc old = NotFoundException.check(dao.selectForUpdate(warcId), "warc", warcId);
+
+            // we subtract the original counts to prevent doubling up the stats when reindexing
+            // if this is a straight reindex with no changes these deltas will be zero
+            long warcRecordsDelta = stats.getRecords() - old.getRecords();
+            long warcBytesDelta = stats.getRecordBytes() - old.getRecordBytes();
+
+            dao.incrementRecordStatsForCrawl(warcId, stats);
+            dao.incrementRecordStatsForSeries(warcId, warcRecordsDelta, warcBytesDelta);
+            dao.updateWarcRecordStats(warcId, stats.getRecords(), stats.getRecordBytes());
+
+            return null;
+        });
+    }
+
+    public void updateCollections(long warcId, Map<Long, RecordStats> collectionStatsMap) {
+        for (Map.Entry<Long, RecordStats> entry : collectionStatsMap.entrySet()) {
+            long collectionId = entry.getKey();
+            RecordStats stats = entry.getValue();
+
+            dao.inTransaction((dao, ts) -> {
+                long recordsDelta = stats.getRecords();
+                long bytesDelta = stats.getRecordBytes();
+
+                CollectionWarc old = dao.selectCollectionWarcForUpdate(collectionId, warcId);
+                if (old != null) {
+                    recordsDelta -= old.records;
+                    bytesDelta -= old.recordBytes;
+                }
+
+                dao.deleteCollectionWarc(collectionId, warcId);
+                dao.insertCollectionWarc(collectionId, warcId, stats.getRecords(), stats.getRecordBytes());
+                dao.incrementRecordStatsForCollection(collectionId, recordsDelta, bytesDelta);
+
+                return null;
+            });
+        }
+    }
+
+    public long create(long crawlId, int stateId, Path path, String filename, long size, String sha256) {
+        return dao.insertWarc(crawlId, stateId, path.toString(), filename, size, sha256);
+    }
+
+    public void updateSize(long warcId, long currentSize) {
+        Warc prev = get(warcId);
+        dao.updateWarcSize(prev.getCrawlId(), warcId, prev.getSize(), currentSize);
+
+    }
+
+    public void update(long warcId, int stateId, Path path, String filename, long size, String digest) {
+        Warc prev = get(warcId);
+        dao.updateWarc(prev.getCrawlId(), warcId, stateId, path.toString(), filename, prev.getSize(), size, digest);
+
     }
 }

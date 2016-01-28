@@ -17,7 +17,7 @@ public class SeedlistsTest {
 
     @Test
     public void testCRUD() {
-        Seedlists seedlists = new Seedlists(fixtures.dbPool.dbi);
+        Seedlists seedlists = new Seedlists(fixtures.dao.seedlists());
 
         long id = seedlists.create(new Seedlists.Update() {
             @Override

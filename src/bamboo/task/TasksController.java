@@ -1,8 +1,7 @@
 package bamboo.task;
 
-import bamboo.core.Bamboo;
+import bamboo.app.Bamboo;
 import bamboo.crawl.Warc;
-import bamboo.task.Task;
 import bamboo.util.Pager;
 import bamboo.util.Parsing;
 import droute.Csrf;

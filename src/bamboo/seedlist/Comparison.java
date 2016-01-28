@@ -1,7 +1,5 @@
 package bamboo.seedlist;
 
-import bamboo.core.Bamboo;
-import bamboo.core.Db;
 import droute.Request;
 
 import java.util.ArrayList;
