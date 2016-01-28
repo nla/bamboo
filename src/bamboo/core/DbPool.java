@@ -9,22 +9,29 @@ import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.logging.PrintStreamLog;
 import org.skife.jdbi.v2.tweak.Argument;
 import org.skife.jdbi.v2.tweak.ArgumentFactory;
+import org.vibur.dbcp.ViburDBCPDataSource;
 
 import java.io.Closeable;
 import java.nio.file.Path;
+import java.sql.SQLException;
 
 public class DbPool implements Closeable {
-    final HikariDataSource ds;
+    final ViburDBCPDataSource ds;
     public final DBI dbi;
     private final DAO dao;
 
     public DbPool(Config config) {
-        HikariConfig hikariConfig = new HikariConfig();
-        hikariConfig.setPoolName("BambooDbPool");
-        hikariConfig.setJdbcUrl(config.getDbUrl());
-        hikariConfig.setUsername(config.getDbUser());
-        hikariConfig.setPassword(config.getDbPassword());
-        ds = new HikariDataSource(hikariConfig);
+        long start = System.currentTimeMillis();
+
+        ds = new ViburDBCPDataSource();
+        ds.setName("BambooDBPool");
+        ds.setJdbcUrl(config.getDbUrl());
+        ds.setUsername(config.getDbUser());
+        ds.setPassword(config.getDbPassword());
+        ds.start();
+
+        System.out.println("Initialized connection pool in " + (System.currentTimeMillis() - start) + "ms");
+
         dbi = new DBI(ds);
         dbi.registerArgumentFactory(new PathArgumentFactory());
 
@@ -63,7 +70,7 @@ public class DbPool implements Closeable {
 
     @Override
     public void close() {
-        ds.close();
+        ds.terminate();
     }
 
     public static class PathArgumentFactory implements ArgumentFactory<Path> {

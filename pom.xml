@@ -82,6 +82,13 @@
             <version>1.4.182</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.vibur</groupId>
+            <artifactId>vibur-dbcp</artifactId>
+            <version>7.0</version>
+        </dependency>
+
+
         <!--
         <dependency>
             <groupId>mysql</groupId>
@@ -264,12 +271,6 @@
             <artifactId>jwebunit-htmlunit-plugin</artifactId>
             <version>3.2</version>
             <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>au.gov.nla</groupId>
-            <artifactId>doss</artifactId>
-            <version>1.0.1</version>
         </dependency>
 
         <dependency>
