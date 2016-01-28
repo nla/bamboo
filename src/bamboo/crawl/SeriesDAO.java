@@ -56,9 +56,9 @@ public interface SeriesDAO {
     @SqlUpdate("UPDATE crawl_series SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCrawlSeries(@Bind("id") long crawlSeriesId, @Bind("records") long records, @Bind("bytes") long bytes);
 
-    @SqlUpdate("INSERT INTO crawl_series (name, path) VALUES (:name, :path)")
+    @SqlUpdate("INSERT INTO crawl_series (name, path, description) VALUES (:name, :path, :description)")
     @GetGeneratedKeys
-    long createCrawlSeries(@Bind("name") String name, @Bind("path") Path path);
+    long createCrawlSeries(@Bind("name") String name, @Bind("path") Path path, @Bind("description") String description);
 
     @SqlUpdate("UPDATE crawl_series SET name = :name, path = :path, description = :description WHERE id = :id")
     int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path, @Bind("description") String description);

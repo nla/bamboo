@@ -24,6 +24,8 @@ public class Bamboo implements AutoCloseable {
     }
 
     public Bamboo(Config config) {
+        long startTime = System.currentTimeMillis();
+
         this.config = config;
 
         dbPool = new DbPool(config);
@@ -49,6 +51,8 @@ public class Bamboo implements AutoCloseable {
         taskmaster.add(cdxIndexer);
         taskmaster.add(new SolrIndexer(collections, crawls, warcs));
         taskmaster.add(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
+
+        System.out.println("Initialized Bamboo in " + (System.currentTimeMillis() - startTime) + "ms");
     }
 
     public void close() {

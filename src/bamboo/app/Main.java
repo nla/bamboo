@@ -10,7 +10,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.util.Arrays;
 
 public class Main {
-
     public static void usage() {
         System.out.println("Usage: bamboo <subcommand>");
         System.out.println("Bamboo admin tools");
