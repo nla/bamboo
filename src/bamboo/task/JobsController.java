@@ -35,7 +35,7 @@ public class JobsController {
     }
 
     Response index(Request request) {
-        return render("jobs/index.ftl",
+        return render("bamboo/views/jobs/index.ftl",
                 "csrfToken", Csrf.token(request),
                 "heritrixUrl", bamboo.config.getHeritrixUrl(),
                 "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()));

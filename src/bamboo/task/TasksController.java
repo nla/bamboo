@@ -28,7 +28,7 @@ public class TasksController {
     }
 
     Response index(Request request) {
-        return render("tasks.ftl",
+        return render("bamboo/views/tasks.ftl",
                 "csrfToken", Csrf.token(request),
                 "tasks", bamboo.taskmaster.getTasks());
     }
@@ -53,7 +53,7 @@ public class TasksController {
 
     Response cdxQueue(Request request) {
         Pager<Warc> pager = bamboo.warcs.paginateWithState(Parsing.parseLongOrDefault(request.queryParam("page"), 1), Warc.IMPORTED);
-        return render("tasks/warcs.ftl",
+        return render("bamboo/views/tasks/warcs.ftl",
                 "queueName", "CDX Indexing",
                 "warcs", pager.items,
                 "warcsPager", pager);
@@ -61,7 +61,7 @@ public class TasksController {
 
     Response solrQueue(Request request) {
         Pager<Warc> pager = bamboo.warcs.paginateWithState(Parsing.parseLongOrDefault(request.queryParam("page"), 1), Warc.CDX_INDEXED);
-        return render("tasks/warcs.ftl",
+        return render("bamboo/views/tasks/warcs.ftl",
                 "queueName", "Solr Indexing",
                 "warcs", pager.items,
                 "warcsPager", pager);
