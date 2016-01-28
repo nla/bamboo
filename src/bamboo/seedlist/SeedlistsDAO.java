@@ -29,7 +29,7 @@ public interface SeedlistsDAO extends Transactional<SeedlistsDAO> {
     @GetGeneratedKeys
     long insertSeedlist(@BindBean("update") Seedlists.Update update, @Bind("totalSeeds") int totalSeeds);
 
-    @SqlUpdate("UPDATE seedlist SET name = :update.name, description = :update.description, total_seeds = :totalSeeds WHERE id = :id")
+    @SqlUpdate("UPDATE seedlist SET name = :seedlist.name, description = :seedlist.description, total_seeds = :totalSeeds WHERE id = :id")
     int updateSeedlist(@Bind("id") long id, @BindBean("seedlist") Seedlists.Update update, @Bind("totalSeeds") long totalSeeds);
 
     @SqlQuery("SELECT * FROM seedlist WHERE id = :id")

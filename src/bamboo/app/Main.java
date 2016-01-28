@@ -1,7 +1,5 @@
 package bamboo.app;
 
-import bamboo.crawl.Scrub;
-import bamboo.task.WatchImporter;
 import droute.Handler;
 import droute.ShotgunHandler;
 import droute.nanohttpd.NanoServer;
@@ -36,12 +34,12 @@ public class Main {
             server(Arrays.copyOfRange(args, 1, args.length));
             return;
         }
+            /*
         Bamboo bamboo = new Bamboo();
         switch (args[0]) {
             case "import":
                 bamboo.crawls.importHeritrixCrawl(args[1], Long.parseLong(args[2]));
                 break;
-            /*
             case "insert-warc":
                 for (int i = 2; i < args.length; i++) {
                     bamboo.insertWarc(Long.parseLong(args[1]), args[i]);
@@ -62,7 +60,6 @@ public class Main {
             case "refresh-warc-stats-fs":
                 bamboo.refreshWarcStatsFs();
                 break;
-                */
             case "scrub":
                 Scrub.scrub(bamboo);
                 break;
@@ -72,6 +69,7 @@ public class Main {
             default:
                 usage();
         }
+                */
     }
 
 
@@ -103,7 +101,7 @@ public class Main {
                     System.exit(1);
             }
         }
-        Handler handler = new ShotgunHandler("bamboo.web.Webapp");
+        Handler handler = new ShotgunHandler("bamboo.app.Webapp");
         if (inheritSocket) {
             Channel channel = System.inheritedChannel();
             if (channel != null && channel instanceof ServerSocketChannel) {

@@ -31,6 +31,10 @@ public class SeriesController {
         this.wa = wa;
     }
 
+    Response render(String view, Object... model) {
+        return Response.render("/" + getClass().getName().replaceFirst("\\.[^.]*$","").replace('.', '/') + "/views/" + view, model);
+    }
+
     Response index(Request request) {
         Pager<SeriesDAO.CrawlSeriesWithCount> pager = wa.serieses.paginate(Parsing.parseLongOrDefault(request.queryParam("page"), 1));
         return render("series/index.ftl",

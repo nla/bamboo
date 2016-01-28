@@ -132,7 +132,8 @@ public class Warcs {
 
     public long create(long crawlId, int stateId, Path path, String filename, long size, String sha256) {
         return dao.inTransaction((dao, ts) -> {
-            dao.incrementWarcStatsForCrawl(crawlId, 1, size);
+            dao.incrementWarcStatsForCrawlInternal(crawlId, 1, size);
+            dao.incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 1, size);
             long warcId = dao.insertWarcWithoutRollup(crawlId, stateId, path.toString(), filename, size, sha256);
             dao.insertWarcHistory(warcId, stateId);
             return warcId;
@@ -143,7 +144,10 @@ public class Warcs {
         dao.inTransaction((dao, ts) -> {
             Warc prev = getAndLock(warcId);
             dao.updateWarcSizeWithoutRollup(warcId, currentSize);
-            dao.incrementWarcStatsForCrawl(prev.getCrawlId(), 0, currentSize - prev.getSize());
+            long crawlId = prev.getCrawlId();
+            long sizeDelta = currentSize - prev.getSize();
+            dao.incrementWarcStatsForCrawlInternal(crawlId, 0, sizeDelta);
+            dao.incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 0, sizeDelta);
             return null;
         });
     }
@@ -153,7 +157,10 @@ public class Warcs {
             Warc prev = getAndLock(warcId);
             dao.updateWarcWithoutRollup(warcId, stateId, path.toString(), filename, size, digest);
             dao.insertWarcHistory(warcId, stateId);
-            dao.incrementWarcStatsForCrawl(prev.getCrawlId(), 0, size - prev.getSize());
+            long crawlId = prev.getCrawlId();
+            long sizeDelta = size - prev.getSize();
+            dao.incrementWarcStatsForCrawlInternal(crawlId, 0, sizeDelta);
+            dao.incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 0, sizeDelta);
             return null;
         });
     }

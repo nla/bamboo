@@ -21,7 +21,7 @@ public class Fixtures extends ExternalResource {
 
         dao = dbPool.dao();
 
-        dao.serieses().createCrawlSeries("Series fixture", tmp.newFolder("series-fixture").getPath());
+        dao.serieses().createCrawlSeries("Series fixture", tmp.newFolder("series-fixture").toPath());
     }
 
     @Override

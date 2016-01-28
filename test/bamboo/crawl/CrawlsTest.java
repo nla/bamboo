@@ -9,6 +9,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
@@ -25,10 +26,16 @@ public class CrawlsTest {
 
     @Test
     public void testCRUD() throws IOException {
-        Crawls crawls = new Crawls(fixtures.dao.crawls(), new Serieses(fixtures.dao.serieses()), new Warcs(fixtures.dao.warcs()));
+        Serieses serieses = new Serieses(fixtures.dao.serieses());
+        Crawls crawls = new Crawls(fixtures.dao.crawls(), serieses, new Warcs(fixtures.dao.warcs()));
+
+        Series series = new Series();
+        series.setName("test series");
+        series.setPath(Paths.get("/tmp/test"));
+        long seriesId = serieses.create(series);
 
         Crawl crawlMD = new Crawl();
-        crawlMD.setCrawlSeriesId(fixtures.crawlSeriesId);
+        crawlMD.setCrawlSeriesId(seriesId);
         crawlMD.setName("balloon");
         crawlMD.setPandasInstanceId(42L);
 
@@ -42,7 +49,7 @@ public class CrawlsTest {
             Crawl crawl = crawls.get(id);
             assertEquals("balloon", crawl.getName());
             assertEquals(42L, crawl.getPandasInstanceId().longValue());
-            assertEquals(fixtures.crawlSeriesId, crawl.getCrawlSeriesId().longValue());
+            assertEquals(seriesId, crawl.getCrawlSeriesId().longValue());
         }
 
         crawls.update(id, "bubble", null);

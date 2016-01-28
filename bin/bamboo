@@ -8,4 +8,4 @@ if [ ! -e target/classes ]; then
     mvn compile
 fi
 
-java -cp "target/classes:$(cat target/classpath)" bamboo.web.Main "$@"
+java -cp "resources:target/classes:$(cat target/classpath)" bamboo.app.Main "$@"

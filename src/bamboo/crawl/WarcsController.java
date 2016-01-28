@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static droute.Response.render;
 import static droute.Response.response;
 import static droute.Route.GET;
 import static droute.Route.routes;
@@ -39,6 +38,10 @@ public class WarcsController {
 
     public WarcsController(Bamboo wa) {
         this.wa = wa;
+    }
+
+    Response render(String view, Object... model) {
+        return Response.render("/" + getClass().getName().replaceFirst("\\.[^.]*$","").replace('.', '/') + "/views/" + view, model);
     }
 
     static class Range {

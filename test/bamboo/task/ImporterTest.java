@@ -1,13 +1,11 @@
 package bamboo.task;
 
-import bamboo.app.Bamboo;
+import bamboo.core.DbPool;
 import bamboo.core.Fixtures;
 import bamboo.core.TestConfig;
-import bamboo.crawl.Crawl;
-import bamboo.core.DAO;
-import bamboo.core.DbPool;
 import bamboo.crawl.Crawls;
 import bamboo.crawl.Serieses;
+import bamboo.crawl.Warcs;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -18,8 +16,6 @@ import java.nio.file.Path;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardOpenOption.CREATE_NEW;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 public class ImporterTest {
 	@Rule
@@ -37,7 +33,7 @@ public class ImporterTest {
 		DbPool dbPool = new DbPool(config);
 		dbPool.migrate();
 
-		Crawls crawls = new Crawls(fixtures.dao.crawls(), new Serieses(fixtures.dao.serieses()));
+		Crawls crawls = new Crawls(fixtures.dao.crawls(), new Serieses(fixtures.dao.serieses()), new Warcs(fixtures.dao.warcs()));
 
 		Path seriesPath = folder.newFolder("crawl-series").toPath();
 		long seriesId = fixtures.crawlSeriesId;

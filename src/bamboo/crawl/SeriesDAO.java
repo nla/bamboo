@@ -5,6 +5,7 @@ import org.skife.jdbi.v2.sqlobject.*;
 import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
+import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -57,7 +58,7 @@ public interface SeriesDAO {
 
     @SqlUpdate("INSERT INTO crawl_series (name, path) VALUES (:name, :path)")
     @GetGeneratedKeys
-    long createCrawlSeries(@Bind("name") String name, @Bind("path") String path);
+    long createCrawlSeries(@Bind("name") String name, @Bind("path") Path path);
 
     @SqlUpdate("UPDATE crawl_series SET name = :name, path = :path, description = :description WHERE id = :id")
     int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path, @Bind("description") String description);

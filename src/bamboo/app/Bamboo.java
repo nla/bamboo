@@ -30,7 +30,7 @@ public class Bamboo implements AutoCloseable {
         dbPool.migrate();
         DAO dao = dbPool.dao();
 
-        pandasDbPool = new PandasDbPool(config);
+        pandasDbPool = config.getPandasDbUrl() == null ? null : new PandasDbPool(config);
 
         this.taskmaster = new Taskmaster();
 

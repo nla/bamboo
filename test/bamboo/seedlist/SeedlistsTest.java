@@ -41,6 +41,23 @@ public class SeedlistsTest {
         assertEquals("sldesc", seedlist.getDescription());
         assertEquals(1, seedlists.listSeeds(id).size());
 
+        seedlists.update(seedlist.getId(), new Seedlists.Update() {
+            @Override
+            public String getName() {
+                return "slname2";
+            }
+
+            @Override
+            public String getDescription() {
+                return "sldesc2";
+            }
+
+            @Override
+            public Collection<Seed> getSeeds() {
+                return Arrays.asList(new Seed("http://feedble.example.org/"));
+            }
+        });
+
         seedlists.delete(id);
         assertNull(seedlists.getOrNull(id));
     }

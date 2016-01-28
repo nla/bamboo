@@ -55,7 +55,9 @@ public class Crawls {
             long totalBytes = warcs.stream().mapToLong(Warc::getSize).sum();
             long crawlId = dao.createCrawl(metadata);
             dao.warcs().batchInsertWarcsWithoutRollup(crawlId, warcs.iterator());
-            dao.warcs().incrementWarcStatsForCrawl(crawlId, warcs.size(), totalBytes);
+            int warcFilesDelta = warcs.size();
+            dao.warcs().incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, totalBytes);
+            dao.warcs().incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, totalBytes);
             return crawlId;
         });
         notifyStateChanged(id, Crawl.ARCHIVED);

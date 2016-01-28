@@ -28,11 +28,6 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
         String getSha256();
     }
 
-    default void incrementWarcStatsForCrawl(long crawlId, int warcFilesDelta, long sizeDelta) {
-        incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, sizeDelta);
-        incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, sizeDelta);
-    }
-
     @SqlUpdate("UPDATE warc SET warc_state_id = :stateId, path = :path, filename = :filename, size = :size, sha256 = :sha256 WHERE id = :warcId")
     int updateWarcWithoutRollup(@Bind("warcId") long warcId, @Bind("stateId") int stateId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256);
 

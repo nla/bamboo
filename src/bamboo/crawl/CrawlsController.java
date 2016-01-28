@@ -41,6 +41,10 @@ public class CrawlsController {
         this.bamboo = bamboo;
     }
 
+    Response render(String view, Object... model) {
+        return Response.render("/" + getClass().getName().replaceFirst("\\.[^.]*$","").replace('.', '/') + "/views/" + view, model);
+    }
+
     Response index(Request request) {
         Pager<CrawlAndSeriesName> pager = bamboo.crawls.pager(Parsing.parseLongOrDefault(request.param("page"), 1));
         return render("crawls/index.ftl",

@@ -1,6 +1,5 @@
 package bamboo.crawl;
 
-import bamboo.core.DbPool;
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
 
@@ -31,7 +30,7 @@ public class Serieses {
     }
 
     public long create(Series series) {
-        return dao.createCrawlSeries(series.getName(), series.getPath().toString());
+        return dao.createCrawlSeries(series.getName(), series.getPath());
     }
 
     public void update(long seriesId, Series series, List<Long> collectionIds, List<String> collectionUrlFilters) {

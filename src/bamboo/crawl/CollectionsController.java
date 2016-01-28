@@ -26,6 +26,10 @@ public class CollectionsController {
         this.bamboo = bamboo;
     }
 
+    Response render(String view, Object... model) {
+        return Response.render("/" + getClass().getName().replaceFirst("\\.[^.]*$","").replace('.', '/') + "/views/" + view, model);
+    }
+
     Response index(Request request) {
         Pager<Collection> pager = bamboo.collections.paginate(Parsing.parseLongOrDefault(request.queryParam("page"), 1));
         return render("collections/index.ftl",

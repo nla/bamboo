@@ -77,13 +77,13 @@ public class Webapp implements Handler, AutoCloseable {
     }
 
     Response index(Request request) {
-        return render("index.ftl",
+        return render("bamboo/views/index.ftl",
                 "seriesList", bamboo.serieses.listAll(),
                 "collections", bamboo.collections.listAll());
     }
 
     Response showImportForm(Request request) {
-        return render("import.ftl",
+        return render("bamboo/views/import.ftl",
                 "allCrawlSeries", bamboo.serieses.listImportable(),
                 "selectedCrawlSeriesId", parseLongOrDefault(request.queryParam("crawlSeries"), -1),
                 "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()),
