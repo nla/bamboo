@@ -25,7 +25,7 @@ public class CrawlsTest {
 
     @Test
     public void testCRUD() throws IOException {
-        Crawls crawls = new Crawls(fixtures.dao.crawls(), new Serieses(fixtures.dao.serieses()));
+        Crawls crawls = new Crawls(fixtures.dao.crawls(), new Serieses(fixtures.dao.serieses()), new Warcs(fixtures.dao.warcs()));
 
         Crawl crawlMD = new Crawl();
         crawlMD.setCrawlSeriesId(fixtures.crawlSeriesId);

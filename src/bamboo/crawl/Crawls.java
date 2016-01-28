@@ -14,12 +14,14 @@ import java.util.Collection;
 public class Crawls {
     private final CrawlsDAO dao;
     private final Serieses serieses;
+    private final Warcs warcs;
 
     private Set<CrawlStateListener> stateListeners = new HashSet<>();
 
-    public Crawls(CrawlsDAO crawlsDAO, Serieses serieses) {
+    public Crawls(CrawlsDAO crawlsDAO, Serieses serieses, Warcs warcs) {
         this.dao = crawlsDAO;
         this.serieses = serieses;
+        this.warcs = warcs;
     }
 
     public void onStateChange(CrawlStateListener listener) {
@@ -139,9 +141,8 @@ public class Crawls {
             String digest = Scrub.calculateDigest("SHA-256", src);
             Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
 
-            dao.warcs().insertWarc(crawlId, Warc.IMPORTED, dest.toString(), dest.getFileName().toString(), size, digest);
+            warcs.create(crawlId, Warc.IMPORTED, dest, dest.getFileName().toString(), size, digest);
         }
-
     }
 
     private Path createWarcsDir(Crawl crawl) throws IOException {

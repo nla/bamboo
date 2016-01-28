@@ -1,6 +1,5 @@
 package bamboo.crawl;
 
-import bamboo.core.DbPool;
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
 
@@ -92,12 +91,12 @@ public class Warcs {
 
     public void updateRecordStats(long warcId, RecordStats stats) {
         dao.inTransaction((dao, ts) -> {
-            Warc old = NotFoundException.check(dao.selectForUpdate(warcId), "warc", warcId);
+            Warc prev = getAndLock(warcId);
 
             // we subtract the original counts to prevent doubling up the stats when reindexing
             // if this is a straight reindex with no changes these deltas will be zero
-            long warcRecordsDelta = stats.getRecords() - old.getRecords();
-            long warcBytesDelta = stats.getRecordBytes() - old.getRecordBytes();
+            long warcRecordsDelta = stats.getRecords() - prev.getRecords();
+            long warcBytesDelta = stats.getRecordBytes() - prev.getRecordBytes();
 
             dao.incrementRecordStatsForCrawl(warcId, stats);
             dao.incrementRecordStatsForSeries(warcId, warcRecordsDelta, warcBytesDelta);
@@ -132,18 +131,34 @@ public class Warcs {
     }
 
     public long create(long crawlId, int stateId, Path path, String filename, long size, String sha256) {
-        return dao.insertWarc(crawlId, stateId, path.toString(), filename, size, sha256);
+        return dao.inTransaction((dao, ts) -> {
+            dao.incrementWarcStatsForCrawl(crawlId, 1, size);
+            long warcId = dao.insertWarcWithoutRollup(crawlId, stateId, path.toString(), filename, size, sha256);
+            dao.insertWarcHistory(warcId, stateId);
+            return warcId;
+        });
     }
 
     public void updateSize(long warcId, long currentSize) {
-        Warc prev = get(warcId);
-        dao.updateWarcSize(prev.getCrawlId(), warcId, prev.getSize(), currentSize);
-
+        dao.inTransaction((dao, ts) -> {
+            Warc prev = getAndLock(warcId);
+            dao.updateWarcSizeWithoutRollup(warcId, currentSize);
+            dao.incrementWarcStatsForCrawl(prev.getCrawlId(), 0, currentSize - prev.getSize());
+            return null;
+        });
     }
 
     public void update(long warcId, int stateId, Path path, String filename, long size, String digest) {
-        Warc prev = get(warcId);
-        dao.updateWarc(prev.getCrawlId(), warcId, stateId, path.toString(), filename, prev.getSize(), size, digest);
+        dao.inTransaction((dao, ts) -> {
+            Warc prev = getAndLock(warcId);
+            dao.updateWarcWithoutRollup(warcId, stateId, path.toString(), filename, size, digest);
+            dao.insertWarcHistory(warcId, stateId);
+            dao.incrementWarcStatsForCrawl(prev.getCrawlId(), 0, size - prev.getSize());
+            return null;
+        });
+    }
 
+    private Warc getAndLock(long warcId) {
+        return NotFoundException.check(dao.selectForUpdate(warcId), "warc", warcId);
     }
 }

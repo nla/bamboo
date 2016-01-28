@@ -36,8 +36,8 @@ public class Bamboo implements AutoCloseable {
 
         // crawl package
         this.serieses = new Serieses(dao.serieses());
-        this.crawls = new Crawls(dao.crawls(), serieses);
         this.warcs = new Warcs(dao.warcs());
+        this.crawls = new Crawls(dao.crawls(), serieses, warcs);
         this.collections = new Collections(dao.collections());
 
         // seedlist package

@@ -8,7 +8,6 @@ import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
@@ -29,36 +28,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
         String getSha256();
     }
 
-    @Transaction
-    default long insertWarc(long crawlId, int stateId, String path, String filename, long size, String sha256) {
-        incrementWarcStatsForCrawl(crawlId, 1, size);
-        long warcId = insertWarcWithoutRollup(crawlId, stateId, path, filename, size, sha256);
-        insertWarcHistory(warcId, stateId);
-        return warcId;
-    }
-
     default void incrementWarcStatsForCrawl(long crawlId, int warcFilesDelta, long sizeDelta) {
         incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, sizeDelta);
         incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, sizeDelta);
-    }
-
-    @Transaction
-    default int updateWarc(long crawlId, long warcId, int stateId, String path, String filename, long oldSize, long size, String sha256) {
-        int rows = updateWarcWithoutRollup(warcId, stateId, path, filename, size, sha256);
-        if (rows > 0) {
-            insertWarcHistory(warcId, stateId);
-            incrementWarcStatsForCrawl(crawlId, 0, size - oldSize);
-        }
-        return rows;
-    }
-
-    @Transaction
-    default int updateWarcSize(long crawlId, long warcId, long oldSize, long size) {
-        int rows = updateWarcSizeWithoutRollup(warcId, size);
-        if (rows > 0) {
-            incrementWarcStatsForCrawl(crawlId, 0, size - oldSize);
-        }
-        return rows;
     }
 
     @SqlUpdate("UPDATE warc SET warc_state_id = :stateId, path = :path, filename = :filename, size = :size, sha256 = :sha256 WHERE id = :warcId")
@@ -166,9 +138,4 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
 
     @SqlUpdate("UPDATE collection SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCollection(@Bind("id") long collectionId, @Bind("records") long records, @Bind("bytes") long bytes);
-
-
-
-
-
 }
