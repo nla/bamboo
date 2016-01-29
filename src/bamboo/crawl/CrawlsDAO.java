@@ -46,6 +46,9 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     @SqlQuery("SELECT * FROM crawl WHERE id = :id")
     Crawl findCrawl(@Bind("id") long crawlId);
 
+    @SqlQuery("SELECT * FROM crawl WHERE pandas_instance_id = :instanceId")
+    Crawl findCrawlByPandasInstanceId(@Bind("instanceId") long instanceId);
+
     @SqlQuery("SELECT * FROM crawl WHERE crawl_series_id = :crawl_series_id ORDER BY id DESC")
     List<Crawl> findCrawlsByCrawlSeriesId(@Bind("crawl_series_id") long crawlSeriesId);
 

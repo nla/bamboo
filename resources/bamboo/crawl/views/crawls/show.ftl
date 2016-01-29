@@ -1,4 +1,4 @@
-[#-- @ftlvariable name="pandasInstance" type="bamboo.core.PandasDb.InstanceSummary" --]
+[#-- @ftlvariable name="pandasInstance" type="bamboo.pandas.PandasInstance" --]
 [@page title="Crawl: ${crawl.name}"]
 
 [#macro indexingProgress type todo]

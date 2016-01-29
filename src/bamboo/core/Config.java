@@ -64,6 +64,14 @@ public class Config {
         return Collections.unmodifiableList(watches);
     }
 
+    public Path getPandasWarcDir() {
+        String value = System.getenv("PANDAS_WARC_DIR");
+        if (value == null) {
+            throw new RuntimeException("PANDAS_WARC_DIR environment variable is not set");
+        }
+        return Paths.get(value);
+    }
+
     public static class Watch {
         public final long crawlId;
         public final Path dir;

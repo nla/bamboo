@@ -1,32 +1,30 @@
 package bamboo.seedlist;
 
-import bamboo.core.PandasDb;
-import bamboo.core.PandasDbPool;
 import bamboo.app.Bamboo;
+import bamboo.pandas.Pandas;
+import bamboo.pandas.PandasComparison;
 import bamboo.util.Markdown;
 import droute.*;
-import droute.Request;
 import org.archive.url.SURT;
 import org.archive.url.SURTTokenizer;
-import org.archive.url.WaybackURLKeyMaker;
-import org.skife.jdbi.v2.ResultIterator;
 
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 
 import static droute.Response.*;
 import static droute.Route.GET;
 import static droute.Route.POST;
-import static java.util.function.UnaryOperator.identity;
 
 public class SeedlistsController {
 
     private final Seedlists seedlists;
-    private final PandasDbPool pandasDbPool;
+    private final Pandas pandas;
 
     public final Handler routes = Route.routes(
             GET("/seedlists", this::index),
@@ -44,11 +42,9 @@ public class SeedlistsController {
             GET("/seedlists/:id1/compare/:id2/:sublist/saveas", this::saveComparison, "id1", "[0-9]+", "id2", "[0-9]+")
     );
 
-    final static WaybackURLKeyMaker keyMaker = new WaybackURLKeyMaker();
-
     public SeedlistsController(Bamboo bamboo) {
         seedlists = bamboo.seedlists;
-        pandasDbPool = bamboo.pandasDbPool;
+        pandas = bamboo.pandas;
     }
 
     Response render(String view, Object... model) {
@@ -169,18 +165,6 @@ public class SeedlistsController {
         }
     }
 
-    Map<String, Seed> seedsByCanonicalizedUrl(long seedlistId) {
-        Map<String, Seed> seeds = new HashMap<>();
-        for (Seed seed : seedlists.listSeeds(seedlistId)) {
-            try {
-                seeds.put(keyMaker.makeKey(seed.getUrl()), seed);
-            } catch (URISyntaxException e) {
-                // skip it
-            }
-        }
-        return seeds;
-    }
-
     Response compare(Request request) {
         long id = Long.parseLong(request.urlParam("id"));
         Seedlist seedlist = seedlists.get(id);
@@ -199,80 +183,18 @@ public class SeedlistsController {
                 "common", comparison.common);
     }
 
-    public static class PandasMatch {
-        public final Seed seed;
-        public final PandasDb.Title title;
-
-        public PandasMatch(Seed seed, PandasDb.Title title) {
-            this.seed = seed;
-            this.title = title;
-        }
-    }
-
     Response compareWithPandas(Request request) {
-        if (pandasDbPool == null) {
+        if (pandas == null) {
             return notFound("PANDAS integration is not configured");
         }
 
-        /*
-         * We need to match the normalized version of all seed urls against the
-         * PANDAS database. Since we don't store normalized URLs in either
-         * database we have to fetch both lists and compare them.
-         */
-
         long seedlistId = Long.parseLong(request.urlParam("id"));
-        Seedlist seedlist;
-        Map<String, Seed> seeds;
-        Set<Seed> unmatched = new HashSet<>();
-        List<PandasMatch> matches = new ArrayList<>();
-
-        /*
-         * So first let's put all the seeds into a hashmap keyed by normalized url.
-         */
-
-        long id = Long.parseLong(request.urlParam("id"));
-        seedlist = seedlists.get(id);
-        seeds = seedsByCanonicalizedUrl(seedlistId);
-        unmatched.addAll(seeds.values());
-
-        /*
-         * Now stream all the urls in the PANDAS database and look them up
-         * one by one.  This whole procedure will need revisiting if PANDAS
-         * gets a lot more titles but for now it's acceptable (< 2 seconds)
-         * and doesn't require any caching or schema changes.
-         */
-        try (PandasDb pandasDb = pandasDbPool.take();
-             ResultIterator<PandasDb.Title> it = pandasDb.iterateTitles()) {
-            while (it.hasNext()) {
-                PandasDb.Title title = it.next();
-                if (title.gatherUrl == null) {
-                    continue;
-                }
-                String url = title.gatherUrl.trim();
-                if (url.isEmpty()) {
-                    continue;
-                }
-                String key = null;
-                try {
-                    key = keyMaker.makeKey(title.gatherUrl);
-                } catch (URISyntaxException e) {
-                    continue;
-                }
-                Seed seed = seeds.get(key);
-                if (seed != null) {
-                    matches.add(new PandasMatch(seed, title));
-                    unmatched.remove(seed);
-                }
-            }
-        }
-
-        matches.sort((a, b) -> a.seed.getSurt().compareTo(b.seed.getSurt()));
-        List<Seed> unmatchedSorted = new ArrayList<>(unmatched);
-        unmatchedSorted.sort((a, b) -> a.getSurt().compareTo(b.getSurt()));
+        Seedlist seedlist = seedlists.get(seedlistId);
+        PandasComparison comparison = pandas.compareSeedlist(seedlistId);
 
         return render("views/pandas.ftl",
                 "seedlist", seedlist,
-                "matches", matches,
-                "unmatched", unmatchedSorted);
+                "matches", comparison.matches,
+                "unmatched", comparison.unmatched);
     }
 }

@@ -1,6 +1,6 @@
 package bamboo.crawl;
 
-import bamboo.core.PandasDb;
+import bamboo.pandas.PandasInstance;
 import bamboo.app.Bamboo;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
@@ -57,11 +57,9 @@ public class CrawlsController {
         Crawl crawl = bamboo.crawls.get(id);
         CrawlStats stats = bamboo.crawls.stats(id);
 
-        PandasDb.InstanceSummary pandasInstance = null;
-        if (crawl.getPandasInstanceId() != null && bamboo.pandasDbPool != null) {
-            try (PandasDb pandasDb = bamboo.pandasDbPool.take()) {
-                pandasInstance = pandasDb.fetchInstanceSummary(crawl.getPandasInstanceId());
-            }
+        PandasInstance instance = null;
+        if (crawl.getPandasInstanceId() != null && bamboo.pandas != null) {
+            instance = bamboo.pandas.getInstance(crawl.getPandasInstanceId());
         }
 
         return render("crawls/show.ftl",
@@ -71,7 +69,7 @@ public class CrawlsController {
                 "warcsToBeSolrIndexed", stats.getWarcsToBeSolrIndexed(),
                 "corruptWarcs", stats.getCorruptWarcs(),
                 "descriptionHtml", Markdown.render(crawl.getDescription(), request.uri()),
-                "pandasInstance", pandasInstance
+                "pandasInstance", instance
                 );
     }
 

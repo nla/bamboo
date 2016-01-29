@@ -2,6 +2,7 @@ package bamboo.app;
 
 import bamboo.core.*;
 import bamboo.crawl.*;
+import bamboo.pandas.Pandas;
 import bamboo.seedlist.Seedlists;
 import bamboo.task.*;
 
@@ -9,13 +10,12 @@ public class Bamboo implements AutoCloseable {
 
     public final Config config;
     private final DbPool dbPool;
-    public final PandasDbPool pandasDbPool;
-
     public final Crawls crawls;
     public final Serieses serieses;
     public final Warcs warcs;
     public final Collections collections;
     public final Seedlists seedlists;
+    public final Pandas pandas;
 
     public final Taskmaster taskmaster;
 
@@ -31,8 +31,6 @@ public class Bamboo implements AutoCloseable {
         dbPool = new DbPool(config);
         dbPool.migrate();
         DAO dao = dbPool.dao();
-
-        pandasDbPool = config.getPandasDbUrl() == null ? null : new PandasDbPool(config);
 
         this.taskmaster = new Taskmaster();
 
@@ -52,11 +50,19 @@ public class Bamboo implements AutoCloseable {
         taskmaster.add(new SolrIndexer(collections, crawls, warcs));
         taskmaster.add(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
 
+        // pandas package
+        if (config.getPandasDbUrl() != null) {
+            pandas = new Pandas(config, crawls, seedlists);
+        } else {
+            pandas = null;
+        }
+
         System.out.println("Initialized Bamboo in " + (System.currentTimeMillis() - startTime) + "ms");
     }
 
     public void close() {
         taskmaster.close();
         dbPool.close();
+        pandas.close();
     }
 }

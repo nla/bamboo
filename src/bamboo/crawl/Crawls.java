@@ -179,4 +179,8 @@ public class Crawls {
         dao.updateCrawlPath(crawl.getId(), path.toString());
         return path;
     }
+
+    public Crawl getByPandasInstanceIdOrNull(long instanceId) {
+        return dao.findCrawlByPandasInstanceId(instanceId);
+    }
 }
