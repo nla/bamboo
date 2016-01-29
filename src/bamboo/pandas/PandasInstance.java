@@ -1,26 +1,32 @@
 package bamboo.pandas;
 
-import bamboo.core.Config;
 import bamboo.crawl.Crawl;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class PandasInstance {
-    private final Config config;
+    private final Path pandasWarcsDir;
     public final long id;
     public final long pi;
     public final String date;
     public final String titleName;
 
-    PandasInstance(Config config, ResultSet rs) throws SQLException {
-        this.config = config;
+    PandasInstance(Path pandasWarcsDir, long id, long pi, String date, String titleName) {
+        this.pandasWarcsDir = pandasWarcsDir;
+        this.id = id;
+        this.pi = pi;
+        this.date = date;
+        this.titleName = titleName;
+    }
+
+    PandasInstance(Path pandasWarcsDir, ResultSet rs) throws SQLException {
+        this.pandasWarcsDir = pandasWarcsDir;
         id = rs.getLong("instance_id");
         pi = rs.getLong("pi");
         date = rs.getString("dt");
@@ -39,7 +45,7 @@ public class PandasInstance {
     }
 
     private Path titlePath() {
-        return config.getPandasWarcDir().resolve(String.format("%03d", pi / 1000)).resolve(Long.toString(pi));
+        return pandasWarcsDir.resolve(String.format("%03d", pi / 1000)).resolve(Long.toString(pi));
     }
 
     Crawl toCrawl() {

@@ -1,9 +1,12 @@
 package bamboo.pandas;
 
+import bamboo.core.Fixtures;
 import bamboo.core.TestConfig;
+import bamboo.crawl.Crawls;
+import bamboo.crawl.Serieses;
+import bamboo.crawl.Warcs;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.skife.jdbi.v2.Handle;
@@ -13,22 +16,41 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class PandasTest {
 
     @ClassRule
     public static TemporaryFolder tmp = new TemporaryFolder();
+
+    @ClassRule
+    public static Fixtures fixtures = new Fixtures();
+
     private static Pandas pandas;
+    private static Warcs warcs;
+    private static Serieses serieses;
+    private static Crawls crawls;
 
     @BeforeClass
     public static void setUp() throws IOException {
+
         Path warcDir = tmp.newFolder("pandas-warcs").toPath();
         TestConfig config = new TestConfig();
         config.setPandasWarcDir(warcDir);
-        pandas = new Pandas(config, null, null);
-        try (Handle handle = pandas.dbi.open()) {
-            handle.execute("CREATE TABLE TITLE (AGENCY_ID NUMBER, ANBD_NUMBER VARCHAR2(22), " +
+
+
+        warcs = new Warcs(fixtures.dao.warcs());
+        serieses = new Serieses(fixtures.dao.serieses());
+        crawls = new Crawls(fixtures.dao.crawls(), serieses, warcs);
+        pandas = new Pandas(config, crawls, null);
+
+        try (Handle db = pandas.dbi.open()) {
+            /**
+             * Create just the tables we use from PANDAS.  We don't bother with constraints as we never write to it.
+             */
+
+            db.execute("CREATE TABLE TITLE (AGENCY_ID NUMBER, ANBD_NUMBER VARCHAR2(22), " +
                     "AWAITING_CONFIRMATION NUMBER, CONTENT_WARNING VARCHAR2(256), CURRENT_OWNER_ID NUMBER, " +
                     "CURRENT_STATUS_ID NUMBER, DEFAULT_PERMISSION_ID NUMBER, DISAPPEARED NUMBER, FORMAT_ID NUMBER, " +
                     "INDEXER_ID NUMBER, IS_CATALOGUING_NOT_REQ NUMBER, IS_SUBSCRIPTION NUMBER, LEGACY_PURL VARCHAR2(1024), " +
@@ -36,7 +58,7 @@ public class PandasTest {
                     "PERMISSION_ID NUMBER, PI NUMBER, PUBLISHER_ID NUMBER, REG_DATE TIMESTAMP (6), SEED_URL VARCHAR2(1024), " +
                     "SHORT_DISPLAY_NAME VARCHAR2(256), TEP_ID NUMBER, TITLE_ID NUMBER NOT NULL,TITLE_RESOURCE_ID NUMBER, " +
                     "STANDING_ID NUMBER, STATUS_ID NUMBER, TITLE_URL VARCHAR2(1024), UNABLE_TO_ARCHIVE NUMBER)");
-            handle.execute("CREATE TABLE INSTANCE (" +
+            db.execute("CREATE TABLE INSTANCE (" +
                     "CURRENT_STATE_ID NUMBER, " +
                     "DISPLAY_NOTE VARCHAR2(4000), " +
                     "GATHER_COMMAND VARCHAR2(4000), " +
@@ -58,7 +80,7 @@ public class PandasTest {
                     "TRANSPORTABLE NUMBER, " +
                     "TYPE_NAME VARCHAR2(256)" +
                     ")");
-            handle.execute("CREATE TABLE TITLE_GATHER " +
+            db.execute("CREATE TABLE TITLE_GATHER " +
                     "(ACTIVE_PROFILE_ID NUMBER, " +
                     "ADDITIONAL_URLS VARCHAR2(4000), " +
                     "AUTHENTICATE_IP NUMBER, " +
@@ -79,12 +101,12 @@ public class PandasTest {
                     "USERNAME VARCHAR2(128), " +
                     "GATHER_COMMAND VARCHAR2(4000)" +
                     ")");
-            handle.execute("CREATE TABLE STATUS " +
+            db.execute("CREATE TABLE STATUS " +
                     "   (    STATUS_ID NUMBER NOT NULL, " +
                     "        STATUS_NAME VARCHAR2(128)" +
                     "   )");
 
-            handle.execute("  CREATE TABLE INDIVIDUAL " +
+            db.execute("  CREATE TABLE INDIVIDUAL " +
                     "   (    AUDIT_CREATE_DATE TIMESTAMP (6), " +
                     "        AUDIT_CREATE_USERID NUMBER, " +
                     "        AUDIT_DATE TIMESTAMP (6), " +
@@ -105,7 +127,7 @@ public class PandasTest {
                     "        USERID VARCHAR2(20)" +
                     "   ) ;");
 
-            handle.execute("  CREATE TABLE ORGANISATION " +
+            db.execute("  CREATE TABLE ORGANISATION " +
                     "   (    ALIAS VARCHAR2(500), " +
                     "        AGENCY_ID NUMBER, " +
                     "        AUDIT_DATE TIMESTAMP (6), " +
@@ -128,7 +150,7 @@ public class PandasTest {
                     "        LONGSTATE VARCHAR2(100), " +
                     "        URL VARCHAR2(1024)" +
                     "   ) ;");
-            handle.execute("  CREATE TABLE AGENCY " +
+            db.execute("  CREATE TABLE AGENCY " +
                     "   (    AGENCY_ID NUMBER NOT NULL," +
                     "        EXTERNAL_EMAIL VARCHAR2(64), " +
                     "        FORM_LETTER_URL VARCHAR2(4000), " +
@@ -138,18 +160,26 @@ public class PandasTest {
                     "        ORGANISATION_ID NUMBER" +
                     "   ) ;");
 
-            handle.execute("INSERT INTO TITLE (PI, TITLE_ID, NAME) VALUES (?, ?, ?)", 1, 1, "test title");
+            db.execute("INSERT INTO STATUS (STATUS_ID, STATUS_NAME) VALUES (?, ?)", 1, "archived");
+            db.execute("INSERT INTO AGENCY (AGENCY_ID, ORGANISATION_ID) VALUES (?, ?)", 1, 1);
+            db.execute("INSERT INTO ORGANISATION (ORGANISATION_ID, AGENCY_ID) VALUES (?, ?)", 1, 1);
+            db.execute("INSERT INTO INDIVIDUAL (INDIVIDUAL_ID, USERID) VALUES (?, ?)", 1, "batman");
+
+            db.execute("INSERT INTO TITLE (PI, TITLE_ID, NAME, AGENCY_ID, CURRENT_STATUS_ID) VALUES (?, ?, ?, ?, ?)", 10001, 1, "test title", 1, 1);
+            db.execute("INSERT INTO TITLE_GATHER (title_id, gather_url) VALUES (?, ?)", 1, "http://example.org/");
+
+            db.execute("INSERT INTO TITLE (PI, TITLE_ID, NAME, AGENCY_ID, CURRENT_STATUS_ID) VALUES (?, ?, ?, ?, ?)", 10002, 2, "test title2", 1, 1);
+            db.execute("INSERT INTO TITLE_GATHER (title_id, gather_url) VALUES (?, ?)", 2, "http://two.example.org/");
 
         }
     }
 
     @Test
-    public void test() throws IOException {
+    public void testIterateTitles() throws IOException {
         List<PandasTitle> titles = new ArrayList<>();
         pandas.iterateTitles().forEachRemaining(titles::add);
-        PandasTitle title = titles.get(0);
-        assertTrue(title.name.equals("test title"));
-
-
+        assertEquals(2, titles.size());
+        assertTrue(titles.get(0).name.equals("test title"));
     }
+
 }

@@ -43,7 +43,7 @@ interface PandasDAO extends Closeable {
 
         @Override
         public PandasInstance map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
-            return new PandasInstance(config, resultSet);
+            return new PandasInstance(config.getPandasWarcDir(), resultSet);
         }
     }
 
