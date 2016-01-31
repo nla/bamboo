@@ -112,9 +112,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlUpdate(
             "UPDATE crawl_series SET " +
             "  records = records + :stats.records - (SELECT records FROM warc WHERE id = :warcId), " +
-            "  record_bytes = record_bytes + :stats.recordBytes - (SELECT record_bytes FROM warc WHERE id = :warcId), " +
-            "  start_time = LEAST(start_time, :stats.startTime), " +
-            "  end_time = GREATEST(end_time, :stats.endTime) " +
+            "  record_bytes = record_bytes + :stats.recordBytes - (SELECT record_bytes FROM warc WHERE id = :warcId) " +
             "WHERE id = (SELECT crawl.crawl_series_id FROM crawl INNER JOIN warc ON warc.crawl_id = crawl.id WHERE warc.id = :warcId)")
     int updateRecordStatsRollupForSeries(@Bind("warcId") long warcId, @BindBean("stats") RecordStats stats);
 
