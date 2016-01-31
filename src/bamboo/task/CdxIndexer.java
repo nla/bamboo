@@ -26,6 +26,9 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipException;
 
 import static bamboo.task.WarcUtils.cleanUrl;
+import static java.nio.file.StandardOpenOption.DELETE_ON_CLOSE;
+import static java.nio.file.StandardOpenOption.READ;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 public class CdxIndexer implements Runnable {
     private static final int BATCH_SIZE = 1024;
@@ -165,7 +168,7 @@ public class CdxIndexer implements Runnable {
 
             bufferPath = Files.createTempFile("bamboo", ".cdx");
 
-            channel = FileChannel.open(bufferPath, StandardOpenOption.DELETE_ON_CLOSE);
+            channel = FileChannel.open(bufferPath, DELETE_ON_CLOSE, READ, WRITE);
 
             writer = new BufferedWriter(Channels.newWriter(channel, "utf-8"));
             writer.append(" CDX N b a m s k r M S V g\n");
