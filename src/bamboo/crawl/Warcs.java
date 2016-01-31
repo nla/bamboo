@@ -91,17 +91,12 @@ public class Warcs {
 
     public void updateRecordStats(long warcId, RecordStats stats) {
         dao.inTransaction((dao, ts) -> {
-            Warc prev = getAndLock(warcId);
-
-            // we subtract the original counts to prevent doubling up the stats when reindexing
-            // if this is a straight reindex with no changes these deltas will be zero
-            long warcRecordsDelta = stats.getRecords() - prev.getRecords();
-            long warcBytesDelta = stats.getRecordBytes() - prev.getRecordBytes();
-
-            dao.incrementRecordStatsForCrawl(warcId, stats);
-            dao.incrementRecordStatsForSeries(warcId, warcRecordsDelta, warcBytesDelta);
-            dao.updateWarcRecordStats(warcId, stats.getRecords(), stats.getRecordBytes());
-
+            dao.updateRecordStatsRollupForCrawl(warcId, stats);
+            dao.updateRecordStatsRollupForSeries(warcId, stats);
+            int rows = dao.updateWarcRecordStats(warcId, stats.getRecords(), stats.getRecordBytes());
+            if (rows == 0) {
+                throw new NotFoundException("warc", warcId);
+            }
             return null;
         });
     }
