@@ -1,21 +1,21 @@
 package bamboo.task;
 
-import bamboo.core.*;
-import bamboo.crawl.*;
 import bamboo.crawl.Collection;
+import bamboo.crawl.*;
 import bamboo.crawl.Collections;
 import bamboo.util.SurtFilter;
-import org.apache.jute.Record;
 import org.archive.io.ArchiveReader;
 import org.archive.url.SURT;
 
 import java.io.*;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -90,35 +90,43 @@ public class CdxIndexer implements Runnable {
             buffers.add(new CdxBuffer(collection));
         }
 
-        // parse the warc file
         RecordStats stats;
+        Map<Long, RecordStats> collectionStats = new HashMap<>();
+
         try {
-            stats = writeCdx(warc.getPath(), warc.getFilename(), buffers);
-        } catch (RuntimeException e) {
-            if (e.getCause() != null && e.getCause() instanceof ZipException) {
+            // parse the warc file
+            try {
+                stats = writeCdx(warc.getPath(), warc.getFilename(), buffers);
+            } catch (RuntimeException e) {
+                if (e.getCause() != null && e.getCause() instanceof ZipException) {
+                    warcs.updateState(warc.getId(), Warc.CDX_ERROR);
+                    return;
+                } else {
+                    throw e;
+                }
+            } catch (ZipException | FileNotFoundException e) {
                 warcs.updateState(warc.getId(), Warc.CDX_ERROR);
                 return;
-            } else {
-                throw e;
+            } catch (IOException e) {
+                if (e.getMessage().endsWith(" is not a WARC file.")) {
+                    warcs.updateState(warc.getId(), Warc.CDX_ERROR);
+                    return;
+                } else {
+                    throw e;
+                }
             }
-        } catch (ZipException | FileNotFoundException e) {
-            warcs.updateState(warc.getId(), Warc.CDX_ERROR);
-            return;
-        } catch (IOException e) {
-            if (e.getMessage().endsWith(" is not a WARC file.")) {
-                warcs.updateState(warc.getId(), Warc.CDX_ERROR);
-                return;
-            } else {
-                throw e;
+
+            // submit the records to each collection
+            for (CdxBuffer buffer : buffers) {
+                buffer.submit();
+                collectionStats.put(buffer.collection.getId(), buffer.stats);
+            }
+        } finally {
+            for (CdxBuffer buffer: buffers) {
+                buffer.close();
             }
         }
 
-        // submit the records to each collection
-        Map<Long,RecordStats> collectionStats = new HashMap<>();
-        for (CdxBuffer buffer: buffers) {
-            buffer.submit();
-            collectionStats.put(buffer.collection.getId(), buffer.stats);
-        }
 
         // update the statistics in the database
         warcs.updateRecordStats(warc.getId(), stats);
@@ -141,31 +149,32 @@ public class CdxIndexer implements Runnable {
         indexWarc(warcs.get(warcId));
     }
 
-    public static class CdxBuffer {
+    public static class CdxBuffer implements Closeable {
         final Collection collection;
         final URL cdxServer;
         final SurtFilter filter;
-        final Writer buf;
+        final Writer writer;
         final RecordStats stats = new RecordStats();
+        private final Path bufferPath;
+        private final FileChannel channel;
 
-        CdxBuffer(CollectionWithFilters collection) throws MalformedURLException {
+        CdxBuffer(CollectionWithFilters collection) throws IOException {
             this.collection = collection;
             cdxServer = new URL(collection.getCdxUrl());
             filter = new SurtFilter(collection.urlFilters);
-            buf = new StringWriter().append(" CDX N b a m s k r M S V g\n");
-        }
 
-        private CdxBuffer(Writer buf) {
-            collection = null;
-            cdxServer = null;
-            filter = null;
-            this.buf = buf;
+            bufferPath = Files.createTempFile("bamboo", ".cdx");
+
+            channel = FileChannel.open(bufferPath, StandardOpenOption.DELETE_ON_CLOSE);
+
+            writer = new BufferedWriter(Channels.newWriter(channel, "utf-8"));
+            writer.append(" CDX N b a m s k r M S V g\n");
         }
 
         void append(String surt, long recordLength, String cdxLine, Date time) {
             if (filter == null || filter.accepts(surt)) {
                 try {
-                    buf.write(cdxLine + "\n");
+                    writer.write(cdxLine + "\n");
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -174,15 +183,27 @@ public class CdxIndexer implements Runnable {
         }
 
         void submit() throws IOException {
-            byte[] data = buf.toString().getBytes(StandardCharsets.UTF_8);
+            writer.flush();
+            writer.close();
             HttpURLConnection conn = (HttpURLConnection) cdxServer.openConnection();
             conn.setRequestMethod("POST");
             conn.addRequestProperty("Content-Type", "text/plain");
-            conn.setFixedLengthStreamingMode(data.length);
+            conn.setFixedLengthStreamingMode(channel.size());
             conn.setDoOutput(true);
 
-            try (OutputStream out = conn.getOutputStream()) {
-                out.write(data);
+            channel.position(0);
+
+            try (OutputStream out = conn.getOutputStream();
+                 InputStream stream = Channels.newInputStream(channel)) {
+                byte[] buf = new byte[8192];
+                while (true) {
+                    int n = stream.read(buf);
+                    if (n < 0) {
+                        break;
+                    }
+                    out.write(buf, 0, n);
+                }
+
                 out.flush();
             }
 
@@ -199,15 +220,20 @@ public class CdxIndexer implements Runnable {
             String surt = toSchemalessSURT(alias);
             if (filter == null || filter.accepts(surt)) {
                 try {
-                    buf.write("@alias ");
-                    buf.write(cleanUrl(alias));
-                    buf.write(' ');
-                    buf.write(cleanUrl(target));
-                    buf.write('\n');
+                    writer.write("@alias ");
+                    writer.write(cleanUrl(alias));
+                    writer.write(' ');
+                    writer.write(cleanUrl(target));
+                    writer.write('\n');
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
             }
+        }
+
+        @Override
+        public void close() throws IOException {
+            channel.close();
         }
     }
 
