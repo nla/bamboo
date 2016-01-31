@@ -62,9 +62,9 @@ public class Pandas implements AutoCloseable {
             for (long id : instanceIds) {
                 Long crawlId = importInstanceIfNotExists(id, seriesId);
                 if (crawlId != null) {
-                    System.out.println("Instance " + instanceIds + " imported as crawl " + crawlId);
+                    System.out.println("Instance " + id + " imported as crawl " + crawlId);
                 } else {
-                    System.out.println("Instance " + instanceIds + " already imported.");
+                    System.out.println("Instance " + id + " already imported.");
                 }
                 prev = id;
             }
