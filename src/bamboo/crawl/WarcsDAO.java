@@ -107,7 +107,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
             "  start_time = LEAST(start_time, :stats.startTime), " +
             "  end_time = GREATEST(end_time, :stats.endTime) " +
             "WHERE id = (SELECT crawl_id FROM warc WHERE id = :warcId)")
-    int incrementRecordStatsForCrawl(@Bind("warcId") long warcId, @Bind("stats") RecordStats stats);
+    int incrementRecordStatsForCrawl(@Bind("warcId") long warcId, @BindBean("stats") RecordStats stats);
 
     @SqlUpdate("UPDATE crawl_series SET records = records + :recordsDelta, record_bytes = record_bytes + :bytesDelta WHERE id = (SELECT crawl.crawl_series_id FROM crawl INNER JOIN warc ON warc.crawl_id = crawl.id WHERE warc.id = :warcId)")
     int incrementRecordStatsForSeries(@Bind("warcId") long warcId, @Bind("recordsDelta") long recordsDelta, @Bind("bytesDelta") long bytesDelta);
