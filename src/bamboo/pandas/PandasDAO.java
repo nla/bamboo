@@ -12,6 +12,7 @@ import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import java.io.Closeable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 @RegisterMapper({PandasDAO.TitleMapper.class})
 interface PandasDAO extends Closeable {
@@ -26,6 +27,9 @@ interface PandasDAO extends Closeable {
             "where NULLIF(GATHER_URL, '') IS NOT NULL")
     @FetchSize(500)
     ResultIterator<PandasTitle> iterateTitles();
+
+    @SqlQuery("select INSTANCE_ID from (select INSTANCE_ID from INSTANCE where CURRENT_STATE_ID = 1 and INSTANCE_ID > :startingFrom order by INSTANCE_ID asc) where rownum <= :limit")
+    List<Long> listArchivedInstanceIds(@Bind("startingFrom") long startingFrom, @Bind("limit") int limit);
 
     class TitleMapper implements ResultSetMapper<PandasTitle> {
         @Override

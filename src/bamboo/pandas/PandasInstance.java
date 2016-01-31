@@ -51,7 +51,7 @@ public class PandasInstance {
     Crawl toCrawl() {
         Crawl crawl = new Crawl();
         crawl.setPandasInstanceId(id);
-        crawl.setName(titleName);
+        crawl.setName(titleName + " [nla.arc-" + pi + "-" + date + "]");
         return crawl;
     }
 }

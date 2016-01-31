@@ -12,6 +12,7 @@ import org.skife.jdbi.v2.logging.PrintStreamLog;
 import org.vibur.dbcp.ViburDBCPDataSource;
 
 import java.io.IOException;
+import java.util.List;
 
 public class Pandas implements AutoCloseable {
     private final Crawls crawls;
@@ -51,13 +52,35 @@ public class Pandas implements AutoCloseable {
         return NotFoundException.check(dao.findInstance(instanceId), "pandas instance", instanceId);
     }
 
-    public void importInstance(long instanceId, long seriesId) throws IOException {
-        PandasInstance instance = getInstance(instanceId);
-        Crawl crawl = crawls.getByPandasInstanceIdOrNull(instanceId);
-        if (crawl != null) {
-            throw new RuntimeException("crawl " + crawl.getId() + " already exists for instance " + instanceId);
+    public void importAllInstances(long seriesId) throws IOException {
+        int batchSize = 100;
+        long prev = -1;
+        List<Long> instanceIds;
+
+        do {
+            instanceIds = dao.listArchivedInstanceIds(prev, batchSize);
+            for (long id : instanceIds) {
+                Long crawlId = importInstanceIfNotExists(id, seriesId);
+                if (crawlId != null) {
+                    System.out.println("Instance " + instanceIds + " imported as crawl " + crawlId);
+                } else {
+                    System.out.println("Instance " + instanceIds + " already imported.");
+                }
+                prev = id;
+            }
+        } while (!instanceIds.isEmpty());
+    }
+
+    public Long importInstanceIfNotExists(long instanceId, long seriesId) throws IOException {
+        Crawl existing = crawls.getByPandasInstanceIdOrNull(instanceId);
+        if (existing != null) {
+            return null;
         }
-        long crawlId = crawls.createInPlace(instance.toCrawl(), instance.warcFiles());
+        PandasInstance instance = getInstance(instanceId);
+        Crawl crawl = instance.toCrawl();
+        crawl.setCrawlSeriesId(seriesId);
+        long crawlId = crawls.createInPlace(crawl, instance.warcFiles());
+        return crawlId;
     }
 
     public PandasComparison compareSeedlist(long seedlistId) {

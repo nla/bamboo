@@ -3,6 +3,7 @@ package bamboo.pandas;
 import bamboo.core.Fixtures;
 import bamboo.core.TestConfig;
 import bamboo.crawl.Crawls;
+import bamboo.crawl.Series;
 import bamboo.crawl.Serieses;
 import bamboo.crawl.Warcs;
 import org.junit.BeforeClass;
@@ -12,8 +13,12 @@ import org.junit.rules.TemporaryFolder;
 import org.skife.jdbi.v2.Handle;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -168,6 +173,12 @@ public class PandasTest {
             db.execute("INSERT INTO TITLE (PI, TITLE_ID, NAME, AGENCY_ID, CURRENT_STATUS_ID) VALUES (?, ?, ?, ?, ?)", 10001, 1, "test title", 1, 1);
             db.execute("INSERT INTO TITLE_GATHER (title_id, gather_url) VALUES (?, ?)", 1, "http://example.org/");
 
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmm");
+            Date date = new Date();
+            db.execute("INSERT INTO INSTANCE (INSTANCE_ID, TITLE_ID, CURRENT_STATE_ID, INSTANCE_DATE) VALUES (?, ?, ?, ?)", 42, 1, 1, date);
+            Files.createDirectories(warcDir.resolve("010/10001"));
+            Files.createFile(warcDir.resolve("010/10001/nla.arc-10001-" + dateFormat.format(date)));
+
             db.execute("INSERT INTO TITLE (PI, TITLE_ID, NAME, AGENCY_ID, CURRENT_STATUS_ID) VALUES (?, ?, ?, ?, ?)", 10002, 2, "test title2", 1, 1);
             db.execute("INSERT INTO TITLE_GATHER (title_id, gather_url) VALUES (?, ?)", 2, "http://two.example.org/");
 
@@ -180,6 +191,16 @@ public class PandasTest {
         pandas.iterateTitles().forEachRemaining(titles::add);
         assertEquals(2, titles.size());
         assertTrue(titles.get(0).name.equals("test title"));
+    }
+
+    @Test
+    public void testImport() throws IOException {
+        Series series = new Series();
+        series.setName("test pandas series");
+        series.setPath(Paths.get("/tmp/invalid"));
+        long seriesId = serieses.create(series);
+        pandas.importAllInstances(seriesId);
+        pandas.importAllInstances(seriesId);
     }
 
 }
