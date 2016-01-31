@@ -91,7 +91,7 @@ public class CrawlsController {
     Response listWarcs(Request request) {
         long id = Long.parseLong(request.urlParam("id"));
         Crawl crawl = bamboo.crawls.get(id);
-        Pager<Warc> pager = bamboo.warcs.paginateWithCrawlId(Long.parseLong(request.queryParam("page")), id);
+        Pager<Warc> pager = bamboo.warcs.paginateWithCrawlId(Parsing.parseLongOrDefault(request.queryParam("page"), 1), id);
         return render("crawls/warcs.ftl",
                 "crawl", crawl,
                 "warcs", pager.items,
@@ -101,7 +101,7 @@ public class CrawlsController {
     Response listCorruptWarcs(Request request) {
         long id = Long.parseLong(request.urlParam("id"));
         Crawl crawl = bamboo.crawls.get(id);
-        Pager<Warc> pager = bamboo.warcs.paginateWithCrawlIdAndState(Long.parseLong(request.queryParam("page")), id, Warc.CDX_ERROR);
+        Pager<Warc> pager = bamboo.warcs.paginateWithCrawlIdAndState(Parsing.parseLongOrDefault(request.queryParam("page"), 1), id, Warc.CDX_ERROR);
         return render("crawls/warcs.ftl",
                 "titlePrefix", "Corrupt",
                 "crawl", crawl,

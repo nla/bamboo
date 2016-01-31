@@ -66,7 +66,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlQuery("SELECT COUNT(*) FROM warc WHERE warc_state_id = :stateId")
     long countWarcsInState(@Bind("stateId") int stateId);
 
-    @SqlQuery("SELECT COUNT(*) FROM WARC WHERE crawl_id = :crawlId")
+    @SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :crawlId")
     long countWarcsWithCrawlId(@Bind("crawlId") long crawlId);
 
     @SqlQuery("SELECT * FROM warc WHERE warc_state_id = :stateId LIMIT :limit OFFSET :offset")
