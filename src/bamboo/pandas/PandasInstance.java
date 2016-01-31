@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,9 +35,14 @@ public class PandasInstance {
     }
 
     List<Path> warcFiles() throws IOException {
-        return Files.list(titlePath())
-                .filter(this::isWarcFile)
-                .collect(Collectors.toList());
+        Path dir = titlePath();
+        if (Files.exists(titlePath())) {
+            return Files.list(titlePath())
+                    .filter(this::isWarcFile)
+                    .collect(Collectors.toList());
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     private boolean isWarcFile(Path path) {
