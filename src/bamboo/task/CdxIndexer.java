@@ -186,14 +186,13 @@ public class CdxIndexer implements Runnable {
         }
 
         void submit() throws IOException {
-            writer.flush();
-            writer.close();
             HttpURLConnection conn = (HttpURLConnection) cdxServer.openConnection();
             conn.setRequestMethod("POST");
             conn.addRequestProperty("Content-Type", "text/plain");
             conn.setFixedLengthStreamingMode(channel.size());
             conn.setDoOutput(true);
 
+            writer.flush();
             channel.position(0);
 
             try (OutputStream out = conn.getOutputStream();
