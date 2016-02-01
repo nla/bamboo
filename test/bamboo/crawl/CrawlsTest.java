@@ -37,7 +37,7 @@ public class CrawlsTest {
         Crawl crawlMD = new Crawl();
         crawlMD.setCrawlSeriesId(seriesId);
         crawlMD.setName("balloon");
-        crawlMD.setPandasInstanceId(42L);
+        crawlMD.setPandasInstanceId(48L);
 
         List<Path> warcs = Arrays.asList(
                 tmp.newFile("test.warc.gz").toPath(),
@@ -48,7 +48,7 @@ public class CrawlsTest {
         {
             Crawl crawl = crawls.get(id);
             assertEquals("balloon", crawl.getName());
-            assertEquals(42L, crawl.getPandasInstanceId().longValue());
+            assertEquals(48L, crawl.getPandasInstanceId().longValue());
             assertEquals(seriesId, crawl.getCrawlSeriesId().longValue());
         }
 
