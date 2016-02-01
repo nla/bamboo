@@ -1,5 +1,6 @@
 package bamboo.pandas;
 
+import bamboo.core.Config;
 import bamboo.core.Fixtures;
 import bamboo.core.TestConfig;
 import bamboo.crawl.Crawls;

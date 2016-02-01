@@ -10,6 +10,7 @@ import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.logging.PrintStreamLog;
 import org.vibur.dbcp.ViburDBCPDataSource;
+import org.vibur.dbcp.proxy.ConnectionInvocationHandler;
 
 import java.io.IOException;
 import java.util.List;
@@ -27,6 +28,7 @@ public class Pandas implements AutoCloseable {
         dataSource.setJdbcUrl(config.getPandasDbUrl());
         dataSource.setUsername(config.getPandasDbUser());
         dataSource.setPassword(config.getPandasDbPassword());
+        dataSource.setStatementCacheMaxSize(1);
         dataSource.start();
 
         dbi = new DBI(dataSource);
