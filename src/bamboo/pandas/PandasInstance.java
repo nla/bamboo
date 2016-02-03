@@ -10,6 +10,7 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class PandasInstance {
     private final Path pandasWarcsDir;
@@ -37,9 +38,9 @@ public class PandasInstance {
     List<Path> warcFiles() throws IOException {
         Path dir = titlePath();
         if (Files.exists(titlePath())) {
-            return Files.list(titlePath())
-                    .filter(this::isWarcFile)
-                    .collect(Collectors.toList());
+            try (Stream<Path> files = Files.list(titlePath())) {
+                return files.filter(this::isWarcFile).collect(Collectors.toList());
+            }
         } else {
             return Collections.emptyList();
         }
