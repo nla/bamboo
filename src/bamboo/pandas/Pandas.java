@@ -28,7 +28,6 @@ public class Pandas implements AutoCloseable {
         dataSource.setJdbcUrl(config.getPandasDbUrl());
         dataSource.setUsername(config.getPandasDbUser());
         dataSource.setPassword(config.getPandasDbPassword());
-        dataSource.setStatementCacheMaxSize(1);
         dataSource.start();
 
         dbi = new DBI(dataSource);
