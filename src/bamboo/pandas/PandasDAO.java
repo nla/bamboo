@@ -28,7 +28,7 @@ interface PandasDAO extends Closeable {
     @FetchSize(500)
     ResultIterator<PandasTitle> iterateTitles();
 
-    @SqlQuery("select INSTANCE_ID from (select INSTANCE_ID from INSTANCE where CURRENT_STATE_ID = 1 and INSTANCE_ID > :startingFrom order by INSTANCE_ID asc) where rownum <= :limit")
+    @SqlQuery("select INSTANCE_ID from (select INSTANCE_ID from INSTANCE where CURRENT_STATE_ID = 1 and INSTANCE_ID > :startingFrom and TYPE_NAME <> 'Legacy pandora cgi' order by INSTANCE_ID asc) where rownum <= :limit")
     List<Long> listArchivedInstanceIds(@Bind("startingFrom") long startingFrom, @Bind("limit") int limit);
 
     class TitleMapper implements ResultSetMapper<PandasTitle> {
