@@ -8,6 +8,8 @@ import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 
 import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
@@ -101,18 +103,34 @@ public class Cdx {
         List<Alias> out = new ArrayList<>();
         for (Alias alias : primaryAliases) {
             String secondaryUrl = "http://pandora.nla.gov.au/pan/" + piAndDate + "/" + Urls.removeScheme(alias.target);
-            if (!primaryUrls.contains(secondaryUrl)) {
+            if (!primaryUrls.contains(secondaryUrl) && isUrlSane(secondaryUrl)) {
                 out.add(new Alias(secondaryUrl, alias.target));
             }
         }
         return out;
     }
 
+    public static boolean isUrlSane(String url) {
+        try {
+            URI targetUri = new URI(url);
+            String host = targetUri.getHost();
+            if (host == null || !host.contains(".")) {
+                return false;
+            }
+        } catch (URISyntaxException e) {
+            return false;
+        }
+        return true;
+    }
+
     static List<Alias> primaryAliases(BufferedReader reader, String piAndDate) throws IOException {
         List<Alias> aliases = new ArrayList<>();
         String line;
         while ((line = reader.readLine()) != null) {
-            aliases.add(parseUrlMapLine(line, piAndDate));
+            Alias alias = parseUrlMapLine(line, piAndDate);
+            if (alias.isSane()) {
+                aliases.add(alias);
+            }
         }
         return aliases;
     }
@@ -155,6 +173,10 @@ public class Cdx {
         @Override
         public String toCdxLine() {
             return "@alias " + alias + " " + target;
+        }
+
+        public boolean isSane() {
+            return isUrlSane(alias) && isUrlSane(target);
         }
     }
 
