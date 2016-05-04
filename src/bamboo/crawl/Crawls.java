@@ -183,4 +183,8 @@ public class Crawls {
     public Crawl getByPandasInstanceIdOrNull(long instanceId) {
         return dao.findCrawlByPandasInstanceId(instanceId);
     }
+
+    public void addArtifact(long crawlId, String type, Path path) throws IOException {
+        dao.createArtifact(crawlId, type, path, Files.size(path), Scrub.calculateDigest("SHA-256", path));
+    }
 }

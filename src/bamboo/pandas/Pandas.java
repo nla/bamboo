@@ -13,6 +13,9 @@ import org.vibur.dbcp.ViburDBCPDataSource;
 import org.vibur.dbcp.proxy.ConnectionInvocationHandler;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 public class Pandas implements AutoCloseable {
@@ -82,6 +85,38 @@ public class Pandas implements AutoCloseable {
         crawl.setCrawlSeriesId(seriesId);
         long crawlId = crawls.createInPlace(crawl, instance.warcFiles());
         return crawlId;
+    }
+
+    void importInstanceArtifacts(long crawlId) throws IOException {
+        Crawl crawl = crawls.get(crawlId);
+        PandasInstance instance = dao.findInstance(crawl.getPandasInstanceId());
+
+        String masterDir = "/sam/master/data/nla.arc";
+
+        String dateOnly = null;
+        String dateTime = null;
+
+
+        tryImportArtifact(crawlId, "pandas1-access",   String.format("%s/access/arc1/%03d/%d/ac-ar1-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
+        tryImportArtifact(crawlId, "pandas1-preserve", String.format("%s/access/arc1/%03d/%d/ps-ar1-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
+        tryImportArtifact(crawlId, "pandas1-mime",     String.format("%s/access/arc1/%03d/%d/mi-ar1-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
+
+        tryImportArtifact(crawlId, "pandas2-access",   String.format("%s/access/arc2/%03d/%d/ac-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
+        tryImportArtifact(crawlId, "pandas2-preserve", String.format("%s/access/arc2/%03d/%d/ps-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
+        tryImportArtifact(crawlId, "pandas2-mime",     String.format("%s/access/arc2/%03d/%d/mi-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
+
+        tryImportArtifact(crawlId, "pandas3-access",   String.format("%s/access/arc3/%03d/%d/ac-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
+        tryImportArtifact(crawlId, "pandas3-preserve", String.format("%s/access/arc3/%03d/%d/ps-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
+        tryImportArtifact(crawlId, "pandas3-mime",     String.format("%s/access/arc3/%03d/%d/mi-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
+    }
+
+    private void tryImportArtifact(long crawlId, String type, String pathStr) throws IOException {
+        Path path = Paths.get(pathStr);
+        if (!Files.exists(path)) {
+            return;
+        }
+
+        crawls.addArtifact(crawlId, type, path);
     }
 
     public PandasComparison compareSeedlist(long seedlistId) {
