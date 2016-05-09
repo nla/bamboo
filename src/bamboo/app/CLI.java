@@ -27,6 +27,10 @@ public class CLI {
                 checkPandasIntegration(bamboo);
                 bamboo.pandas.importAllInstances(Long.parseLong(args[1]));
                 break;
+            case "import-pandas":
+                checkPandasIntegration(bamboo);
+                bamboo.pandas.importAllInstances(Long.parseLong(args[1]), args[2]);
+                break;
             case "import-pandas-instance":
                 checkPandasIntegration(bamboo);
                 bamboo.pandas.importInstanceIfNotExists(Long.parseLong(args[2]), Long.parseLong(args[1]));
