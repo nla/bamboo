@@ -4,6 +4,8 @@ import bamboo.core.Config;
 import bamboo.core.Db;
 import bamboo.core.DbPool;
 import bamboo.core.Scrub;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -11,7 +13,6 @@ import java.nio.file.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
@@ -20,7 +21,7 @@ import static java.nio.file.StandardWatchEventKinds.*;
  * they're closed (renamed to *.warc.gz) finish importing them.
  */
 public class WatchImporter {
-    final static Logger log = Logger.getLogger(WatchImporter.class.getName());
+    final static Logger log = LoggerFactory.getLogger(WatchImporter.class);
     final DbPool dbPool;
     final Map<Path,Config.Watch> watches = new HashMap<>();
 
@@ -36,7 +37,7 @@ public class WatchImporter {
 
 
             for (Config.Watch watch : watches.values()) {
-                log.finest("Watching " + watch.dir + " for new WARCs");
+                log.debug("Watching " + watch.dir + " for new WARCs");
                 watch.dir.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
             }
 
@@ -45,7 +46,7 @@ public class WatchImporter {
             for (WatchKey key = watcher.take(); key.isValid(); key = watcher.take()) {
                 Config.Watch watch = watches.get(key.watchable());
                 if (watch == null) {
-                    log.warning("Ignoring unexpected watch key " + key.watchable());
+                    log.debug("Ignoring unexpected watch key " + key.watchable());
                     continue;
                 }
                 for (WatchEvent<?> event : key.pollEvents()) {
@@ -56,7 +57,7 @@ public class WatchImporter {
                         }
 
                         Path path = watch.dir.resolve((Path) event.context());
-                        log.finest("saw event " + path);
+                        log.debug("saw event " + path);
 
                         if (!Files.exists(path)) {
                             /*
@@ -85,7 +86,7 @@ public class WatchImporter {
      * Incrementally index any new records.
      */
     void handleOpenWarc(Config.Watch watch, Path path) throws IOException {
-        log.finest("handleOpenWarc(" + path + ")");
+        log.debug("handleOpenWarc(" + path + ")");
         long warcId, prevSize;
         long currentSize = Files.size(path);
         String filename = path.getFileName().toString().replaceFirst(".open$", "");
@@ -104,7 +105,7 @@ public class WatchImporter {
             }
         }
         if (currentSize > prevSize) {
-            log.finest("Indexing " + warcId + " " + path);
+            log.debug("Indexing " + warcId + " " + path);
             new CdxIndexer(dbPool).indexWarc(warcId);
             try (Db db = dbPool.take()) {
                 db.updateWarcSize(watch.crawlId, warcId, prevSize, currentSize);
@@ -116,7 +117,7 @@ public class WatchImporter {
      * Move the WARC into the crawl's archival directory and finalise the db record.
      */
     private void handleClosedWarc(Config.Watch watch, Path path) throws IOException {
-        log.finest("handleClosedWarc(" + path + ")");
+        log.debug("handleClosedWarc(" + path + ")");
         Db.Warc warc;
         Db.Crawl crawl;
         try (Db db = dbPool.take()) {
