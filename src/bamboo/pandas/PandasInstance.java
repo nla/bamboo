@@ -61,4 +61,9 @@ public class PandasInstance {
         crawl.setName(titleName + " [nla.arc-" + pi + "-" + date + "]");
         return crawl;
     }
+
+    String panBaseUrl() {
+        return "http://pandora.nla.gov.au/pan/" + pi + "/" + date + "/";
+
+    }
 }

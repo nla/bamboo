@@ -10,7 +10,6 @@ import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.logging.PrintStreamLog;
 import org.vibur.dbcp.ViburDBCPDataSource;
-import org.vibur.dbcp.proxy.ConnectionInvocationHandler;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,34 +21,13 @@ public class Pandas implements AutoCloseable {
     private final Crawls crawls;
     private final PandasDAO dao;
     private final Seedlists seedlists;
-    private ViburDBCPDataSource dataSource;
-    final DBI dbi;
+    final PandasDB db;
 
     public Pandas(Config config, Crawls crawls, Seedlists seedlists) {
-        dataSource = new ViburDBCPDataSource();
-        dataSource.setName("PandasDB");
-        dataSource.setJdbcUrl(config.getPandasDbUrl());
-        dataSource.setUsername(config.getPandasDbUser());
-        dataSource.setPassword(config.getPandasDbPassword());
-        dataSource.start();
-
-        dbi = new DBI(dataSource);
-        dbi.setSQLLog(new PrintStreamLog() {
-            @Override
-            public void logReleaseHandle(Handle h) {
-                // suppress
-            }
-
-            @Override
-            public void logObtainHandle(long time, Handle h) {
-                // suppress
-            }
-        });
-        dbi.registerMapper(new PandasDAO.InstanceMapper(config));
-
+        this.db = new PandasDB(config);
+        this.dao = db.dao;
         this.crawls = crawls;
         this.seedlists = seedlists;
-        this.dao = dbi.onDemand(PandasDAO.class);
     }
 
     public PandasInstance getInstance(long instanceId) {
@@ -125,7 +103,7 @@ public class Pandas implements AutoCloseable {
 
     @Override
     public void close() {
-        dataSource.terminate();
+        db.close();
     }
 
     public ResultIterator<PandasTitle> iterateTitles() {

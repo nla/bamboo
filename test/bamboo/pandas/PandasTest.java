@@ -51,7 +51,7 @@ public class PandasTest {
         crawls = new Crawls(fixtures.dao.crawls(), serieses, warcs);
         pandas = new Pandas(config, crawls, null);
 
-        try (Handle db = pandas.dbi.open()) {
+        try (Handle db = pandas.db.dbi.open()) {
             /**
              * Create just the tables we use from PANDAS.  We don't bother with constraints as we never write to it.
              */

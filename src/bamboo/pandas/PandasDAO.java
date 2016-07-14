@@ -7,6 +7,7 @@ import org.skife.jdbi.v2.sqlobject.Bind;
 import org.skife.jdbi.v2.sqlobject.SqlQuery;
 import org.skife.jdbi.v2.sqlobject.customizers.FetchSize;
 import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
+import org.skife.jdbi.v2.sqlobject.helpers.MapResultAsBean;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import java.io.Closeable;
@@ -31,6 +32,10 @@ interface PandasDAO extends Closeable {
     @SqlQuery("select INSTANCE_ID from (select INSTANCE_ID from INSTANCE where CURRENT_STATE_ID = 1 and INSTANCE_ID > :startingFrom and TYPE_NAME <> 'Legacy pandora cgi' order by INSTANCE_ID asc) where rownum <= :limit")
     List<Long> listArchivedInstanceIds(@Bind("startingFrom") long startingFrom, @Bind("limit") int limit);
 
+    @SqlQuery("select TITLE_ID titleId, PERIOD_MULTIPLIER periodMultiplier, PERIOD_TYPE_ID periodTypeId from PERIOD_RESTR")
+    @MapResultAsBean
+    List<PeriodRestr> listPeriodRestrictions();
+
     class TitleMapper implements ResultSetMapper<PandasTitle> {
         @Override
         public PandasTitle map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
@@ -54,5 +59,10 @@ interface PandasDAO extends Closeable {
     @SqlQuery("SELECT instance_id, pi, TO_CHAR(instance_date, 'YYYYMMDD-HH24MI') dt, name FROM instance, title WHERE instance.title_id = title.title_id AND instance_id = :instanceId")
     PandasInstance findInstance(@Bind("instanceId") long instanceId);
 
+    @SqlQuery("SELECT instance_id, pi, TO_CHAR(instance_date, 'YYYYMMDD-HH24MI') dt, name FROM instance, title WHERE instance.title_id = :titleId AND title.title_id = :titleId")
+    List<PandasInstance> listInstancesForTitle(@Bind("titleId") long titleId);
+
     void close();
+
+
 }
