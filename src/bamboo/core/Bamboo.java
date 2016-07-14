@@ -27,7 +27,6 @@ public class Bamboo implements AutoCloseable {
         this.dbPool = dbPool;
         this.pandasDbPool = null;
         this.taskmaster = new Taskmaster(config, dbPool);
-        //blobStore = LocalBlobStore.open(config.getDossHome());
         blobStore = null; // coming soon
     }
 
@@ -41,7 +40,6 @@ public class Bamboo implements AutoCloseable {
             pandasDbPool = null;
         }
         this.taskmaster = new Taskmaster(config, dbPool);
-        //blobStore = LocalBlobStore.open(config.getDossHome());
         blobStore = null; // coming soon
     }
 
@@ -54,7 +52,6 @@ public class Bamboo implements AutoCloseable {
     }
 
     public long importHeritrixCrawl(String jobName, Long crawlSeriesId) {
-        HeritrixJob job = HeritrixJob.byName(config.getHeritrixJobs(), jobName);
         long crawlId;
         try (Db db = dbPool.take()) {
             crawlId = db.createCrawl(jobName, crawlSeriesId, Db.IMPORTING);
@@ -100,45 +97,47 @@ public class Bamboo implements AutoCloseable {
         }
     }
 
-    public static void main(String args[]) throws Exception {
+    public static void main(String[] args) throws Exception {
         if (args.length == 0)
             usage();
-        if (args[0].equals("server")) {
+        if ("server".equals(args[0])) {
             Main.main(Arrays.copyOfRange(args, 1, args.length));
             return;
         }
-        Bamboo bamboo = new Bamboo();
-        switch (args[0]) {
-            case "import":
-                bamboo.importHeritrixCrawl(args[1], Long.parseLong(args[2]));
-                break;
-            case "insert-warc":
-                for (int i = 2; i < args.length; i++) {
-                    bamboo.insertWarc(Long.parseLong(args[1]), args[i]);
-                }
-                break;
-            case "cdx-indexer":
-                bamboo.runCdxIndexer();
-                break;
-            case "solr-indexer":
-                bamboo.runSolrIndexer();
-                break;
-            case "recalc-crawl-times":
-                bamboo.recalcCrawlTimes();
-                break;
-            case "refresh-warc-stats":
-                bamboo.refreshWarcStats();
-                break;
-            case "refresh-warc-stats-fs":
-                bamboo.refreshWarcStatsFs();
-                break;
-            case "scrub":
-                Scrub.scrub(bamboo);
-                break;
-            case "watch-importer":
-                new WatchImporter(bamboo.dbPool, bamboo.config.getWatches()).run();
-            default:
-                usage();
+        try (Bamboo bamboo = new Bamboo()) {
+            switch (args[0]) {
+                case "import":
+                    bamboo.importHeritrixCrawl(args[1], Long.parseLong(args[2]));
+                    break;
+                case "insert-warc":
+                    for (int i = 2; i < args.length; i++) {
+                        bamboo.insertWarc(Long.parseLong(args[1]), args[i]);
+                    }
+                    break;
+                case "cdx-indexer":
+                    bamboo.runCdxIndexer();
+                    break;
+                case "solr-indexer":
+                    bamboo.runSolrIndexer();
+                    break;
+                case "recalc-crawl-times":
+                    bamboo.recalcCrawlTimes();
+                    break;
+                case "refresh-warc-stats":
+                    bamboo.refreshWarcStats();
+                    break;
+                case "refresh-warc-stats-fs":
+                    bamboo.refreshWarcStatsFs();
+                    break;
+                case "scrub":
+                    Scrub.scrub(bamboo);
+                    break;
+                case "watch-importer":
+                    new WatchImporter(bamboo.dbPool, bamboo.config.getWatches()).run();
+                    break;
+                default:
+                    usage();
+            }
         }
     }
 
