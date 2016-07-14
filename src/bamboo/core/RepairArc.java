@@ -350,7 +350,7 @@ public class RepairArc {
         Problem problem;
 
         try (FileInputStream fis = new FileInputStream(file)) {
-            fis.skip(lastOkRecord);
+            skipExactly(fis, lastOkRecord);
             GZIPMembersInputStream in = new GZIPMembersInputStream(fis);
             skipToEndOfRecord(in);
 
@@ -362,7 +362,7 @@ public class RepairArc {
             byte peek[] = new byte[16384];
             int peekLen = 0;
             while (peekLen < peek.length && !in.getAtMemberEnd() && peekLen < recordLength) {
-                peekLen += in.read(peek, peekLen, (int)Math.min(peek.length - peekLen, recordLength - peekLen));
+                peekLen += in.read(peek, peekLen, (int)Math.min(peek.length - (long)peekLen, recordLength - peekLen));
             }
 
             // skip the remaining part of the record
@@ -404,6 +404,13 @@ public class RepairArc {
 
         }
 
+    }
+
+    private static void skipExactly(FileInputStream fis, long nBytes) throws IOException {
+        long n = nBytes;
+        while (n > 0) {
+            n -= fis.skip(nBytes);
+        }
     }
 
 }

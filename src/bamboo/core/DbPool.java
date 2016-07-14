@@ -57,15 +57,6 @@ public class DbPool implements Closeable {
         flyway.migrate();
     }
 
-    private void registerMysqlCompatibilityFunctionsWithH2() {
-        try (Connection conn = ds.getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("CREATE ALIAS IF NOT EXISTS SUBSTRING_INDEX DETERMINISTIC FOR \"" + DbH2Compat.class.getName() + ".substringIndex\"");
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     public Db take() {
         return dbi.open(Db.class);
     }
