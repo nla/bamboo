@@ -34,13 +34,23 @@ public class Pandas implements AutoCloseable {
         return NotFoundException.check(dao.findInstance(instanceId), "pandas instance", instanceId);
     }
 
+
     public void importAllInstances(long seriesId) throws IOException {
+        importAllInstances(seriesId, null);
+    }
+
+    public void importAllInstances(long seriesId, String type) throws IOException {
         int batchSize = 100;
         long prev = -1;
         List<Long> instanceIds;
 
         do {
-            instanceIds = dao.listArchivedInstanceIds(prev, batchSize);
+            if (type == null) {
+                instanceIds = dao.listArchivedInstanceIds(prev, batchSize);
+            } else {
+                instanceIds = dao.listArchivedInstanceIds(type, prev, batchSize);
+            }
+
             for (long id : instanceIds) {
                 Long crawlId = importInstanceIfNotExists(id, seriesId);
                 if (crawlId != null) {
