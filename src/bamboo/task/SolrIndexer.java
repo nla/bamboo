@@ -277,7 +277,7 @@ public class SolrIndexer implements Runnable {
         } catch (InvalidPdfException | NoClassDefFoundError | RuntimeException | EOFException e) {
             return null; // invalid or encrypted pdf
         } catch (Error e) {
-            if (e.getMessage().startsWith("Unable to process ToUnicode map")) {
+            if (e.getMessage() == null || e.getMessage().startsWith("Unable to process ToUnicode map")) {
                 // pdf reader abuses java.lang.Error sometimes to indicate a parse error
                 return null;
             } else {
