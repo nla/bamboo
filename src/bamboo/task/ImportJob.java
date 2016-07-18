@@ -1,10 +1,7 @@
 package bamboo.task;
 
-import bamboo.core.Config;
-import bamboo.core.Db;
-import bamboo.core.DbPool;
-import bamboo.core.Scrub;
-import bamboo.io.HeritrixJob;
+import bamboo.core.*;
+import bamboo.crawl.*;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -19,108 +16,42 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class ImportJob {
-	final Config config;
-	final DbPool dbPool;
+	private Config config;
+	final Crawls crawls;
 	final long crawlId;
 
 	private HeritrixJob heritrixJob;
 	private List<Path> launches;
 
-	public ImportJob(Config config, DbPool dbPool, long crawlId) {
+	public ImportJob(Config config, Crawls crawls, long crawlId) {
 		this.config = config;
-		this.dbPool = dbPool;
+		this.crawls = crawls;
 		this.crawlId = crawlId;
 	}
 	
 	public void run()  {
-		Db.Crawl crawl;
-		Db.CrawlSeries series;
-
-		try (Db db = dbPool.take()) {
-			crawl = db.findCrawl(crawlId);
-			if (crawl == null)
-				throw new RuntimeException("Crawl " + crawlId + " not found");
-			if (crawl.state != Db.IMPORTING) {
-				return; // sanity check
-			}
-			if (crawl.crawlSeriesId == null)
-				throw new RuntimeException("TODO: implement imports without a series");
-
-			series = db.findCrawlSeriesById(crawl.crawlSeriesId);
-			if (series == null)
-				throw new RuntimeException("Couldn't find crawl series " + crawl.crawlSeriesId);
+		Crawl crawl = crawls.get(crawlId);
+		if (crawl.getState() != Crawl.IMPORTING) {
+			return; // sanity check
 		}
+		if (crawl.getCrawlSeriesId() == null)
+			throw new RuntimeException("TODO: implement imports without a series");
 
 		try {
-			heritrixJob = HeritrixJob.byName(config.getHeritrixJobs(), crawl.name);
+			heritrixJob = HeritrixJob.byName(config.getHeritrixJobs(), crawl.getName());
 			heritrixJob.checkSuitableForArchiving();
 
-			Path dest;
+			Path dest = crawls.allocateCrawlPath(crawlId);
 
-			if (crawl.path != null) {
-				dest = crawl.path;
-			} else {
-				dest = allocateCrawlPath(crawl, series);
-			}
+			crawls.addWarcs(crawlId, heritrixJob.warcs().collect(Collectors.toList()));
 
-			Path warcsDir = dest.resolve("warcs");
-
-			if (!Files.exists(warcsDir)) {
-				Files.createDirectory(warcsDir);
-			}
-
-			copyWarcs(heritrixJob.warcs().collect(Collectors.toList()), warcsDir);
 			constructCrawlBundle(heritrixJob.dir(), dest);
 
-			try (Db db = dbPool.take()) {
-				db.updateCrawlState(crawl.id, Db.ARCHIVED);
-			}
+			crawls.updateState(crawlId, Crawl.ARCHIVED);
+
 		} catch (IOException e) {
-			try (Db db = dbPool.take()) {
-				db.updateCrawlState(crawl.id, Db.IMPORT_FAILED);
-			}
+			crawls.updateState(crawlId, Crawl.IMPORT_FAILED);
 			throw new UncheckedIOException(e);
-		}
-	}
-
-	private Path allocateCrawlPath(Db.Crawl crawl, Db.CrawlSeries series) throws IOException {
-		if (crawl.path != null)
-			return crawl.path;
-		Path path;
-		for (int i = 1;; i++) {
-			path = series.path.resolve(String.format("%03d", i));
-			try {
-				Files.createDirectory(path);
-				break;
-			} catch (FileAlreadyExistsException e) {
-				// try again
-			}
-		}
-		try (Db db = dbPool.take()) {
-			if (db.updateCrawlPath(crawl.id, path.toString()) == 0) {
-				throw new RuntimeException("No such crawl: " + crawl.id);
-			}
-		}
-		return path;
-	}
-
-	private void copyWarcs(List<Path> warcs, Path destRoot) throws IOException {
-		int i = 0;
-		for (Path src : warcs) {
-			Path destDir = destRoot.resolve(String.format("%03d", i++ / 1000));
-			Path dest = destDir.resolve(src.getFileName());
-			long size = Files.size(src);
-			if (Files.exists(dest) && Files.size(dest) == size) {
-				continue;
-			}
-			if (!Files.exists(destDir)) {
-				Files.createDirectory(destDir);
-			}
-			String digest = Scrub.calculateDigest("SHA-256", src);
-			Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
-			try (Db db = dbPool.take()) {
-				db.insertWarc(crawlId, Db.Warc.IMPORTED, dest.toString(), dest.getFileName().toString(), size, digest);
-			}
 		}
 	}
 

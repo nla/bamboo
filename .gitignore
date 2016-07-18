@@ -1,3 +1,4 @@
 /target
 /.idea
 /bamboo.iml
+/dependency-reduced-pom.xml

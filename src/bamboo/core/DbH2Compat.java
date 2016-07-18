@@ -2,6 +2,7 @@ package bamboo.core;
 
 import com.zaxxer.hikari.HikariDataSource;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -17,7 +18,7 @@ public class DbH2Compat {
     /**
      * Create aliaes in a H2 database for the compatibility functions.
      */
-    public static void register(HikariDataSource dataSource) {
+    public static void register(DataSource dataSource) {
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE ALIAS IF NOT EXISTS SUBSTRING_INDEX DETERMINISTIC FOR \"" + DbH2Compat.class.getName() + ".substringIndex\"");

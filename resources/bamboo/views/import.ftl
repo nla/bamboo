@@ -1,7 +1,7 @@
 [@page title="Import Crawl"]
 
 <ol class="breadcrumb">
-    <li><a href="crawls">Crawls</a></li>
+    <li><a href="../crawl/views/crawls">Crawls</a></li>
     <li class="active">Import</li>
 </ol>
 
@@ -38,7 +38,7 @@
             <div class="form-group">
                 <div class="col-lg-10 col-lg-offset-2">
                     <button type="submit" class="btn btn-primary">Import Crawl</button>
-                    <a href="crawls" class="btn btn-default">Cancel</a>
+                    <a href="../crawl/views/crawls" class="btn btn-default">Cancel</a>
                 </div>
             </div>
 

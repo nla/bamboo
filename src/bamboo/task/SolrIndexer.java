@@ -1,7 +1,7 @@
 package bamboo.task;
 
-import bamboo.core.Db;
-import bamboo.core.DbPool;
+import bamboo.core.*;
+import bamboo.crawl.*;
 import bamboo.util.SurtFilter;
 import com.google.common.net.InternetDomainName;
 import com.lowagie.text.exceptions.InvalidPdfException;
@@ -52,34 +52,34 @@ public class SolrIndexer implements Runnable {
     static final int MAX_DOC_SIZE = 0x100000;
     static final int COMMIT_WITHIN_MS = 300000;
 
-    private final DbPool dbPool;
+    private final Crawls crawls;
+    private final Warcs warcs;
+    private final Collections collections;
     private SolrServer solr;
 
-    public SolrIndexer(DbPool dbPool) {
-        this.dbPool = dbPool;
+    public SolrIndexer(Collections collections, Crawls crawls, Warcs warcs) {
+        this.crawls = crawls;
+        this.collections = collections;
+        this.warcs = warcs;
     }
 
     public void run() {
         while (true) {
-            List<Db.Warc> warcs;
+            List<Warc> warcList = warcs.findByState(Warc.CDX_INDEXED, BATCH_SIZE);
 
-            try (Db db = dbPool.take()) {
-                warcs = db.findWarcsInState(Db.Warc.CDX_INDEXED, BATCH_SIZE);
-            }
-
-            if (warcs.isEmpty()) {
+            if (warcList.isEmpty()) {
                 break;
             }
 
-            indexWarcs(warcs);
+            indexWarcs(warcList);
         }
     }
 
-    public void indexWarcs(List<Db.Warc> warcs) {
+    public void indexWarcs(List<Warc> warcs) {
         int threads = Runtime.getRuntime().availableProcessors();
         ExecutorService threadPool = Executors.newFixedThreadPool(threads);
         try {
-            for (Db.Warc warc : warcs) {
+            for (Warc warc : warcs) {
                 threadPool.submit(() -> indexWarc(warc));
             }
             threadPool.shutdown();
@@ -94,11 +94,11 @@ public class SolrIndexer implements Runnable {
     static class Solr {
         private final SurtFilter filter;
         private final SolrServer server;
-        private final Db.Collection collection;
+        private final Collection collection;
 
-        public Solr(Db.CollectionWithFilters collection) {
+        public Solr(CollectionWithFilters collection) {
             this.collection = collection;
-            server = new HttpSolrServer(collection.solrUrl);
+            server = new HttpSolrServer(collection.getSolrUrl());
             filter = new SurtFilter(collection.urlFilters);
         }
 
@@ -118,26 +118,24 @@ public class SolrIndexer implements Runnable {
         return false;
     }
 
-    void indexWarc(Db.Warc warc) {
-        System.out.println(new Date() +  " Solr indexing " + warc.id + " " + warc.path);
+    void indexWarc(Warc warc) {
+        System.out.println(new Date() +  " Solr indexing " + warc.getId() + " " + warc.getPath());
 
         List<Solr> solrs = new ArrayList<>();
 
-        try (Db db = dbPool.take()) {
-            Db.Crawl crawl = db.findCrawl(warc.crawlId);
-            List<Db.CollectionWithFilters> collections = db.listCollectionsForCrawlSeries(crawl.crawlSeriesId);
-            for (Db.CollectionWithFilters collection : collections) {
-                if (collection.solrUrl != null && !collection.solrUrl.isEmpty()) {
-                    solrs.add(new Solr(collection));
-                }
+        Crawl crawl = crawls.get(warc.getCrawlId());
+        List<CollectionWithFilters> collectionList = collections.listWhereSeriesId(crawl.getCrawlSeriesId());
+        for (CollectionWithFilters collection : collectionList) {
+            if (collection.getSolrUrl() != null && !collection.getSolrUrl().isEmpty()) {
+                solrs.add(new Solr(collection));
             }
         }
 
         List<SolrInputDocument> batch = new ArrayList<>();
-        try (ArchiveReader reader = ArchiveReaderFactory.get(warc.path.toFile())) {
+        try (ArchiveReader reader = ArchiveReaderFactory.get(warc.getPath().toFile())) {
             for (ArchiveRecord record : reader) {
                 if (record.getHeader().getUrl() == null) continue;
-                String surt = SURT.toSURT(Warcs.getCleanUrl(record.getHeader()));
+                String surt = SURT.toSURT(WarcUtils.getCleanUrl(record.getHeader()));
                 if (surt == null || !anyFilterAccepts(solrs, surt)) {
                     continue; // skip indexing records we're not going to accept anyway
                 }
@@ -154,10 +152,9 @@ public class SolrIndexer implements Runnable {
                     }
                 }
             }
-            try (Db db = dbPool.take()) {
-                db.updateWarcState(warc.id, Db.Warc.SOLR_INDEXED);
-            }
-            System.out.println(new Date() + " Finished Solr indexing " + warc.id + " " + warc.path);
+
+            warcs.updateState(warc.getId(), Warc.SOLR_INDEXED);
+            System.out.println(new Date() + " Finished Solr indexing " + warc.getId() + " " + warc.getPath());
         } catch (IOException e) {
             e.printStackTrace();
             throw new UncheckedIOException(e);
@@ -174,9 +171,9 @@ public class SolrIndexer implements Runnable {
 
     public static SolrInputDocument makeDoc(ArchiveRecord record) throws IOException {
         ArchiveRecordHeader warcHeader = record.getHeader();
-        if (!Warcs.isResponseRecord(warcHeader)) return null;
+        if (!WarcUtils.isResponseRecord(warcHeader)) return null;
 
-        String url = Warcs.getCleanUrl(warcHeader);
+        String url = WarcUtils.getCleanUrl(warcHeader);
         String site = topPrivateDomain(url);
         HttpHeader httpHeader = HttpHeader.parse(record, url);
         if (httpHeader == null || httpHeader.status < 200 || httpHeader.status > 299) {
@@ -184,7 +181,7 @@ public class SolrIndexer implements Runnable {
         }
 
         String contentType = httpHeader.getCleanContentType();
-        String arcDate = Warcs.getArcDate(warcHeader);
+        String arcDate = WarcUtils.getArcDate(warcHeader);
 
         if (contentType == null) {
             return null;
@@ -196,7 +193,7 @@ public class SolrIndexer implements Runnable {
         doc.addField("url", url);
         doc.addField("length", warcHeader.getContentLength());
         doc.addField("code", httpHeader.status);
-        Instant instant = LocalDateTime.parse(arcDate, Warcs.arcDateFormat).atOffset(ZoneOffset.UTC).toInstant();
+        Instant instant = LocalDateTime.parse(arcDate, WarcUtils.arcDateFormat).atOffset(ZoneOffset.UTC).toInstant();
         doc.addField("date", Date.from(instant));
         doc.addField("site", site);
         doc.addField("type", contentType);

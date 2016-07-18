@@ -8,6 +8,8 @@ import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 
 import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
@@ -23,7 +25,7 @@ public class Cdx {
     }
 
     public static void writeCdx(Path warc, String filename, Writer out) throws IOException {
-        records(Warcs.open(warc), filename).forEach(record -> {
+        records(WarcUtils.open(warc), filename).forEach(record -> {
             try {
                 out.write(record.toCdxLine() + "\n");
             } catch (IOException e) {
@@ -101,18 +103,34 @@ public class Cdx {
         List<Alias> out = new ArrayList<>();
         for (Alias alias : primaryAliases) {
             String secondaryUrl = "http://pandora.nla.gov.au/pan/" + piAndDate + "/" + Urls.removeScheme(alias.target);
-            if (!primaryUrls.contains(secondaryUrl)) {
+            if (!primaryUrls.contains(secondaryUrl) && isUrlSane(secondaryUrl)) {
                 out.add(new Alias(secondaryUrl, alias.target));
             }
         }
         return out;
     }
 
+    public static boolean isUrlSane(String url) {
+        try {
+            URI targetUri = new URI(url);
+            String host = targetUri.getHost();
+            if (host == null || !host.contains(".")) {
+                return false;
+            }
+        } catch (URISyntaxException e) {
+            return false;
+        }
+        return true;
+    }
+
     static List<Alias> primaryAliases(BufferedReader reader, String piAndDate) throws IOException {
         List<Alias> aliases = new ArrayList<>();
         String line;
         while ((line = reader.readLine()) != null) {
-            aliases.add(parseUrlMapLine(line, piAndDate));
+            Alias alias = parseUrlMapLine(line, piAndDate);
+            if (alias.isSane()) {
+                aliases.add(alias);
+            }
         }
         return aliases;
     }
@@ -156,6 +174,10 @@ public class Cdx {
         public String toCdxLine() {
             return "@alias " + alias + " " + target;
         }
+
+        public boolean isSane() {
+            return isUrlSane(alias) && isUrlSane(target);
+        }
     }
 
     public static class Capture implements CdxRecord {
@@ -188,7 +210,7 @@ public class Cdx {
 
             Capture capture = new Capture();
 
-            if (Warcs.isResponseRecord(header)) {
+            if (WarcUtils.isResponseRecord(header)) {
                 HttpHeader http = HttpHeader.parse(record, capture.url);
                 if (http == null) {
                     return null;
@@ -196,7 +218,7 @@ public class Cdx {
                 capture.contentType = http.getCleanContentType();
                 capture.status = http.status;
                 capture.location = http.location;
-            } else if (Warcs.isResourceRecord(header)) {
+            } else if (WarcUtils.isResourceRecord(header)) {
                 capture.contentType = header.getMimetype();
                 capture.status = 200;
                 capture.location = null;
@@ -204,12 +226,12 @@ public class Cdx {
                 return null;
             }
 
-            capture.url = Warcs.getCleanUrl(header);
-            capture.date = Warcs.getArcDate(header);
+            capture.url = WarcUtils.getCleanUrl(header);
+            capture.date = WarcUtils.getArcDate(header);
             capture.contentLength = header.getContentLength();
             capture.offset = header.getOffset();
             capture.filename = filename;
-            capture.digest = Warcs.getOrCalcDigest(record);
+            capture.digest = WarcUtils.getOrCalcDigest(record);
             return capture;
         }
     }

@@ -1,39 +1,37 @@
 package bamboo.core;
 
 import com.googlecode.flyway.core.Flyway;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.logging.PrintStreamLog;
+import org.skife.jdbi.v2.tweak.Argument;
+import org.skife.jdbi.v2.tweak.ArgumentFactory;
+import org.vibur.dbcp.ViburDBCPDataSource;
 
 import java.io.Closeable;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.nio.file.Path;
 
 public class DbPool implements Closeable {
-    final HikariDataSource ds;
-    final DBI dbi;
+    final ViburDBCPDataSource ds;
+    public final DBI dbi;
+    private final DAO dao;
 
     public DbPool(Config config) {
-        HikariConfig hikariConfig = new HikariConfig();
-        hikariConfig.setPoolName("BambooDbPool");
-        hikariConfig.setJdbcUrl(config.getDbUrl());
-        hikariConfig.setUsername(config.getDbUser());
-        hikariConfig.setPassword(config.getDbPassword());
-        ds = new HikariDataSource(hikariConfig);
+        long start = System.currentTimeMillis();
+
+        ds = new ViburDBCPDataSource();
+        ds.setName("BambooDBPool");
+        ds.setJdbcUrl(config.getDbUrl());
+        ds.setUsername(config.getDbUser());
+        ds.setPassword(config.getDbPassword());
+        ds.start();
+
+        System.out.println("Initialized connection pool in " + (System.currentTimeMillis() - start) + "ms");
+
         dbi = new DBI(ds);
-        dbi.registerMapper(new Db.CollectionMapper());
-        dbi.registerMapper(new Db.CollectionWithFiltersMapper());
-        dbi.registerMapper(new Db.CollectionWarcMapper());
-        dbi.registerMapper(new Db.CrawlMapper());
-        dbi.registerMapper(new Db.CrawlWithSeriesNameMapper());
-        dbi.registerMapper(new Db.CrawlSeriesMapper());
-        dbi.registerMapper(new Db.CrawlSeriesWithCountMapper());
-        dbi.registerMapper(new Db.SeedMapper());
-        dbi.registerMapper(new Db.SeedlistMapper());
-        dbi.registerMapper(new Db.WarcMapper());
+        dbi.registerArgumentFactory(new PathArgumentFactory());
+
         dbi.setSQLLog(new PrintStreamLog() {
             @Override
             public void logReleaseHandle(Handle h) {
@@ -45,6 +43,8 @@ public class DbPool implements Closeable {
                 // suppress
             }
         });
+
+        dao = dbi.onDemand(DAO.class);
     }
 
     public void migrate() {
@@ -57,12 +57,30 @@ public class DbPool implements Closeable {
         flyway.migrate();
     }
 
-    public Db take() {
-        return dbi.open(Db.class);
+
+    public DAO dao() {
+        return dao;
+    }
+
+    public DAO take() {
+        return dbi.open(DAO.class);
     }
 
     @Override
     public void close() {
-        ds.close();
+        ds.terminate();
     }
+
+    public static class PathArgumentFactory implements ArgumentFactory<Path> {
+        @Override
+        public boolean accepts(Class<?> aClass, Object o, StatementContext statementContext) {
+            return o instanceof Path;
+        }
+
+        @Override
+        public Argument build(Class<?> aClass, Path path, StatementContext statementContext) {
+            return (i, stmt, ctx) -> stmt.setString(i, path.toString());
+        }
+    }
+
 }
