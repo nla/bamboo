@@ -18,4 +18,8 @@ public class PandasRestrictions {
             System.out.println(restr.getPeriodMultiplier() + " * " + restr.getPeriodTypeId() + " " + urls);
         }
     }
+
+    private Set<String> urlsForTitle(long titleId) {
+        return null;
+    }
 }
