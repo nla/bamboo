@@ -19,7 +19,12 @@ public class PandasRestrictionsTest {
 
     @BeforeClass
     public static void setUp() throws IOException {
-        db = new PandasDB(new TestConfig());
+        db = new PandasDB(new TestConfig() {
+            @Override
+            public String getPandasDbUrl() {
+                return super.getPandasDbUrl() + "-restrictions";
+            }
+        });
         pandasRestrictions = new PandasRestrictions(db.dao);
 
         try (Handle h = db.dbi.open()) {
