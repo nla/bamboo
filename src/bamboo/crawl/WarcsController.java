@@ -184,12 +184,15 @@ public class WarcsController {
         }).withHeader("Content-Type", "text/plain");
     }
 
+    private static final Gson gson = new GsonBuilder()
+            .setPrettyPrinting()
+            .setDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
+            .create();
+
+    private static final TextExtractor extractor = new TextExtractor();
+
     private Response showText(Request request) {
         Warc warc = findWarc(request);
-
-        TextExtractor extractor = new TextExtractor();
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
         return response(200, (Streamable) (OutputStream outStream) -> {
             try (ArchiveReader reader = WarcUtils.open(warc.getPath())) {
                 JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
