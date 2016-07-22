@@ -53,7 +53,7 @@ public class HttpHeader {
         }
     }
 
-    String getCleanContentType() {
+    static String cleanContentType(String contentType) {
         if (contentType == null) return null;
         contentType = stripAfterChar(contentType, ';');
         contentType = stripAfterChar(contentType, ' ');

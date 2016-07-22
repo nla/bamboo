@@ -215,7 +215,7 @@ public class Cdx {
                 if (http == null) {
                     return null;
                 }
-                capture.contentType = http.getCleanContentType();
+                capture.contentType = HttpHeader.cleanContentType(http.contentType);
                 capture.status = http.status;
                 capture.location = http.location;
             } else if (WarcUtils.isResourceRecord(header)) {

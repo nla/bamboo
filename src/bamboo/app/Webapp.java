@@ -5,6 +5,7 @@ import bamboo.crawl.CollectionsController;
 import bamboo.crawl.CrawlsController;
 import bamboo.crawl.SeriesController;
 import bamboo.crawl.WarcsController;
+import bamboo.directory.DirectoryController;
 import bamboo.task.HeritrixJob;
 import bamboo.seedlist.SeedlistsController;
 import bamboo.task.JobsController;
@@ -35,6 +36,7 @@ public class Webapp implements Handler, AutoCloseable {
                 POST("/import", this::performImport),
                 new CollectionsController(bamboo).routes,
                 new CrawlsController(bamboo).routes,
+                new DirectoryController(bamboo).routes,
                 new JobsController(bamboo).routes,
                 new SeedlistsController(bamboo).routes,
                 new SeriesController(bamboo).routes,

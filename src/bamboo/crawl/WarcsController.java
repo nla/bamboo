@@ -1,12 +1,17 @@
 package bamboo.crawl;
 
 import bamboo.app.Bamboo;
-import bamboo.task.Cdx;
+import bamboo.task.*;
 import com.google.common.base.Charsets;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonWriter;
 import droute.Handler;
 import droute.Request;
 import droute.Response;
 import droute.Streamable;
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveRecord;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -31,9 +36,12 @@ public class WarcsController {
     public final Handler routes = routes(
             GET("/warcs/:id", this::serve, "id", "[0-9]+"),
             GET("/warcs/:id/cdx", this::showCdx, "id", "[0-9]+"),
+            GET("/warcs/:id/text", this::showText, "id", "[0-9]+"),
             GET("/warcs/:id/details", this::details, "id", "[0-9]+"),
             GET("/warcs/:filename", this::serve, "filename", "[^/]+"),
-            GET("/warcs/:filename/cdx", this::showCdx, "filename", "[^/]+")
+            GET("/warcs/:filename/cdx", this::showCdx, "filename", "[^/]+"),
+            GET("/warcs/:filename/cdx", this::showText, "filename", "[^/]+")
+
             );
 
     public WarcsController(Bamboo wa) {
@@ -174,6 +182,31 @@ public class WarcsController {
             Cdx.writeCdx(path, warc.getFilename(), out);
             out.flush();
         }).withHeader("Content-Type", "text/plain");
+    }
+
+    private Response showText(Request request) {
+        Warc warc = findWarc(request);
+
+        TextExtractor extractor = new TextExtractor();
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+        return response(200, (Streamable) (OutputStream outStream) -> {
+            try (ArchiveReader reader = WarcUtils.open(warc.getPath())) {
+                JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
+                writer.beginArray();
+                for (ArchiveRecord record : reader) {
+                    if (record.getHeader().getUrl() == null) continue;
+                    try {
+                        Document doc = extractor.extract(record);
+                        gson.toJson(doc, Document.class, writer);
+                    } catch (TextExtractionException e) {
+                        continue; // skip it
+                    }
+                }
+                writer.endArray();
+                writer.flush();
+            }
+        }).withHeader("Content-Type", "application/json");
     }
 
     Response details(Request request) {

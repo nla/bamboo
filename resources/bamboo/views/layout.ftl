@@ -27,6 +27,7 @@
                 <li [#if request.path().startsWith("/series")]class="active"[/#if]><a href="series" id="navCrawlSeries">Series</a>
                 <li [#if request.path().startsWith("/collections")]class="active"[/#if]><a href="collections">Collections</a>
                 <li [#if request.path().startsWith("/seedlists")]class="active"[/#if]><a href="seedlists">Seedlists</a>
+                <li [#if request.path().startsWith("/directory")]class="active"[/#if]><a href="directory">Directory</a>
             </ul>
 
             <ul class="nav navbar-nav navbar-right nav-tabs">

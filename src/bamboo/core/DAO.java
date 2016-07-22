@@ -1,6 +1,7 @@
 package bamboo.core;
 
 import bamboo.crawl.*;
+import bamboo.directory.DirectoryDAO;
 import bamboo.seedlist.SeedlistsDAO;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.*;
@@ -19,6 +20,9 @@ public interface DAO {
 	@CreateSqlObject CrawlsDAO crawls();
 	@CreateSqlObject SeriesDAO serieses();
 	@CreateSqlObject WarcsDAO warcs();
+
+	// directory package
+	@CreateSqlObject DirectoryDAO directory();
 
 	// seedlists package
 	@CreateSqlObject SeedlistsDAO seedlists();

@@ -3,8 +3,12 @@ package bamboo.util;
 public class Parsing {
     private Parsing() {}
 
+
     public static Long parseLongOrDefault(String s, long defaultValue) {
-        if (s == null) {
+        return parseLongOrDefault(s, Long.valueOf(defaultValue));
+    }
+    public static Long parseLongOrDefault(String s, Long defaultValue) {
+        if (s == null || s.isEmpty()) {
             return defaultValue;
         }
         try {
