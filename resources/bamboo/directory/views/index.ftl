@@ -4,7 +4,7 @@
 
 <ul>
   [#list categories as category]
-    <li><a href="directory/category/${category.id?c}/edit">${category.name}</a></li>
+    <li><a href="directory/category/${category.id?c}">${category.name}</a></li>
   [/#list]
 </ul>
 

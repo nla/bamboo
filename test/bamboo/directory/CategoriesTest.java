@@ -2,7 +2,7 @@ package bamboo.directory;
 
 import org.junit.Test;
 
-public class DirectoryTest {
+public class CategoriesTest {
 
     @Test
     public void test() {

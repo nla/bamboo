@@ -1,16 +1,16 @@
+[#if parent??]
+<div class="form-group">
+    <label for="parent_id" class="col-lg-2 control-label">Parent Category</label>
+    <div class="col-lg-10">
+    ${parent.name}
+    </div>
+</div>
+[/#if]
+
 <div class="form-group">
     <label for="name" class="col-lg-2 control-label">Name</label>
     <div class="col-lg-10">
         <input class="form-control" id="name" value="${(category.name)!}" name="name" required>
-    </div>
-</div>
-
-<div class="form-group">
-    <label for="parent_id" class="col-lg-2 control-label">Parent</label>
-    <div class="col-lg-10">
-        <select class="form-control" name="parentId">
-            <option selected="selected"></option>
-        </select>
     </div>
 </div>
 

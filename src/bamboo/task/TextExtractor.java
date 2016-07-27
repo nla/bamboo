@@ -77,6 +77,10 @@ public class TextExtractor {
             doc.setContentSha1(digest);
         }
 
+        if (doc.getContentType() == null) {
+            throw new TextExtractionException("no content type");
+        }
+
         switch (doc.getContentType()) {
             case "text/html":
                 extractHtmlContent(record, doc);
