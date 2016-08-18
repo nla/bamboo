@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 if [ pom.xml -nt target/classpath ]; then
     mvn dependency:build-classpath -q -Dmdep.outputFile=target/classpath
 fi
