@@ -1,3 +1,18 @@
+/**
+ * Copyright 2016 National Library of Australia
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package bamboo.trove.common;
 
 import java.io.BufferedInputStream;
@@ -5,8 +20,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -32,7 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Required;
 
-public abstract class BaseWarcDomainManager extends BaseDomainManager {
+public abstract class BaseWarcDomainManager extends BaseDomainManager implements Runnable {
   private static Logger log = LoggerFactory.getLogger(BaseWarcDomainManager.class);
 
 	protected boolean runAtStart;
@@ -51,9 +64,9 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager {
   private JsonFactory jsonFactory = new JsonFactory();
 
   // Managing pool tasks
-  private static Queue<WarcProgressManager> filterQueue = new ConcurrentLinkedQueue<>();
-  private static Queue<WarcProgressManager> transformQueue = new ConcurrentLinkedQueue<>();
-  private static Queue<WarcProgressManager> indexQueue = new ConcurrentLinkedQueue<>();
+  private static Queue<IndexerDocument> filterQueue = new ConcurrentLinkedQueue<>();
+  private static Queue<IndexerDocument> transformQueue = new ConcurrentLinkedQueue<>();
+  private static Queue<IndexerDocument> indexQueue = new ConcurrentLinkedQueue<>();
 
   // Performing pool tasks
   private static WorkProcessor filterPool;
@@ -167,138 +180,40 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager {
   @Override
   public abstract String getLastIdProcessed();
 
-  public void enqueueBatch(WarcProgressManager newBatch) {
-    // It is possible (and very tempting) to add some size constraints here to the queues.
-    // But remember that these queues are optimised for concurrent de-queue to distribute worker tasks and it will
-    // not scale well if attempts to en-queue make size() calls to the queues constantly.
-    // Instead it is the preferred approach that each domain independently ensure they are tracking batch status
-    // through their own references (outside the queues) and do not en-queue an inappropriate number of batches.
-    // !!! Really, only the full re-index domain should be concerned about en-queueing any sizable number of batches
-    filterQueue.offer(newBatch);
+  public static IndexerDocument getNextFilterJob(IndexerDocument lastJob) {
+    if (lastJob != null) {
+      transformQueue.offer(lastJob);
+    }
+    return filterQueue.poll();
   }
 
-  public static IndexerDocument getNextFilterJob() {
-    WarcProgressManager nextBatch = filterQueue.peek();
-    if (nextBatch != null) {
-      // Does this batch have any work left?
-      IndexerDocument result = nextBatch.getFilterQ().poll();
-      if (result == null) {
-        // Race condition ahoy!
-        rollFilterQueue();
-        // Start again
-        return getNextFilterJob();
-      } else {
-        // All is good in the world
-        return result;
-      }
-    } else {
-      // Queue is empty
-      return null;
+  public static IndexerDocument getNextTransformJob(IndexerDocument lastJob) {
+    if (lastJob != null) {
+      indexQueue.offer(lastJob);
     }
+    return transformQueue.poll();
   }
 
-  // Someone try to poll the head of a work queue INSIDE a batch in our queue.
-  // We need to roll the queue, keeping in mind that we might lose the race condition
-  private synchronized static void rollFilterQueue() {
-    // We could lose the race condition because the outer queue is now empty 
-    WarcProgressManager nextBatch = filterQueue.peek();
-    if (nextBatch == null) {
-      return;
-    }
-    // We could lose the race condition because the inner queue now has content... so the outer queue was already rolled
-    IndexerDocument result = nextBatch.getFilterQ().peek();
-    if (result != null) {
-      return;
-    }
-    // We win! Roll the queue
-    nextBatch = filterQueue.poll();
-    transformQueue.offer(nextBatch);
+  public static IndexerDocument getNextIndexJob(IndexerDocument lastJob) {
+    return indexQueue.poll();
   }
 
-  public static IndexerDocument getNextTransformJob() {
-    WarcProgressManager nextBatch = transformQueue.peek();
-    if (nextBatch != null) {
-      // Does this batch have any work left?
-      IndexerDocument result = nextBatch.getTransformQ().poll();
-      if (result == null) {
-        // Race condition ahoy!
-        rollTransformQueue();
-        // Start again
-        return getNextTransformJob();
-      } else {
-        // All is good in the world
-        return result;
-      }
-    } else {
-      // Queue is empty
-      return null;
-    }
+  public WarcProgressManager getAndEnqueueWarc(long warcId) {
+    return getAndEnqueueWarc(warcId, -1);
   }
 
-  // Someone try to poll the head of a work queue INSIDE a batch in our queue.
-  // We need to roll the queue, keeping in mind that we might lose the race condition
-  private synchronized static void rollTransformQueue() {
-    // We could lose the race condition because the outer queue is now empty 
-    WarcProgressManager nextBatch = transformQueue.peek();
-    if (nextBatch == null) {
-      return;
-    }
-    // We could lose the race condition because the inner queue now has content... so the outer queue was already rolled
-    IndexerDocument result = nextBatch.getTransformQ().peek();
-    if (result != null) {
-      return;
-    }
-    // We win! Roll the queue
-    nextBatch = transformQueue.poll();
-    indexQueue.offer(nextBatch);
-  }
-
-  public static IndexerDocument getNextIndexJob() {
-    WarcProgressManager nextBatch = indexQueue.peek();
-    if (nextBatch != null) {
-      // Does this batch have any work left?
-      IndexerDocument result = nextBatch.getIndexQ().poll();
-      if (result == null) {
-        // Race condition ahoy!
-        rollIndexQueue();
-        // Start again
-        return getNextIndexJob();
-      } else {
-        // All is good in the world
-        return result;
-      }
-    } else {
-      // Queue is empty
-      return null;
-    }
-  }
-
-  // Someone try to poll the head of a work queue INSIDE a batch in our queue.
-  // We need to roll the queue, keeping in mind that we might lose the race condition
-  private synchronized static void rollIndexQueue() {
-    // We could lose the race condition because the outer queue is now empty 
-    WarcProgressManager nextBatch = indexQueue.peek();
-    if (nextBatch == null) {
-      return;
-    }
-    // We could lose the race condition because the inner queue now has content... so the outer queue was already rolled
-    IndexerDocument result = nextBatch.getIndexQ().peek();
-    if (result != null) {
-      return;
-    }
-    // We win! Roll the queue
-    indexQueue.poll();
-  }
-
-  public WarcProgressManager getWarcFromBamboo(long warcId) {
+  public WarcProgressManager getAndEnqueueWarc(long warcId, long trackedOffset) {
     Timer.Context ctx = bambooReadTimer.time();
     HttpURLConnection connection = null;
+    WarcProgressManager warc = new WarcProgressManager(warcId, trackedOffset);
 
     try {
       URL url = new URL(bambooBaseUrl + warcId + "/text");
       connection = (HttpURLConnection) url.openConnection();
       InputStream in = new BufferedInputStream(connection.getInputStream());
-      return new WarcProgressManager(warcId, parseJson(in));
+      parseJson(warc, in);
+      warc.setLoadComplete();
+      return warc;
 
     } catch (IOException e) {
       log.error("Error talking to Bamboo: {}", e.getMessage());
@@ -318,7 +233,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager {
 
   // Important to note that this stream based parsing works very simple because to the POJO's being parsed
   // are very simple. If the Document class became more complicated this method would have to be as well.
-  private List<Document> parseJson(InputStream in) throws IOException {
+  private void parseJson(WarcProgressManager warc, InputStream in) throws IOException {
     Timer.Context ctx = bambooParseTimer.time();
     JsonParser json = jsonFactory.createParser(in);
     JsonToken token = json.nextToken();
@@ -331,21 +246,22 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager {
       throw new IllegalArgumentException("JSON response is not an array");
     }
 
-    List<Document> documents = new ArrayList<>();
     try {
       long warcSize = 0;
       while (json.nextToken() == JsonToken.START_OBJECT) {
         Document d = objectMapper.readValue(json, Document.class);
         warcSize += d.getContentLength();
-        documents.add(d);
+        // Track it by batch
+        IndexerDocument doc = warc.add(d);
+        // Enqueue it for work
+        filterQueue.offer(doc);
       }
-      warcDocCountHistogram.update(documents.size());
+      warcDocCountHistogram.update(warc.size());
       warcSizeHistogram.update(warcSize);
 
     } finally {
       ctx.stop();
     }
-    return documents;
   }
 
   @Override

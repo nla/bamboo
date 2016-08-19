@@ -1,3 +1,18 @@
+/**
+ * Copyright 2016 National Library of Australia
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package bamboo.trove;
 
 import static org.junit.Assert.assertEquals;
@@ -14,13 +29,9 @@ import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.IndexerDocument;
-import bamboo.trove.common.WarcProgressManager;
-import bamboo.trove.demand.OnDemandWarcManager;
 import bamboo.trove.services.BambooRestrictionService.FilterSegments;
 import bamboo.util.SurtFilter;
 import bamboo.util.Urls;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -190,81 +201,6 @@ public class TroveIndexerTest {
     assertEquals("Unexpected content type (html)", 342, mimeHtml);
     assertEquals("Unexpected content type (pdf)", 10, mimePdf);
     assertEquals("Content count and row count should match", warc127555.size(), mimeHtml + mimePdf);
-  }
-
-  @Test
-  public void connectToDevelViaDomain() throws InterruptedException {
-    String metricsName = "serverMetrics";
-    MetricRegistry metrics = SharedMetricRegistries.getOrCreate(metricsName);
-
-    OnDemandWarcManager domain = new OnDemandWarcManager();
-    domain.forTestSetBambooBaseUrl("http://heritrix-devel.nla.gov.au/bamboo/warcs/");
-    domain.forTestSetMetricsRegistryName(metricsName);
-
-    // Confirm stats before
-    Timer t = metrics.timer("bambooReadTimer");
-    assertEquals("Timer should not have data before first request", 0, t.getCount());
-
-    WarcProgressManager batch79 = domain.getWarcFromBamboo(79);
-    assertEquals("Warc 79 has wrong document count", 224, batch79.size());
-    assertEquals("Timer did not increment", 1, t.getCount());
-    domain.enqueueBatch(batch79);
-
-    // Rush through the queues... keep in mind that there is (up to) a 1s lag on the batch state tracking
-    assertBatchState(batch79, false, false, false);
-    // Filter queue
-    IndexerDocument doc = domain.getNextFilterJob();
-    t = metrics.timer("filterTimer");
-    while (doc != null) {
-      doc.filter.start(t);
-      doc.filter.finish();
-      doc = domain.getNextFilterJob();
-    }
-    assertEquals("Timer count is wrong", 224, t.getCount());
-    //Thread.sleep(1100);
-    //assertBatchState(batch79, true, false, false);
-
-    // Transform queue
-    doc = domain.getNextTransformJob();
-    t = metrics.timer("transformTimer");
-    while (doc != null) {
-      doc.transform.start(t);
-      doc.transform.finish();
-      doc = domain.getNextTransformJob();
-    }
-    assertEquals("Timer count is wrong", 224, t.getCount());
-    //Thread.sleep(1100);
-    //assertBatchState(batch79, true, true, false);
-
-    // Index queue
-    doc = domain.getNextIndexJob();
-    t = metrics.timer("indexTimer");
-    while (doc != null) {
-      doc.index.start(t);
-      doc.index.finish();
-      doc = domain.getNextIndexJob();
-    }
-    assertEquals("Timer count is wrong", 224, t.getCount());
-    Thread.sleep(1100);
-    assertBatchState(batch79, true, true, true);
-  }
-
-  private void assertBatchState(WarcProgressManager batch79, boolean filterDone, boolean transformDone, boolean indexDone) {
-    if (!filterDone) {
-      assertFalse("Filter should not have finished", batch79.isFilterComplete());
-    } else {
-      assertTrue("Filter should have finished", batch79.isFilterComplete());
-    }
-    if (!transformDone) {
-      assertFalse("Transform should not have finished", batch79.isTransformComplete());
-    } else {
-      assertTrue("Transform should have finished", batch79.isTransformComplete());
-    }
-    if (!indexDone) {
-      assertFalse("Index should not have finished", batch79.isIndexComplete());
-    } else {
-      assertTrue("Index should have finished", batch79.isIndexComplete());
-    }
   }
 
   @Test
