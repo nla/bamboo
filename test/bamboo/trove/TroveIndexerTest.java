@@ -225,7 +225,7 @@ public class TroveIndexerTest {
 
     // Filtering
     startWithAssertions(document.filter, timer);
-    document.applyFiltering(DocumentStatus.RESTRICTED, ContentThreshold.DOCUMENT_START_ONLY);
+    document.applyFiltering(DocumentStatus.RESTRICTED_FOR_BOTH, ContentThreshold.DOCUMENT_START_ONLY);
     document.filter.finish();
 
     // Working

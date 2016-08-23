@@ -57,16 +57,19 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
 
     while (!batch.isFilterComplete()) {
       Thread.sleep(100);
+      checkErrors(batch);
     }
     log.info("Warc #{} has finished filtering...", warcId);
 
     while (!batch.isTransformComplete()) {
       Thread.sleep(100);
+      checkErrors(batch);
     }
     log.info("Warc #{} has finished transform...", warcId);
 
     while (!batch.isIndexComplete()) {
       Thread.sleep(100);
+      checkErrors(batch);
     }
     log.info("Warc #{} has finished indexing...", warcId);
 
@@ -74,6 +77,13 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
     lastWarcId = warcId;
 
     return ClientUtils.toXML(responseDocument.getSolrDocument());
+  }
+
+  private void checkErrors(WarcProgressManager warc) throws Exception {
+    if (warc.hasErrors()) {
+      log.error("Warc #{} failed to index.", warc.getWarcId());
+      throw new Exception("Indexing failed");
+    }
   }
 
   public void run() {

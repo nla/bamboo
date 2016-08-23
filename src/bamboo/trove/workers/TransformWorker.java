@@ -57,6 +57,8 @@ public class TransformWorker implements Runnable {
       if (thisJob != null) {
         thisJob.setTransformError(ex);
       }
+      lastJob = thisJob;
+      thisJob = null;
     }
     return true;
   }
@@ -89,7 +91,18 @@ public class TransformWorker implements Runnable {
     solr.addField(SolrEnum.TITLE.toString(), document.getBambooDocument().getTitle());
     solr.addField(SolrEnum.CONTENT_TYPE.toString(), document.getBambooDocument().getContentType());
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
-    solr.addField(SolrEnum.RESTRICTED.toString(), DocumentStatus.RESTRICTED.equals(document.getStatus()));
+    if (DocumentStatus.RESTRICTED_FOR_BOTH.equals(document.getStatus())) {
+      solr.addField(SolrEnum.DELIVERABLE.toString(), false);
+      solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
+    }
+    if (DocumentStatus.RESTRICTED_FOR_DELIVERY.equals(document.getStatus())) {
+      solr.addField(SolrEnum.DELIVERABLE.toString(), false);
+      solr.addField(SolrEnum.DISCOVERABLE.toString(), true);
+    }
+    if (DocumentStatus.RESTRICTED_FOR_DISCOVERY.equals(document.getStatus())) {
+      solr.addField(SolrEnum.DELIVERABLE.toString(), true);
+      solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
+    }
 
     if (ContentThreshold.METADATA_ONLY.equals(document.getTheshold())) {
       document.converted(solr);

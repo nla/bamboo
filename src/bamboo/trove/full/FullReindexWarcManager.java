@@ -16,6 +16,7 @@
 package bamboo.trove.full;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -29,6 +30,7 @@ import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.WarcProgressManager;
+import bamboo.trove.common.WarcSummary;
 import bamboo.trove.services.FilteringCoordinationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,8 +71,12 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private Queue<Long> warcIdQueue = new ConcurrentLinkedQueue<>();
 
   private Map<Long, WarcProgressManager> warcTracking = new TreeMap<>();
+  private Map<Long, WarcSummary> warcSummaries = new TreeMap<>();
   private int queueLimit = 5;
   private Timer timer;
+
+  private Map<Long, Integer> noSpamErrors = new TreeMap<>();
+  private Map<Long, Integer> noSpamTimeout = new TreeMap<>();
 
   public void setBambooReadThreads(int bambooReadThreads) {
     this.bambooReadThreads = bambooReadThreads;
@@ -78,6 +84,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   public void setQueueLimit(int queueLimit) {
     this.queueLimit = queueLimit;
+  }
+
+  public Map<Long, WarcSummary> getBatchMap() {
+    return warcSummaries;
   }
 
   @Required
@@ -200,6 +210,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private void doWork() throws InterruptedException {
     // Work complete
     if ((lastWarcId + 1) > warcMax) {
+      log.info("Work complete... I'm outta here");
       finishedFinding = true;
       return;
     }
@@ -209,7 +220,6 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
       return;
     }
 
-    log.info("Enqueueing {}", lastWarcId + 1);
     warcIdQueue.offer(lastWarcId + 1);
     lastWarcId++;
   }
@@ -234,8 +244,40 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
       if (warc.finishedWithoutError()) {
         completedWarcs.add(key);
       } else {
-        if (warc.finished()) {
-          log.error("Warc {} is completed but has errors!", key);
+        if (warc.finished() || warc.isLoadingFailed()) {
+          // First time
+          if (!noSpamErrors.containsKey(key)) {
+            log.error("Warc {} is completed but has errors!", key);
+            noSpamErrors.put(key, 0);
+          // Or every 5 minutes
+          } else {
+            int was = noSpamErrors.get(key);
+            if (was > (300 / POLL_INTERVAL_SECONDS)) {
+              log.error("Warc {} is completed but has errors!", key);
+              noSpamErrors.put(key, 0);
+            } else {
+              noSpamErrors.put(key, was + 1);
+            }
+          }
+        } else {
+          if ((new Date().getTime() - warc.getTimeStarted()) > 300000) {
+            // First time
+            if (!noSpamTimeout.containsKey(key)) {
+              log.warn("Warc {} has been pending for a long time. {} URLs, F#{}, T#{}, I#{}", key, warc.size(),
+                      warc.getCountFilterCompleted(), warc.getCountTransformCompleted(), warc.getCountIndexCompleted());
+              noSpamTimeout.put(key, 0);
+            // Or every 5 minutes
+            } else {
+              int was = noSpamTimeout.get(key);
+              if (was > (300 / POLL_INTERVAL_SECONDS)) {
+                log.warn("Warc {} has been pending for a long time. {} URLs, F#{}, T#{}, I#{}", key, warc.size(),
+                        warc.getCountFilterCompleted(), warc.getCountTransformCompleted(), warc.getCountIndexCompleted());
+                noSpamTimeout.put(key, 0);
+              } else {
+                noSpamTimeout.put(key, was + 1);
+              }
+            }
+          }
         }
       }
     }
@@ -244,6 +286,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     for (Long warcId : completedWarcs) {
       log.info("De-referencing completed warc: {}", warcId);
       warcTracking.remove(warcId);
+      warcSummaries.remove(warcId);
     }
 
     // Keep going unless we are done
@@ -254,15 +297,21 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     }
   }
 
+  @Override
+  protected WarcProgressManager newWarc(long warcId, long trackedOffset) {
+    WarcProgressManager newWarc = new WarcProgressManager(warcId, trackedOffset);
+    warcTracking.put(warcId, newWarc);
+    warcSummaries.put(warcId, new WarcSummary(newWarc));
+    return newWarc;
+  }
+
   private class ReadWorker implements Runnable {
     private boolean stop = false;
 
     @Override
     public void run() {
-      log.info("Worker thread starting.");
       // TODO : full lifecycle needs more work. Stop/Start etc. This one just runs once
       while (!stop) {
-        // Find work
         Long warcId = warcIdQueue.poll();
         if (warcId == null) {
           try {
@@ -272,12 +321,13 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
           }
           continue;
         }
-        log.info("Seeking warc {}", warcId);
-        // Do work
+
         WarcProgressManager batch = getAndEnqueueWarc(warcId);
-        log.info("Warc #{} retrieval complete. {} docs", warcId, batch.size());
-        // Track state
-        warcTracking.put(warcId, batch);
+        if (batch != null) {
+          log.info("Warc #{} retrieval complete. {} docs", warcId, batch.size());
+        } else {
+          log.error("Warc #{} was not indexed. Null response from Bamboo", warcId);
+        }
       }
       log.info("Worker thread exiting.");
     }

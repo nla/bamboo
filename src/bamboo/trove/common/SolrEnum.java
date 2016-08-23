@@ -22,7 +22,8 @@ public enum SolrEnum {
   TITLE("title"),
   CONTENT_TYPE("contentType"),
   SITE("site"),
-  RESTRICTED("restricted");
+  DELIVERABLE("deliverable"),
+  DISCOVERABLE("discoverable");
 
   private String value;
   SolrEnum(String value) {

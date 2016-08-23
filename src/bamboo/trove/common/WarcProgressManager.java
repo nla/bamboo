@@ -15,6 +15,7 @@
  */
 package bamboo.trove.common;
 
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Timer;
@@ -33,19 +34,25 @@ public class WarcProgressManager {
 
   // Queues for progress monitoring - single threaded access
   private Queue<IndexerDocument> filterProgress = new LinkedList<>();
+  private int countFilterCompleted = 0;
   private Queue<IndexerDocument> transformProgress = new LinkedList<>();
+  private int countTransformCompleted = 0;
   private Queue<IndexerDocument> indexProgress = new LinkedList<>();
+  private int countIndexCompleted = 0;
   // Error queue
-  private BlockingQueue<IndexerDocument> errorQ = new ArrayBlockingQueue<>(5);
-  private int discardedErrors = 0;
+  protected BlockingQueue<IndexerDocument> errorQ = new ArrayBlockingQueue<>(5);
+  protected int discardedErrors = 0;
 
   // Batch state
+  private long timeStarted;
   private boolean filterComplete = false;
   private boolean transformComplete = false;
   private boolean indexComplete = false;
   private Timer timer;
   private int batchSize = 0;
+  private long batchBytes = 0;
   private boolean loadingComplete = false;
+  private boolean loadingFailed = false;
 
   // Sometimes we will be asked to hold a reference to a particular document
   private IndexerDocument trackedDocument = null;
@@ -54,7 +61,16 @@ public class WarcProgressManager {
   public WarcProgressManager(long warcId, long trackedOffset) {
     this.warcId = warcId;
     this.trackedOffset = trackedOffset;
+    this.timeStarted = new Date().getTime();
     checkQueues();
+  }
+
+  public long getWarcId() {
+    return warcId;
+  }
+
+  public long getTimeStarted() {
+    return timeStarted;
   }
 
   public IndexerDocument add(Document document) {
@@ -77,43 +93,75 @@ public class WarcProgressManager {
     return trackedDocument;
   }
 
+  public boolean isLoadingComplete() {
+    return loadingComplete;
+  }
+
   public void setLoadComplete() {
     loadingComplete = true;
   }
 
-  private void enqueueDocument(IndexerDocument document) {
+  public boolean isLoadingFailed() {
+    return loadingFailed;
+  }
+
+  public void setLoadFailed() {
+    loadingFailed = true;
+  }
+
+  private synchronized void enqueueDocument(IndexerDocument document) {
     filterProgress.add(document);
     transformProgress.add(document);
     indexProgress.add(document);
     batchSize++;
   }
 
-  private void checkQueues() {
+  private synchronized void checkQueues() {
     // Filtering
     while (filterProgress.peek() != null && filterProgress.peek().filter.hasFinished()) {
-      hasNoErrors(filterProgress.remove());
-    }
-    if (loadingComplete && filterProgress.isEmpty()) {
-      filterComplete = true;
+      if (hasNoErrors(filterProgress.remove())) {
+        countFilterCompleted++;
+      }
     }
 
     // Transforming
     while (transformProgress.peek() != null && transformProgress.peek().transform.hasFinished()) {
-      hasNoErrors(transformProgress.remove());
-    }
-    if (loadingComplete && transformProgress.isEmpty()) {
-      transformComplete = true;
+      if (hasNoErrors(transformProgress.remove())) {
+        countTransformCompleted++;
+      }
     }
 
     // Indexing
     while (indexProgress.peek() != null && indexProgress.peek().index.hasFinished()) {
-      hasNoErrors(indexProgress.remove());
-    }
-    if (loadingComplete && indexProgress.isEmpty()) {
-      indexComplete = true;
+      if (hasNoErrors(indexProgress.remove())) {
+        countIndexCompleted++;
+      }
     }
 
-    if (!filterComplete || !transformComplete || !indexComplete) {
+    if (loadingComplete || loadingFailed) {
+      // Would this occur?
+      if (filterProgress.peek() == null && !filterProgress.isEmpty()) {
+        log.error("Null object in queue! filterProgress: {}", this.warcId);
+      }
+      if (transformProgress.peek() == null && !transformProgress.isEmpty()) {
+        log.error("Null object in queue! transformProgress: {}", this.warcId);
+      }
+      if (indexProgress.peek() == null && !indexProgress.isEmpty()) {
+        log.error("Null object in queue! indexProgress: {}", this.warcId);
+      }
+
+      if (filterProgress.isEmpty()) {
+        filterComplete = true;
+      }
+      if (transformProgress.isEmpty()) {
+        transformComplete = true;
+      }
+      if (indexProgress.isEmpty()) {
+        indexComplete = true;
+      }
+    }
+
+    if (!(filterComplete && transformComplete && indexComplete)) {
       setTick();
     }
   }
@@ -123,7 +171,7 @@ public class WarcProgressManager {
   }
 
   public boolean hasErrors() {
-    return !errorQ.isEmpty() || discardedErrors > 0;
+    return !errorQ.isEmpty() || discardedErrors > 0 || loadingFailed;
   }
 
   public boolean finishedWithoutError() {
@@ -175,7 +223,27 @@ public class WarcProgressManager {
     return indexComplete;
   }
 
+  public int getCountFilterCompleted() {
+    return countFilterCompleted;
+  }
+
+  public int getCountTransformCompleted() {
+    return countTransformCompleted;
+  }
+
+  public int getCountIndexCompleted() {
+    return countIndexCompleted;
+  }
+
   public int size() {
     return batchSize;
+  }
+
+  public long getBatchBytes() {
+    return batchBytes;
+  }
+
+  public void setBatchBytes(long batchBytes) {
+    this.batchBytes = batchBytes;
   }
 }

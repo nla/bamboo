@@ -202,10 +202,15 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     return getAndEnqueueWarc(warcId, -1);
   }
 
+  // Full domain overrides this
+  protected WarcProgressManager newWarc(long warcId, long trackedOffset) {
+    return new WarcProgressManager(warcId, trackedOffset);
+  }
+
   public WarcProgressManager getAndEnqueueWarc(long warcId, long trackedOffset) {
     Timer.Context ctx = bambooReadTimer.time();
     HttpURLConnection connection = null;
-    WarcProgressManager warc = new WarcProgressManager(warcId, trackedOffset);
+    WarcProgressManager warc = newWarc(warcId, trackedOffset);
 
     try {
       URL url = new URL(bambooBaseUrl + warcId + "/text");
@@ -217,10 +222,12 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
 
     } catch (IOException e) {
       log.error("Error talking to Bamboo: {}", e.getMessage());
+      warc.setLoadFailed();
       return null;
 
     } catch (Exception e) {
       log.error("Unknown error getting data from Bamboo: {}", e.getMessage());
+      warc.setLoadFailed();
       return null;
 
     } finally {
@@ -258,6 +265,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
       }
       warcDocCountHistogram.update(warc.size());
       warcSizeHistogram.update(warcSize);
+      warc.setBatchBytes(warcSize);
 
     } finally {
       ctx.stop();

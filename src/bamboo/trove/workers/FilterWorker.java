@@ -54,8 +54,10 @@ public class FilterWorker implements Runnable {
     } catch (Exception ex) {
       log.error("Unexpected error during FilterWorker execution: ", ex);
       if (thisJob != null) {
-        thisJob.setTransformError(ex);
+        thisJob.setFilterError(ex);
       }
+      lastJob = thisJob;
+      thisJob = null;
     }
     return true;
   }
@@ -71,6 +73,9 @@ public class FilterWorker implements Runnable {
 
   private void doJob() {
     thisJob.filter.start(timer);
+    if (thisJob.getDocId().equals("127536/2502")) {
+      throw new IllegalStateException("I was instructed to failed on object 127536/2502 for testing purposes");
+    }
     filteringService.filterDocument(thisJob);
     thisJob.filter.finish();
   }
