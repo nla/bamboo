@@ -1,6 +1,20 @@
+/**
+ * Copyright 2016 National Library of Australia
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package bamboo.trove.demand;
 
-import java.util.Iterator;
 import javax.annotation.PostConstruct;
 
 import bamboo.trove.common.BaseWarcDomainManager;
@@ -37,41 +51,44 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
     }
 
     log.info("Indexing on demand. Warc #{}", warcId);
-    WarcProgressManager batch = getWarcFromBamboo(warcId);
-    IndexerDocument responseDocument = batch.getFilterQ().peek();
-    if (warcOffset < -1) {
-      String target = warcId + "/" + warcOffset;
-      Iterator<IndexerDocument> i = batch.getFilterQ().iterator();
-      while (i.hasNext() && !target.equals(responseDocument.getDocId())) {
-        responseDocument = i.next();
-      }
-      if (!target.equals(responseDocument.getDocId())) {
-        return "<error>Warc Offest " + warcOffset + " could not be found in warc #" + warcId + "</error>";
-      }
-    }
-
-    log.info("Warc #{} has {} documents. Starting filtering...", warcId, batch.size());
-    enqueueBatch(batch);
+    WarcProgressManager batch = getAndEnqueueWarc(warcId, warcOffset);
+    IndexerDocument responseDocument = batch.getTrackedDocument();
+    log.info("Warc #{} has {} documents. Loading has completed.", warcId, batch.size());
 
     while (!batch.isFilterComplete()) {
       Thread.sleep(100);
+      checkErrors(batch);
     }
-    log.info("Warc #{} has finished filtering. Starting tranform...", warcId);
+    log.info("Warc #{} has finished filtering...", warcId);
 
     while (!batch.isTransformComplete()) {
       Thread.sleep(100);
+      checkErrors(batch);
     }
-    log.info("Warc #{} has finished transform. Starting indexing...", warcId);
+    log.info("Warc #{} has finished transform...", warcId);
 
     while (!batch.isIndexComplete()) {
       Thread.sleep(100);
+      checkErrors(batch);
     }
-    log.info("Warc #{} has finished indexing.", warcId);
+    log.info("Warc #{} has finished indexing...", warcId);
 
     warcsProcessed++;
     lastWarcId = warcId;
 
     return ClientUtils.toXML(responseDocument.getSolrDocument());
+  }
+
+  private void checkErrors(WarcProgressManager warc) throws Exception {
+    if (warc.hasErrors()) {
+      log.error("Warc #{} failed to index.", warc.getWarcId());
+      throw new Exception("Indexing failed");
+    }
+  }
+
+  public void run() {
+    // Doesn't really do anything
+    start();
   }
 
   @Override

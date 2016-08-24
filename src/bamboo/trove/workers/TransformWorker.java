@@ -1,3 +1,18 @@
+/**
+ * Copyright 2016 National Library of Australia
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package bamboo.trove.workers;
 
 import bamboo.trove.common.BaseWarcDomainManager;
@@ -14,6 +29,8 @@ public class TransformWorker implements Runnable {
   private static Logger log = LoggerFactory.getLogger(TransformWorker.class);
 
   private Timer timer;
+  private IndexerDocument lastJob = null;
+  private IndexerDocument thisJob = null;
 
   public TransformWorker(Timer timer) {
     this.timer = timer;
@@ -25,13 +42,11 @@ public class TransformWorker implements Runnable {
   }
 
   public boolean loop() {
-    IndexerDocument job = null;
     try {
-      job = findJob();
-      doJob(job);
-      // Make sure we de-reference to ensure that an exception thrown inside findJob()
-      // doesn't flag the error from last time through the loop
-      job = null;
+      findJob();
+      doJob();
+      lastJob = thisJob;
+      thisJob = null;
 
     } catch (InterruptedException ex) {
       log.error("Thread.Sleep() interrupted on worker that cannot find job. Resuming. MSG:'{}'", ex.getMessage());
@@ -39,26 +54,28 @@ public class TransformWorker implements Runnable {
 
     } catch (Exception ex) {
       log.error("Unexpected error during TransformWorker execution: ", ex);
-      if (job != null) {
-        job.setTransformError(ex);
+      if (thisJob != null) {
+        thisJob.setTransformError(ex);
       }
+      lastJob = thisJob;
+      thisJob = null;
     }
     return true;
   }
 
-  private IndexerDocument findJob() throws InterruptedException {
-    IndexerDocument job = BaseWarcDomainManager.getNextTransformJob();
-    while (job == null) {
+  private void findJob() throws InterruptedException {
+    thisJob = BaseWarcDomainManager.getNextTransformJob(lastJob);
+    lastJob = null;
+    while (thisJob == null) {
       Thread.sleep(1000);
-      job = BaseWarcDomainManager.getNextTransformJob();
+      thisJob = BaseWarcDomainManager.getNextTransformJob(null);
     }
-    return job;
   }
 
-  private void doJob(IndexerDocument document) {
-    document.transform.start(timer);
-    transform(document);
-    document.transform.finish();
+  private void doJob() {
+    thisJob.transform.start(timer);
+    transform(thisJob);
+    thisJob.transform.finish();
   }
 
   private void transform(IndexerDocument document) {
@@ -74,7 +91,18 @@ public class TransformWorker implements Runnable {
     solr.addField(SolrEnum.TITLE.toString(), document.getBambooDocument().getTitle());
     solr.addField(SolrEnum.CONTENT_TYPE.toString(), document.getBambooDocument().getContentType());
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
-    solr.addField(SolrEnum.RESTRICTED.toString(), DocumentStatus.RESTRICTED.equals(document.getStatus()));
+    if (DocumentStatus.RESTRICTED_FOR_BOTH.equals(document.getStatus())) {
+      solr.addField(SolrEnum.DELIVERABLE.toString(), false);
+      solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
+    }
+    if (DocumentStatus.RESTRICTED_FOR_DELIVERY.equals(document.getStatus())) {
+      solr.addField(SolrEnum.DELIVERABLE.toString(), false);
+      solr.addField(SolrEnum.DISCOVERABLE.toString(), true);
+    }
+    if (DocumentStatus.RESTRICTED_FOR_DISCOVERY.equals(document.getStatus())) {
+      solr.addField(SolrEnum.DELIVERABLE.toString(), true);
+      solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
+    }
 
     if (ContentThreshold.METADATA_ONLY.equals(document.getTheshold())) {
       document.converted(solr);

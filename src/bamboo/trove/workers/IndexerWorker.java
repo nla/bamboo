@@ -1,3 +1,18 @@
+/**
+ * Copyright 2016 National Library of Australia
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package bamboo.trove.workers;
 
 import au.gov.nla.trove.indexer.api.EndPointDomainManager;
@@ -15,6 +30,8 @@ public class IndexerWorker implements Runnable {
   private EndPointDomainManager solrManager;
   private Timer timer;
   private Timer dqTimer;
+  private IndexerDocument lastJob = null;
+  private IndexerDocument thisJob = null;
 
   public IndexerWorker(EndPointDomainManager solrManager, Timer timer) {
     this.solrManager = solrManager;
@@ -35,13 +52,9 @@ public class IndexerWorker implements Runnable {
   }
 
   public boolean loop() {
-    IndexerDocument job = null;
     try {
-      job = findJob();
-      doJob(job);
-      // Make sure we de-reference to ensure that an exception thrown inside findJob()
-      // doesn't flag the error from last time through the loop
-      job = null;
+      findJob();
+      doJob();
 
     } catch (InterruptedException ex) {
       log.error("Thread.Sleep() interrupted on worker that cannot find job. Resuming. MSG:'{}'", ex.getMessage());
@@ -49,32 +62,35 @@ public class IndexerWorker implements Runnable {
 
     } catch (Exception ex) {
       log.error("Unexpected error during IndexerWorker execution: ", ex);
-      if (job != null) {
-        job.setIndexError(ex);
+      if (thisJob != null) {
+        thisJob.setIndexError(ex);
       }
     }
+    lastJob = thisJob;
+    thisJob = null;
     return true;
   }
 
-  private IndexerDocument findJob() throws InterruptedException {
-    IndexerDocument job = BaseWarcDomainManager.getNextIndexJob();
-    while (job == null) {
+  private void findJob() throws InterruptedException {
+    thisJob = BaseWarcDomainManager.getNextIndexJob(lastJob);
+    lastJob = null;
+    while (thisJob == null) {
       Thread.sleep(1000);
-      job = BaseWarcDomainManager.getNextIndexJob();
+      thisJob = BaseWarcDomainManager.getNextIndexJob(null);
     }
-    return job;
   }
 
-  private void doJob(IndexerDocument document) {
+  private void doJob() {
     Timer.Context ctx = dqTimer.time();
     try {
-      document.index.start(timer);
-      if (document.getTheshold().equals(ContentThreshold.NONE)) {
-        document.index.finish();
+      thisJob.index.start(timer);
+      if (thisJob.getTheshold() == null || thisJob.getSolrDocument() == null
+              || thisJob.getTheshold().equals(ContentThreshold.NONE)) {
+        thisJob.index.finish();
         return;
       }
       // IndexerDocument implements AcknowledgeWorker so it will handle the timer.stop() and/or errors
-      solrManager.add(document.getSolrDocument(), document);
+      solrManager.add(thisJob.getSolrDocument(), thisJob);
 
     } finally {
       ctx.stop();
