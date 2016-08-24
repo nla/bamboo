@@ -68,6 +68,7 @@ public class FilteringCoordinationService {
     }
     cleanKeyPattern += "]*";
     metrics = SharedMetricRegistries.getOrCreate(metricsRegistryName);
+    loadDomainMetrics();
   }
 
   public void setCollectMetrics(boolean collectMetrics) {
@@ -177,8 +178,8 @@ public class FilteringCoordinationService {
     newDomainFilterHistogram("-\n+(" + domain, "size.domain." + domain);
   }
   private void loadStateDomainFilter(String state) {
-    newDomainFilterHistogram("-\n+(au,gov," + state, "size.domain.state." + state + ".qld");
-    newDomainFilterHistogram("-\n+(au,edu," + state, "size.domain.state." + state + ".qld");
+    newDomainFilterHistogram("-\n+(au,gov," + state, "size.domain.state.gov." + state);
+    newDomainFilterHistogram("-\n+(au,edu," + state, "size.domain.state.edu." + state);
   }
 
   private void newDomainFilterHistogram(String rules, String metricsName) {
