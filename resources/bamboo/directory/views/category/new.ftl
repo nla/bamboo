@@ -1,6 +1,12 @@
-[@page title="New Category"]
+[#if parent??]
+    [#assign noun='Subcategory']
+[#else]
+    [#assign noun='Category']
+[/#if]
 
-<h3>New Category</h3>
+[@page title="New ${noun}"]
+
+<h3>New ${noun}</h3>
 
 <div class="well">
     <form method="post" action="directory/category/create" class="form-horizontal">
@@ -11,8 +17,12 @@
 
             <div class="form-group">
                 <div class="col-lg-10 col-lg-offset-2">
-                    <button type="submit" class="btn btn-primary">Create Category</button>
-                    <a href="directory" class="btn btn-default">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Create ${noun}</button>
+                    [#if parent??]
+                        <a href="directory/category/${parent.id?c}" class="btn btn-default">Cancel</a>
+                    [#else]
+                        <a href="directory" class="btn btn-default">Cancel</a>
+                    [/#if]
                 </div>
             </div>
         </fieldset>
