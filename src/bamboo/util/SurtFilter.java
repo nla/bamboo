@@ -1,7 +1,5 @@
 package bamboo.util;
 
-import org.archive.url.SURT;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +25,23 @@ public class SurtFilter {
         return decision;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        SurtFilter that = (SurtFilter) o;
+
+        if (rules != null ? !rules.equals(that.rules) : that.rules != null) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return rules != null ? rules.hashCode() : 0;
+    }
+
     private static class Rule {
         final String prefix;
         final boolean policy;
@@ -40,6 +55,26 @@ public class SurtFilter {
                 throw new RuntimeException("Filter policies must begin with + or -");
             }
             prefix = text.substring(1);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            Rule rule = (Rule) o;
+
+            if (policy != rule.policy) return false;
+            if (prefix != null ? !prefix.equals(rule.prefix) : rule.prefix != null) return false;
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = prefix != null ? prefix.hashCode() : 0;
+            result = 31 * result + (policy ? 1 : 0);
+            return result;
         }
     }
 
