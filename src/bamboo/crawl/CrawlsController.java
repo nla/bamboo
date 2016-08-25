@@ -5,12 +5,18 @@ import bamboo.app.Bamboo;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
 import bamboo.util.Parsing;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonWriter;
 import droute.*;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -32,10 +38,22 @@ public class CrawlsController {
             GET("/crawls/:id/edit", this::edit, "id", "[0-9]+"),
             POST("/crawls/:id/edit", this::update, "id", "[0-9]+"),
             GET("/crawls/:id/warcs", this::listWarcs, "id", "[0-9]+"),
+            GET("/crawls/:id/warcs/json", this::listWarcsJson, "id", "[0-9]+"),
             GET("/crawls/:id/warcs/download", this::downloadWarcs, "id", "[0-9]+"),
             GET("/crawls/:id/warcs/corrupt", this::listCorruptWarcs, "id", "[0-9]+"),
             GET("/crawls/:id/reports", this::listReports, "id", "[0-9]+")
             );
+
+    private static final Gson gson;
+    static {
+        GsonBuilder builder = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        String indent = System.getProperty("disableJsonIndent");
+        if (indent != null && "true".equals(indent)) {
+            gson = builder.create();
+        } else {
+            gson = builder.setPrettyPrinting().create();
+        }
+    }
 
     public CrawlsController(Bamboo bamboo) {
         this.bamboo = bamboo;
@@ -96,6 +114,20 @@ public class CrawlsController {
                 "crawl", crawl,
                 "warcs", pager.items,
                 "warcsPager", pager);
+    }
+
+    Response listWarcsJson(Request request) {
+        long id = Long.parseLong(request.urlParam("id"));
+        List<Warc> warcs = bamboo.warcs.findByCrawlId(id);
+        return response(200, (Streamable) (OutputStream outStream) -> {
+            JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
+            writer.beginArray();
+            for (Warc warc : warcs) {
+                gson.toJson(new WarcSummary(warc), WarcSummary.class, writer);
+            }
+            writer.endArray();
+            writer.flush();
+        }).withHeader("Content-Type", "application/json");
     }
 
     Response listCorruptWarcs(Request request) {
@@ -166,5 +198,14 @@ public class CrawlsController {
             throw new UncheckedIOException(e);
         }
         return response(out);
+    }
+
+    private class WarcSummary {
+      public long id;
+      public long urlCount = 0;
+      public WarcSummary(Warc warc) {
+        this.id = warc.getId();
+        this.urlCount = warc.getRecords();
+      }
     }
 }
