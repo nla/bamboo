@@ -1,11 +1,11 @@
 package bamboo.crawl;
 
-import bamboo.core.NotFoundException;
-import bamboo.util.Pager;
-
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+
+import bamboo.core.NotFoundException;
+import bamboo.util.Pager;
 
 public class Warcs {
     private final WarcsDAO dao;
@@ -162,5 +162,9 @@ public class Warcs {
 
     private Warc getAndLock(long warcId) {
         return NotFoundException.check(dao.selectForUpdate(warcId), "warc", warcId);
+    }
+
+    public List<Warc> findByCollectionId(long collectionId, long start, long rows) {
+        return dao.findByCollectionId(collectionId, start, rows);
     }
 }
