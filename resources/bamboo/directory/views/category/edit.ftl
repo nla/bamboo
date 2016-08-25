@@ -1,5 +1,6 @@
 [@page title="Edit Category"]
 
+
 <h3>Edit Category</h3>
 
 <div class="well">
@@ -11,7 +12,7 @@
             <div class="form-group">
                 <div class="col-lg-10 col-lg-offset-2">
                     <button type="submit" class="btn btn-primary">Save Changes</button>
-                    <a href="directory}" class="btn btn-default">Cancel</a>
+s                    <a href="directory/category/${category.id?c}" class="btn btn-default">Cancel</a>
                 </div>
             </div>
 
