@@ -54,13 +54,8 @@ public interface SeriesDAO {
     @SqlQuery("SELECT COUNT(*) FROM crawl_series")
     long countCrawlSeries();
 
-    // Gui pagination - fixed sized windows
     @SqlQuery("SELECT *, (SELECT COUNT(*) FROM crawl WHERE crawl_series_id = crawl_series.id) crawl_count FROM crawl_series ORDER BY name LIMIT :limit OFFSET :offset")
     List<CrawlSeriesWithCount> paginateCrawlSeries(@Bind("limit") long limit, @Bind("offset") long offset);
-
-    // For JSON with start/rows allowing arbitrary IDs as starting points
-    @SqlQuery("SELECT *, (SELECT COUNT(*) FROM crawl WHERE crawl_series_id = crawl_series.id) crawl_count FROM crawl_series WHERE crawl.id >= :start ORDER BY crawl.id asc LIMIT :rows")
-    List<CrawlSeriesWithCount> portionCrawlSeries(@Bind("start") long start, @Bind("rows") long rows);
 
     @SqlUpdate("UPDATE crawl_series SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCrawlSeries(@Bind("id") long crawlSeriesId, @Bind("records") long records, @Bind("bytes") long bytes);

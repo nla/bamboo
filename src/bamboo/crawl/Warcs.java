@@ -18,10 +18,6 @@ public class Warcs {
         return dao.findWarcsByCrawlId(crawlId);
     }
 
-    public List<Warc> findPortionByCrawlId(long crawlId, long start, long rows) {
-        return dao.findWarcsPortionByCrawlId(crawlId, start, rows);
-    }
-
     public Pager<Warc> paginateWithCrawlId(long page, long crawlId) {
         return new Pager<>(page, dao.countWarcsWithCrawlId(crawlId),
                 (limit, offset) -> dao.paginateWarcsInCrawl(crawlId, limit, offset));
@@ -166,5 +162,9 @@ public class Warcs {
 
     private Warc getAndLock(long warcId) {
         return NotFoundException.check(dao.selectForUpdate(warcId), "warc", warcId);
+    }
+
+    public List<Warc> findByCollectionId(long collectionId, long start, long rows) {
+        return dao.findByCollectionId(collectionId, start, rows);
     }
 }

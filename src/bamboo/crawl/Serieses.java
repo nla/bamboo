@@ -29,10 +29,6 @@ public class Serieses {
         return new Pager<>(page, dao.countCrawlSeries(), dao::paginateCrawlSeries);
     }
 
-    public List<SeriesDAO.CrawlSeriesWithCount> listFrom(long start, long rows) {
-        return dao.portionCrawlSeries(start, rows);
-    }
-
     public long create(Series series) {
         return dao.createCrawlSeries(series.getName(), series.getPath(), series.getDescription());
     }

@@ -65,9 +65,6 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId")
     List<Warc> findWarcsByCrawlId(@Bind("crawlId") long crawlId);
 
-    @SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId AND id >= :start ORDER BY id asc LIMIT :rows")
-    List<Warc> findWarcsPortionByCrawlId(@Bind("crawlId") long crawlId, @Bind("start") long start, @Bind("rows") long rows);
-
     @SqlQuery("SELECT * FROM warc WHERE warc_state_id = :stateId LIMIT :limit")
     List<Warc> findWarcsInState(@Bind("stateId") int stateId, @Bind("limit") int limit);
 
@@ -145,4 +142,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
 
     @SqlUpdate("UPDATE collection SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCollection(@Bind("id") long collectionId, @Bind("records") long records, @Bind("bytes") long bytes);
+
+    @SqlQuery("SELECT warc.* FROM warc w, collection_warc cw WHERE cw.collection_id = :collectionId AND w.id >= :start ORDER BY w.id asc LIMIT :rows")
+    List<Warc> findByCollectionId(@Bind("collectionId") long collectionId, @Bind("start") long start, @Bind("rows") long rows);
 }
