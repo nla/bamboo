@@ -185,10 +185,16 @@ public class WarcsController {
         }).withHeader("Content-Type", "text/plain");
     }
 
-    private static final Gson gson = new GsonBuilder()
-            .setPrettyPrinting()
-            .setDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
-            .create();
+    private static final Gson gson;
+    static {
+        GsonBuilder builder = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        String indent = System.getProperty("disableJsonIndent");
+        if (indent != null && "true".equals(indent)) {
+            gson = builder.create();
+        } else {
+            gson = builder.setPrettyPrinting().create();
+        }
+    }
 
     private static final TextExtractor extractor = new TextExtractor();
 
