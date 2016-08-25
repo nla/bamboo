@@ -1,14 +1,18 @@
 package bamboo.crawl;
 
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.sqlobject.*;
-import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
-
 import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+
+import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.sqlobject.Bind;
+import org.skife.jdbi.v2.sqlobject.GetGeneratedKeys;
+import org.skife.jdbi.v2.sqlobject.SqlBatch;
+import org.skife.jdbi.v2.sqlobject.SqlQuery;
+import org.skife.jdbi.v2.sqlobject.SqlUpdate;
+import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 @RegisterMapper({SeriesDAO.CrawlSeriesMapper.class, SeriesDAO.CrawlSeriesWithCountMapper.class})
 public interface SeriesDAO {
@@ -50,8 +54,13 @@ public interface SeriesDAO {
     @SqlQuery("SELECT COUNT(*) FROM crawl_series")
     long countCrawlSeries();
 
+    // Gui pagination - fixed sized windows
     @SqlQuery("SELECT *, (SELECT COUNT(*) FROM crawl WHERE crawl_series_id = crawl_series.id) crawl_count FROM crawl_series ORDER BY name LIMIT :limit OFFSET :offset")
     List<CrawlSeriesWithCount> paginateCrawlSeries(@Bind("limit") long limit, @Bind("offset") long offset);
+
+    // For JSON with start/rows allowing arbitrary IDs as starting points
+    @SqlQuery("SELECT *, (SELECT COUNT(*) FROM crawl WHERE crawl_series_id = crawl_series.id) crawl_count FROM crawl_series WHERE crawl_series.id >= :start ORDER BY crawl_series.id LIMIT :rows")
+    List<CrawlSeriesWithCount> portionCrawlSeries(@Bind("start") long start, @Bind("rows") long rows);
 
     @SqlUpdate("UPDATE crawl_series SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCrawlSeries(@Bind("id") long crawlSeriesId, @Bind("records") long records, @Bind("bytes") long bytes);

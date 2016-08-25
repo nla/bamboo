@@ -118,7 +118,9 @@ public class CrawlsController {
 
     Response listWarcsJson(Request request) {
         long id = Long.parseLong(request.urlParam("id"));
-        List<Warc> warcs = bamboo.warcs.findByCrawlId(id);
+        long start = Parsing.parseLongOrDefault(request.queryParam("start"), 0);
+        long rows = Parsing.parseLongOrDefault(request.queryParam("rows"), 1000);
+        List<Warc> warcs = bamboo.warcs.findPortionByCrawlId(id, start, rows);
         return response(200, (Streamable) (OutputStream outStream) -> {
             JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
             writer.beginArray();

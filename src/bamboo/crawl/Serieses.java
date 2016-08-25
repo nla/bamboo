@@ -1,9 +1,9 @@
 package bamboo.crawl;
 
+import java.util.List;
+
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
-
-import java.util.List;
 
 public class Serieses {
     private final SeriesDAO dao;
@@ -27,6 +27,10 @@ public class Serieses {
 
     public Pager<SeriesDAO.CrawlSeriesWithCount> paginate(long page) {
         return new Pager<>(page, dao.countCrawlSeries(), dao::paginateCrawlSeries);
+    }
+
+    public List<SeriesDAO.CrawlSeriesWithCount> listFrom(long start, long rows) {
+        return dao.portionCrawlSeries(start, rows);
     }
 
     public long create(Series series) {

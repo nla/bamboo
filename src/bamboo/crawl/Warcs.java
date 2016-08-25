@@ -1,11 +1,11 @@
 package bamboo.crawl;
 
-import bamboo.core.NotFoundException;
-import bamboo.util.Pager;
-
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+
+import bamboo.core.NotFoundException;
+import bamboo.util.Pager;
 
 public class Warcs {
     private final WarcsDAO dao;
@@ -16,6 +16,10 @@ public class Warcs {
 
     public List<Warc> findByCrawlId(long crawlId) {
         return dao.findWarcsByCrawlId(crawlId);
+    }
+
+    public List<Warc> findPortionByCrawlId(long crawlId, long start, long rows) {
+        return dao.findWarcsPortionByCrawlId(crawlId, start, rows);
     }
 
     public Pager<Warc> paginateWithCrawlId(long page, long crawlId) {

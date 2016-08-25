@@ -1,15 +1,20 @@
 package bamboo.crawl;
 
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.sqlobject.*;
-import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
-import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
-
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.List;
+
+import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.sqlobject.Bind;
+import org.skife.jdbi.v2.sqlobject.BindBean;
+import org.skife.jdbi.v2.sqlobject.GetGeneratedKeys;
+import org.skife.jdbi.v2.sqlobject.SqlBatch;
+import org.skife.jdbi.v2.sqlobject.SqlQuery;
+import org.skife.jdbi.v2.sqlobject.SqlUpdate;
+import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
+import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 @RegisterMapper({WarcsDAO.WarcMapper.class, WarcsDAO.CollectionWarcMapper.class})
 public interface WarcsDAO extends Transactional<WarcsDAO> {
@@ -59,6 +64,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
 
     @SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId")
     List<Warc> findWarcsByCrawlId(@Bind("crawlId") long crawlId);
+
+    @SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId AND id >= :start LIMIT :rows")
+    List<Warc> findWarcsPortionByCrawlId(@Bind("crawlId") long crawlId, @Bind("start") long start, @Bind("rows") long rows);
 
     @SqlQuery("SELECT * FROM warc WHERE warc_state_id = :stateId LIMIT :limit")
     List<Warc> findWarcsInState(@Bind("stateId") int stateId, @Bind("limit") int limit);

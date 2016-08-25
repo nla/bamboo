@@ -66,17 +66,14 @@ public class SeriesController {
     }
 
     Response indexJson(Request request) {
+        long start = Parsing.parseLongOrDefault(request.queryParam("start"), 0);
+        long rows = Parsing.parseLongOrDefault(request.queryParam("rows"), 1000);
+        List<SeriesDAO.CrawlSeriesWithCount> series = wa.serieses.listFrom(start, rows);
         return response(200, (Streamable) (OutputStream outStream) -> {
-            int page = 1;
-            Pager<SeriesDAO.CrawlSeriesWithCount> p;
             JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
             writer.beginArray();
-            p = wa.serieses.paginate(page);
-            if (p.items != null && !p.items.isEmpty()) {
-              for (SeriesDAO.CrawlSeriesWithCount series : p.items) {
-                  gson.toJson(new SeriesSummary(series), SeriesSummary.class, writer);
-              }
-              page++;
+            for (SeriesDAO.CrawlSeriesWithCount s : series) {
+                gson.toJson(new SeriesSummary(s), SeriesSummary.class, writer);
             }
             writer.endArray();
             writer.flush();
