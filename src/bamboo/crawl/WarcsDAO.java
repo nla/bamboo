@@ -143,6 +143,6 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlUpdate("UPDATE collection SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCollection(@Bind("id") long collectionId, @Bind("records") long records, @Bind("bytes") long bytes);
 
-    @SqlQuery("SELECT w.* FROM warc w, collection_warc cw WHERE cw.collection_id = :collectionId AND w.id >= :start ORDER BY w.id asc LIMIT :rows")
+    @SqlQuery("SELECT w.* FROM warc w, collection_warc cw WHERE cw.warc_id = w.id AND cw.collection_id = :collectionId AND w.id >= :start ORDER BY w.id asc LIMIT :rows")
     List<Warc> findByCollectionId(@Bind("collectionId") long collectionId, @Bind("start") long start, @Bind("rows") long rows);
 }
