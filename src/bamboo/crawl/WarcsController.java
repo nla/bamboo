@@ -2,6 +2,7 @@ package bamboo.crawl;
 
 import bamboo.app.Bamboo;
 import bamboo.task.*;
+import bamboo.util.Parsing;
 import com.google.common.base.Charsets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -192,6 +193,12 @@ public class WarcsController {
     private static final TextExtractor extractor = new TextExtractor();
 
     private Response showText(Request request) {
+        TextExtractor extractor = new TextExtractor();
+
+        if (Parsing.parseLongOrDefault(request.queryParam("boiled"), 0) != 0) {
+            extractor.setBoilingEnabled(true);
+        }
+
         Warc warc = findWarc(request);
         return response(200, (Streamable) (OutputStream outStream) -> {
             try (ArchiveReader reader = WarcUtils.open(warc.getPath())) {

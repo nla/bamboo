@@ -158,6 +158,10 @@ public class SolrIndexer implements Runnable {
             return null;
         }
 
+        if (doc.getText() == null || doc.getText().isEmpty()) {
+            return null;
+        }
+
         SolrInputDocument solrDoc = new SolrInputDocument();
         solrDoc.addField("id", doc.getSite() + "!" + doc.getUrl() + " " + WarcUtils.arcDateFormat.format(doc.getDate().toInstant()));
         solrDoc.addField("url", doc.getUrl());
