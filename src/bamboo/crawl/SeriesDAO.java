@@ -59,7 +59,7 @@ public interface SeriesDAO {
     List<CrawlSeriesWithCount> paginateCrawlSeries(@Bind("limit") long limit, @Bind("offset") long offset);
 
     // For JSON with start/rows allowing arbitrary IDs as starting points
-    @SqlQuery("SELECT *, (SELECT COUNT(*) FROM crawl WHERE crawl_series_id = crawl_series.id) crawl_count FROM crawl_series WHERE crawl_series.id >= :start ORDER BY crawl_series.id LIMIT :rows")
+    @SqlQuery("SELECT *, (SELECT COUNT(*) FROM crawl WHERE crawl_series_id = crawl_series.id) crawl_count FROM crawl_series WHERE crawl.id >= :start ORDER BY crawl.id asc LIMIT :rows")
     List<CrawlSeriesWithCount> portionCrawlSeries(@Bind("start") long start, @Bind("rows") long rows);
 
     @SqlUpdate("UPDATE crawl_series SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")

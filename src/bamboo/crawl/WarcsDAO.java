@@ -65,7 +65,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId")
     List<Warc> findWarcsByCrawlId(@Bind("crawlId") long crawlId);
 
-    @SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId AND id >= :start LIMIT :rows")
+    @SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId AND id >= :start ORDER BY id asc LIMIT :rows")
     List<Warc> findWarcsPortionByCrawlId(@Bind("crawlId") long crawlId, @Bind("start") long start, @Bind("rows") long rows);
 
     @SqlQuery("SELECT * FROM warc WHERE warc_state_id = :stateId LIMIT :limit")
