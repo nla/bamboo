@@ -59,6 +59,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlQuery("SELECT * FROM warc WHERE id = :warcId")
     Warc findWarc(@Bind("warcId") long warcId);
 
+    @SqlQuery("SELECT * FROM warc LIMIT 1")
+    Warc findAnyWarc();
+
     @SqlQuery("SELECT * FROM warc WHERE filename = :filename")
     Warc findWarcByFilename(@Bind("filename") String filename);
 

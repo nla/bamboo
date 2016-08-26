@@ -152,6 +152,36 @@ public class CdxIndexer implements Runnable {
         indexWarc(warcs.get(warcId));
     }
 
+    public boolean healthcheck(PrintWriter out) {
+        boolean ok = true;
+
+        out.print("Checking CDX indexes are reachable... ");
+
+        for (Collection collection : collections.listAll()) {
+            String url = collection.getCdxUrl();
+            if (url != null && !url.isEmpty()) {
+                String ref = "collection/" + collection.getId() + " " + url;
+                try {
+                    HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                    if (conn.getResponseCode() != 200) {
+                        out.println("ERROR: " + conn.getResponseCode() + " " + ref);
+                        ok = false;
+                    }
+                    conn.disconnect();
+                } catch (IOException e) {
+                    out.println("ERROR: " + e.getMessage() + " " + ref);
+                    e.printStackTrace(out);
+                    ok = false;
+                }
+            }
+        }
+
+        if (ok) {
+            out.println("OK");
+        }
+        return ok;
+    }
+
     public static class CdxBuffer implements Closeable {
         final Collection collection;
         final URL cdxServer;

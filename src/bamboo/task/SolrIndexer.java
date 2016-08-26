@@ -13,7 +13,9 @@ import org.archive.io.ArchiveRecord;
 import org.archive.url.SURT;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.UncheckedIOException;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -68,6 +70,30 @@ public class SolrIndexer implements Runnable {
         } finally {
             threadPool.shutdownNow();
         }
+    }
+
+    public boolean healthcheck(PrintWriter out) {
+        boolean ok = true;
+        for (Collection collection : collections.listAll()) {
+            String url = collection.getSolrUrl();
+            if (url != null && !url.isEmpty()) {
+                url += "/select";
+                String ref = "[collection/" + collection.getId() + " " + url + "]";
+                try {
+                    HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                    if (conn.getResponseCode() != 200) {
+                        out.println("ERROR: " + conn.getResponseCode() + " " + ref);
+                        ok = false;
+                    }
+                    conn.disconnect();
+                } catch (IOException e) {
+                    out.println("ERROR: " + e.getMessage() + " " + ref);
+                    e.printStackTrace(out);
+                    ok = false;
+                }
+            }
+        }
+        return ok;
     }
 
     static class Solr {
