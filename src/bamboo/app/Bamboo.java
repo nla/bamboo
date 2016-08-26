@@ -77,9 +77,13 @@ public class Bamboo implements AutoCloseable {
     }
 
     public boolean healthcheck(PrintWriter out) {
-        return dbPool.healthcheck(out) &
+        boolean allOk = dbPool.healthcheck(out) &
                 warcs.healthcheck(out) &
                 cdxIndexer.healthcheck(out) &
                 solrIndexer.healthcheck(out);
+        if (allOk) {
+            out.println("\nALL OK");
+        }
+        return allOk;
     }
 }

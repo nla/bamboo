@@ -74,6 +74,7 @@ public class SolrIndexer implements Runnable {
 
     public boolean healthcheck(PrintWriter out) {
         boolean ok = true;
+        System.out.print("Checking Solr indexes are reachable... ");
         for (Collection collection : collections.listAll()) {
             String url = collection.getSolrUrl();
             if (url != null && !url.isEmpty()) {
