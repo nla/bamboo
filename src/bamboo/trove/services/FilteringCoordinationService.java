@@ -22,6 +22,8 @@ import javax.annotation.PostConstruct;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.IndexerDocument;
+import bamboo.trove.common.Rule;
+
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
@@ -71,11 +73,11 @@ public class FilteringCoordinationService {
 
   public void filterDocument(IndexerDocument document) {
     ContentThreshold threshold = qualityControlService.filterDocument(document.getBambooDocument());
-    DocumentStatus status = DocumentStatus.REJECTED;
+    Rule rule = null;
     if (!threshold.equals(ContentThreshold.NONE)) {
-      status = bambooRestrictionService.filterDocument(document.getBambooDocument());
+      rule = bambooRestrictionService.filterDocument(document.getBambooDocument());
     }
-    document.applyFiltering(status, threshold);
+    document.applyFiltering(rule, threshold);
 
     if (collectMetrics) {
       collectMetrics(document);

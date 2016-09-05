@@ -49,18 +49,21 @@ public class IndexerDocument implements AcknowledgeWorker {
 
   //***********************************
   // Step 2) Filtering
-  private DocumentStatus status = null;
+  private Rule rule = null;
   private ContentThreshold theshold = null;
   public StateTracker filter = new StateTracker("Filtering");
-  public void applyFiltering(DocumentStatus status, ContentThreshold theshold) {
-    this.status = status;
+  public void applyFiltering(Rule rule, ContentThreshold theshold) {
+    this.rule = rule;
     this.theshold = theshold;
   }
   public DocumentStatus getStatus() {
-    return status;
+    return rule.getPolicy();
   }
   public ContentThreshold getTheshold() {
     return theshold;
+  }
+  public int getRuleId(){
+    return rule.getId();
   }
   private Throwable filterError = null;
   public Throwable getFilterError() {
