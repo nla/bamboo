@@ -51,7 +51,7 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
     }
 
     log.info("Indexing on demand. Warc #{}", warcId);
-    WarcProgressManager batch = getAndEnqueueWarc(warcId, warcOffset);
+    WarcProgressManager batch = getAndEnqueueWarc(warcId, warcOffset, 0);
     IndexerDocument responseDocument = batch.getTrackedDocument();
     log.info("Warc #{} has {} documents. Loading has completed.", warcId, batch.size());
 

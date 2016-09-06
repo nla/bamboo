@@ -59,6 +59,11 @@ public class WarcSummary {
     return warc.size();
   }
 
+  @JsonProperty("documentEstimate")
+  public long getDocumentEstimate() {
+    return warc.getUrlCountEstimate();
+  }
+
   @JsonProperty("warcBytes")
   public long getWarcBytes() {
     return warc.getBatchBytes();

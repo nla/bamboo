@@ -31,12 +31,15 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.UniformReservoir;
 import org.archive.url.SURT;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.stereotype.Service;
 
 @Service
 public class FilteringCoordinationService {
+  private static Logger log = LoggerFactory.getLogger(FilteringCoordinationService.class);
   private boolean collectMetrics = true;
 
   @Autowired
@@ -114,12 +117,20 @@ public class FilteringCoordinationService {
     // Avoid going through sdf twice and do both the lazy load and work in one step
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy");
     String year = sdf.format(doc.getDate());
+    yearHistogram(year).update(doc.getContentLength());
+  }
+
+  private Histogram yearHistogram(String year) {
     if (!yearSizes.containsKey(year)) {
-      Histogram h = new Histogram(new UniformReservoir());
-      yearSizes.put(year, h);
-      metrics.register("size.year." + year, h);
+      synchronized (yearSizes) {
+        if (!yearSizes.containsKey(year)) {
+          Histogram h = new Histogram(new UniformReservoir());
+          metrics.register("size.year." + year, h);
+          yearSizes.put(year, h);
+        }
+      }
     }
-    yearSizes.get(year).update(doc.getContentLength());
+    return yearSizes.get(year);
   }
 
   private void recordSizeByDomain(IndexerDocument document) {
@@ -145,8 +156,8 @@ public class FilteringCoordinationService {
       synchronized (map) {
         if (!map.containsKey(key)) {
           Histogram h = new Histogram(new UniformReservoir());
+          metrics.register(prefix + key.toString().replaceAll("\\*", "star") + "", h);
           map.put(key, h);
-          metrics.register(prefix + key.toString() + "", h);
         }
       }
     }

@@ -37,7 +37,7 @@ public class IndexerDocument implements AcknowledgeWorker {
     if (bambooDocument == null) {
       throw new IllegalArgumentException("Null document provided");
     }
-    if (bambooDocument.getWarcOffset() < 1) {
+    if (bambooDocument.getWarcOffset() < 0) {
       throw new IllegalArgumentException("Invalid warc offset provided in document");
     }
     this.bambooDocument = bambooDocument;
