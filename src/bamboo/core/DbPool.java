@@ -10,6 +10,7 @@ import org.skife.jdbi.v2.tweak.ArgumentFactory;
 import org.vibur.dbcp.ViburDBCPDataSource;
 
 import java.io.Closeable;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 
 public class DbPool implements Closeable {
@@ -69,6 +70,19 @@ public class DbPool implements Closeable {
     @Override
     public void close() {
         ds.terminate();
+    }
+
+    public boolean healthcheck(PrintWriter out) {
+        out.print("Checking database connection... ");
+        try (Handle h = dbi.open()) {
+            boolean ok = !h.select("select 1").isEmpty();
+            out.println(ok ? "OK" : "FAILED");
+            return ok;
+        } catch (Exception e) {
+            out.println("ERROR");
+            e.printStackTrace(out);
+            return false;
+        }
     }
 
     public static class PathArgumentFactory implements ArgumentFactory<Path> {

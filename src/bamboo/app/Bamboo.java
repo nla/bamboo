@@ -7,6 +7,8 @@ import bamboo.pandas.Pandas;
 import bamboo.seedlist.Seedlists;
 import bamboo.task.*;
 
+import java.io.PrintWriter;
+
 public class Bamboo implements AutoCloseable {
 
     public final Config config;
@@ -20,6 +22,8 @@ public class Bamboo implements AutoCloseable {
     public final Categories categories;
 
     public final Taskmaster taskmaster;
+    private final CdxIndexer cdxIndexer;
+    private final SolrIndexer solrIndexer;
 
     public Bamboo() {
         this(new Config());
@@ -50,9 +54,10 @@ public class Bamboo implements AutoCloseable {
 
         // task package
         taskmaster.add(new Importer(config, crawls));
-        CdxIndexer cdxIndexer = new CdxIndexer(warcs, crawls, serieses, collections);
+        cdxIndexer = new CdxIndexer(warcs, crawls, serieses, collections);
         taskmaster.add(cdxIndexer);
-        taskmaster.add(new SolrIndexer(collections, crawls, warcs));
+        solrIndexer = new SolrIndexer(collections, crawls, warcs);
+        taskmaster.add(solrIndexer);
         taskmaster.add(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
 
         // pandas package
@@ -69,5 +74,16 @@ public class Bamboo implements AutoCloseable {
         taskmaster.close();
         dbPool.close();
         pandas.close();
+    }
+
+    public boolean healthcheck(PrintWriter out) {
+        boolean allOk = dbPool.healthcheck(out) &
+                warcs.healthcheck(out) &
+                cdxIndexer.healthcheck(out) &
+                solrIndexer.healthcheck(out);
+        if (allOk) {
+            out.println("\nALL OK");
+        }
+        return allOk;
     }
 }

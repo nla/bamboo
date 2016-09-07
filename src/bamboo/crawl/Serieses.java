@@ -1,9 +1,9 @@
 package bamboo.crawl;
 
+import java.util.List;
+
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
-
-import java.util.List;
 
 public class Serieses {
     private final SeriesDAO dao;

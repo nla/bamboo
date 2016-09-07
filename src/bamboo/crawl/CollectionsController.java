@@ -1,16 +1,29 @@
 package bamboo.crawl;
 
+import static droute.Response.response;
+import static droute.Response.seeOther;
+import static droute.Route.GET;
+import static droute.Route.POST;
+import static droute.Route.routes;
+
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
 import bamboo.app.Bamboo;
+import bamboo.trove.common.WarcToIndex;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
 import bamboo.util.Parsing;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonWriter;
 import droute.Csrf;
 import droute.Handler;
 import droute.Request;
 import droute.Response;
-
-import static droute.Response.*;
-import static droute.Route.*;
+import droute.Streamable;
 
 public class CollectionsController {
     final Bamboo bamboo;
@@ -20,7 +33,19 @@ public class CollectionsController {
             POST("/collections/new", this::create),
             GET("/collections/:id", this::show, "id", "[0-9]+"),
             GET("/collections/:id/edit", this::edit, "id", "[0-9]+"),
-            POST("/collections/:id/edit", this::update, "id", "[0-9]+"));
+            POST("/collections/:id/edit", this::update, "id", "[0-9]+"),
+            GET("/collections/:id/warcs/json", this::warcs, "id", "[0-9]+"));
+
+    private static final Gson gson;
+    static {
+        GsonBuilder builder = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        String indent = System.getProperty("disableJsonIndent");
+        if (indent != null && "true".equals(indent)) {
+            gson = builder.create();
+        } else {
+            gson = builder.setPrettyPrinting().create();
+        }
+    }
 
     public CollectionsController(Bamboo bamboo) {
         this.bamboo = bamboo;
@@ -76,5 +101,21 @@ public class CollectionsController {
         long collectionId = Long.parseLong(request.urlParam("id"));
         bamboo.collections.update(collectionId, parseForm(request));
         return seeOther(request.contextUri().resolve("collections/" + collectionId).toString());
+    }
+
+    Response warcs(Request request) {
+        long id = Long.parseLong(request.urlParam("id"));
+        long start = Parsing.parseLongOrDefault(request.queryParam("start"), 0);
+        long rows = Parsing.parseLongOrDefault(request.queryParam("rows"), 1000);
+        List<Warc> warcs = bamboo.warcs.findByCollectionId(id, start, rows);
+        return response(200, (Streamable) (OutputStream outStream) -> {
+            JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
+            writer.beginArray();
+            for (Warc warc : warcs) {
+                gson.toJson(new WarcToIndex(warc), WarcToIndex.class, writer);
+            }
+            writer.endArray();
+            writer.flush();
+        }).withHeader("Content-Type", "application/json");
     }
 }

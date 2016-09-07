@@ -2,6 +2,7 @@ package bamboo.crawl;
 
 import bamboo.app.Bamboo;
 import bamboo.task.*;
+import bamboo.util.Parsing;
 import com.google.common.base.Charsets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -184,14 +185,26 @@ public class WarcsController {
         }).withHeader("Content-Type", "text/plain");
     }
 
-    private static final Gson gson = new GsonBuilder()
-            .setPrettyPrinting()
-            .setDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
-            .create();
+    private static final Gson gson;
+    static {
+        GsonBuilder builder = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        String indent = System.getProperty("disableJsonIndent");
+        if (indent != null && "true".equals(indent)) {
+            gson = builder.create();
+        } else {
+            gson = builder.setPrettyPrinting().create();
+        }
+    }
 
     private static final TextExtractor extractor = new TextExtractor();
 
     private Response showText(Request request) {
+        TextExtractor extractor = new TextExtractor();
+
+        if (Parsing.parseLongOrDefault(request.queryParam("boiled"), 0) != 0) {
+            extractor.setBoilingEnabled(true);
+        }
+
         Warc warc = findWarc(request);
         return response(200, (Streamable) (OutputStream outStream) -> {
             try (ArchiveReader reader = WarcUtils.open(warc.getPath())) {

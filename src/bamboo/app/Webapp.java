@@ -34,6 +34,7 @@ public class Webapp implements Handler, AutoCloseable {
                 GET("/", this::index),
                 GET("/import", this::showImportForm),
                 POST("/import", this::performImport),
+                GET("/healthcheck", this::healthcheck),
                 new CollectionsController(bamboo).routes,
                 new CrawlsController(bamboo).routes,
                 new CategoryController(bamboo).routes,
@@ -52,6 +53,12 @@ public class Webapp implements Handler, AutoCloseable {
         Handler handler = new FreeMarkerHandler(fremarkerConfig, routes);
         handler = Csrf.protect(handler);
         this.handler = errorHandler(handler);
+    }
+
+    private Response healthcheck(Request request) {
+        StringWriter out = new StringWriter();
+        boolean ok = bamboo.healthcheck(new PrintWriter(out));
+        return response(ok ? 200 : 500, out.toString()).withHeader("Content-Type", "text/plain");
     }
 
     public Webapp() {
