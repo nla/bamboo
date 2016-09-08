@@ -15,6 +15,7 @@
  */
 package bamboo.trove.common;
 
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -24,6 +25,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 import bamboo.task.Document;
+import org.apache.commons.math3.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +45,8 @@ public class WarcProgressManager {
   // Error queue
   protected BlockingQueue<IndexerDocument> errorQ = new ArrayBlockingQueue<>(5);
   protected int discardedErrors = 0;
+  private boolean trackedError = false;
+  private Pair<Timestamp, Integer> errorTracking = null;
 
   // Batch state
   private long timeStarted;
@@ -203,6 +207,19 @@ public class WarcProgressManager {
       return false;
     }
     return true;
+  }
+
+  public boolean isTrackedError() {
+    return trackedError;
+  }
+
+  public void trackedError(Pair<Timestamp, Integer> errorData) {
+    trackedError = true;
+    errorTracking = errorData;
+  }
+
+  public Pair<Timestamp, Integer> getErrorTracking() {
+    return errorTracking;
   }
 
   private void setTick() {
