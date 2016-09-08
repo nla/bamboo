@@ -1,6 +1,4 @@
-package bamboo.trove.common;
-
-import bamboo.crawl.Warc;
+package bamboo.task;
 
 public class WarcToIndex {
   private long id;
@@ -11,9 +9,9 @@ public class WarcToIndex {
   }
 
   // For Bamboo - server side
-  public WarcToIndex(Warc warc) {
-    this.id = warc.getId();
-    this.urlCount = warc.getRecords();
+  public WarcToIndex(long id, long urlCount) {
+    this.id = id;
+    this.urlCount = urlCount;
   }
 
   public long getId() {

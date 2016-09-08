@@ -1,20 +1,15 @@
 package bamboo.crawl;
 
-import bamboo.app.Bamboo;
-import bamboo.task.*;
-import bamboo.util.Parsing;
-import com.google.common.base.Charsets;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.stream.JsonWriter;
-import droute.Handler;
-import droute.Request;
-import droute.Response;
-import droute.Streamable;
-import org.archive.io.ArchiveReader;
-import org.archive.io.ArchiveRecord;
+import static droute.Response.response;
+import static droute.Route.GET;
+import static droute.Route.routes;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.UncheckedIOException;
+import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
@@ -28,9 +23,23 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static droute.Response.response;
-import static droute.Route.GET;
-import static droute.Route.routes;
+import bamboo.app.Bamboo;
+import bamboo.task.Cdx;
+import bamboo.task.Document;
+import bamboo.task.TextExtractionException;
+import bamboo.task.TextExtractor;
+import bamboo.task.WarcUtils;
+import bamboo.util.Parsing;
+import com.google.common.base.Charsets;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonWriter;
+import droute.Handler;
+import droute.Request;
+import droute.Response;
+import droute.Streamable;
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveRecord;
 
 public class WarcsController {
     final Bamboo wa;

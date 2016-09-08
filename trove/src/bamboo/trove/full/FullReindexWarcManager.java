@@ -40,7 +40,7 @@ import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.WarcProgressManager;
 import bamboo.trove.common.WarcSummary;
-import bamboo.trove.common.WarcToIndex;
+import bamboo.task.WarcToIndex;
 import bamboo.trove.db.FullPersistenceDAO;
 import bamboo.trove.services.FilteringCoordinationService;
 import bamboo.trove.services.JdbiService;
