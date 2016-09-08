@@ -24,6 +24,7 @@ import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.IndexerDocument;
+import bamboo.trove.common.Rule;
 import bamboo.util.SurtFilter;
 import bamboo.util.Urls;
 import com.codahale.metrics.Histogram;
