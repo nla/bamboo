@@ -1,5 +1,7 @@
 package bamboo.task;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.util.Date;
 
 public class Document {
@@ -10,6 +12,13 @@ public class Document {
     private String contentType;
     private String title;
     private String text;
+
+    /**
+     * If non-null this indicates that text extraction from this record failed and explains why.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String textError;
+
     private String boiled;
     private String contentSha1;
     private String site;
@@ -101,5 +110,13 @@ public class Document {
 
     public long getWarcOffset() {
         return warcOffset;
+    }
+
+    public String getTextError() {
+        return textError;
+    }
+
+    public void setTextError(String textError) {
+        this.textError = textError;
     }
 }

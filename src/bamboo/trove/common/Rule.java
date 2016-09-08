@@ -12,6 +12,7 @@ public class Rule{
 	private DateRange captureRange;
 	private DateRange viewRange;
 	private String surt;
+	private String url = "";
 	
 	public Rule(int id, DocumentStatus policy, Date lastUpdated, long embargo, 
 			Date captureStart, Date captureEnd, Date viewStart, Date viewEnd, String surt){
@@ -46,6 +47,7 @@ public class Rule{
 		if(viewStart != null || viewEnd != null){
 			this.viewRange = new DateRange(viewStart, viewEnd);
 		}
+		convertSurt();
 	}
 	
 	/** 
@@ -79,6 +81,43 @@ public class Rule{
 		return true;
 	}
 
+	private void convertSurt(){
+		// remove protocol
+		surt = surt.replaceFirst("^.*://", "");
+		// remove port
+		surt = surt.replaceFirst(":\\d{1,4}", "");
+		if(!surt.startsWith("(")){
+			throw new IllegalAccessError("SURT must start with (");
+		}
+		// remove ( from the front
+		String txt = surt.substring(1);
+		int pos = txt.indexOf(")");
+		
+		// separate the host from the path
+		String path = "";
+		if(pos >= 0){
+			path = txt.substring(pos+1);
+			txt = txt.substring(0, pos);
+			if(!path.startsWith("/")){
+				path = "/" + path;
+			}
+		}
+		
+		// remove the , from the end of the host
+		if(txt.endsWith(",")){
+			txt = txt.substring(0, txt.length()-1);
+		}
+		
+		// put the host in the correct order for a url
+		for(String u : txt.split(",")){
+			if(!url.isEmpty()){
+				url = "." + url;
+			}
+			url = u + url;
+		}
+		url += path;
+	}
+	
 	public int getId(){
 		return id;
 	}
@@ -87,5 +126,20 @@ public class Rule{
 	}
 	public DocumentStatus getPolicy(){
 		return policy;
+	}
+	public String getSurt(){
+		return surt;
+	}
+	public String getUrl(){
+		return url;
+	}
+	public DateRange getViewRange(){
+		return viewRange;
+	}
+	public DateRange getCaptureRange(){
+		return captureRange;
+	}
+	public long getEmbargoTime(){
+		return embargoTime;
 	}
 }

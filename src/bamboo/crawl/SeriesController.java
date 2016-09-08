@@ -1,5 +1,16 @@
 package bamboo.crawl;
 
+import static droute.Response.response;
+import static droute.Response.seeOther;
+import static droute.Route.GET;
+import static droute.Route.POST;
+import static droute.Route.routes;
+
+import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import bamboo.app.Bamboo;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
@@ -8,14 +19,6 @@ import droute.Csrf;
 import droute.Handler;
 import droute.Request;
 import droute.Response;
-
-import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import static droute.Response.*;
-import static droute.Route.*;
 
 public class SeriesController {
     final Bamboo wa;

@@ -69,27 +69,43 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   private static Queue<IndexerDocument> indexQueue = new ConcurrentLinkedQueue<>();
 
   // Performing pool tasks
+  private static int filterPoolLimit;
   private static WorkProcessor filterPool;
+  private static int transformPoolLimit;
   private static WorkProcessor transformPool;
+  private static int indexPoolLimit;
   private static WorkProcessor indexPool;
+
+  private static void notAlreadyStarted() {
+    if (imStarted) {
+      throw new IllegalStateException("The domain has already started!");
+    }
+  }
+  protected static void setBambooApiBaseUrl(String newBambooBaseUrl) {
+    notAlreadyStarted();
+    bambooBaseUrl = newBambooBaseUrl;
+  }
+  protected static void setWorkerCounts(int filters, int transformers, int indexers) {
+    notAlreadyStarted();
+    filterPoolLimit = filters;
+    transformPoolLimit = transformers;
+    indexPoolLimit = indexers;
+  }
 
   // This could be more elegant... but rather that have static init() code here that runs itself we
   // want to get config from a particular domain. This is solely to be consistent with how the standard
   // Trove indexer works. So here we want all domains to park and wait until after the 'full' domain has
   // started the shared worker pools.
   private static boolean imStarted = false;
-  protected static synchronized void startMe(String newBambooBaseUrl, int filters, int transformers, int indexers,
-                                             EndPointDomainManager solr, FilteringCoordinationService filtering) {
+  protected static synchronized void startMe(EndPointDomainManager solr, FilteringCoordinationService filtering) {
     if (imStarted) {
       throw new IllegalStateException("You started me twice!");
     }
-		log.info("Bamboo Base URL  : {}", newBambooBaseUrl);
+		log.info("Bamboo Base URL  : {}", bambooBaseUrl);
 		log.info("Metrics registry : {}", filtering.getMetricsRegistryName());
-		log.info("# Filters        : {}", filters);
-		log.info("# Transformers   : {}", transformers);
-		log.info("# Indexers       : {}", indexers);
-
-    bambooBaseUrl = newBambooBaseUrl;
+		log.info("# Filters        : {}", filterPoolLimit);
+		log.info("# Transformers   : {}", transformPoolLimit);
+		log.info("# Indexers       : {}", indexPoolLimit);
 
     // Metrics are fun...
     MetricRegistry metrics = SharedMetricRegistries.getOrCreate(filtering.getMetricsRegistryName());
@@ -109,20 +125,20 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     metrics.register("indexTimer", indexTimer);
 
     // Filter workers
-    filterPool = new WorkProcessor(filters);
-    for (int i = 0; i < filters; i++) {
+    filterPool = new WorkProcessor(filterPoolLimit);
+    for (int i = 0; i < filterPoolLimit; i++) {
       filterPool.process(new FilterWorker(filtering, filterTimer));
     }
 
     // Transform workers
-    transformPool = new WorkProcessor(transformers);
-    for (int i = 0; i < transformers; i++) {
+    transformPool = new WorkProcessor(transformPoolLimit);
+    for (int i = 0; i < transformPoolLimit; i++) {
       transformPool.process(new TransformWorker(transformTimer));
     }
 
     // Indexing workers
-    indexPool = new WorkProcessor(indexers);
-    for (int i = 0; i < indexers; i++) {
+    indexPool = new WorkProcessor(indexPoolLimit);
+    for (int i = 0; i < indexPoolLimit; i++) {
       indexPool.process(new IndexerWorker(solr, indexTimer));
     }
 
@@ -198,22 +214,22 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     return indexQueue.poll();
   }
 
-  public WarcProgressManager getAndEnqueueWarc(long warcId) {
-    return getAndEnqueueWarc(warcId, -1);
+  public WarcProgressManager getAndEnqueueWarc(long warcId, long urlCountEstimate) {
+    return getAndEnqueueWarc(warcId, -1, urlCountEstimate);
   }
 
   // Full domain overrides this
-  protected WarcProgressManager newWarc(long warcId, long trackedOffset) {
-    return new WarcProgressManager(warcId, trackedOffset);
+  protected WarcProgressManager newWarc(long warcId, long trackedOffset, long urlCountEstimate) {
+    return new WarcProgressManager(warcId, trackedOffset, urlCountEstimate);
   }
 
-  public WarcProgressManager getAndEnqueueWarc(long warcId, long trackedOffset) {
+  public WarcProgressManager getAndEnqueueWarc(long warcId, long trackedOffset, long urlCountEstimate) {
     Timer.Context ctx = bambooReadTimer.time();
     HttpURLConnection connection = null;
-    WarcProgressManager warc = newWarc(warcId, trackedOffset);
+    WarcProgressManager warc = newWarc(warcId, trackedOffset, urlCountEstimate);
 
     try {
-      URL url = new URL(bambooBaseUrl + warcId + "/text");
+      URL url = new URL(bambooBaseUrl + "warcs/" + warcId + "/text");
       connection = (HttpURLConnection) url.openConnection();
       InputStream in = new BufferedInputStream(connection.getInputStream());
       parseJson(warc, in);
@@ -221,7 +237,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
       return warc;
 
     } catch (IOException e) {
-      log.error("Error talking to Bamboo: {}", e.getMessage());
+      log.error("Error talking to Bamboo (warc#{}): {}", warcId, e.getMessage());
       warc.setLoadFailed();
       return null;
 
@@ -238,11 +254,19 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     }
   }
 
+  protected ObjectMapper getObjectMapper() {
+    return objectMapper;
+  }
+
+  protected JsonParser createParser(InputStream in) throws IOException {
+    return jsonFactory.createParser(in);
+  }
+
   // Important to note that this stream based parsing works very simple because to the POJO's being parsed
   // are very simple. If the Document class became more complicated this method would have to be as well.
   private void parseJson(WarcProgressManager warc, InputStream in) throws IOException {
     Timer.Context ctx = bambooParseTimer.time();
-    JsonParser json = jsonFactory.createParser(in);
+    JsonParser json = createParser(in);
     JsonToken token = json.nextToken();
     if (token == null) {
       ctx.stop();

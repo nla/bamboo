@@ -31,6 +31,8 @@ public class TextExtractor {
     static final int pdfDiskOffloadThreshold = 32 * 1024 * 1024;
     static final int maxDocSize = 0x100000;
 
+    private boolean boilingEnabled = false;
+
     public Document extract(ArchiveRecord record) throws TextExtractionException {
         Document doc = new Document();
         ArchiveRecordHeader warcHeader = record.getHeader();
@@ -81,26 +83,35 @@ public class TextExtractor {
             throw new TextExtractionException("no content type");
         }
 
-        switch (doc.getContentType()) {
-            case "text/html":
-                extractHtmlContent(record, doc);
-                return doc;
-            case "application/pdf":
-                extractPdfContent(record, doc);
-                return doc;
-            default:
-                throw new TextExtractionException("unhandled content type: " + doc.getContentType());
+        try {
+            switch (doc.getContentType()) {
+                case "text/html":
+                    extractHtmlContent(record, doc);
+                    break;
+                case "application/pdf":
+                    extractPdfContent(record, doc);
+                    break;
+                default:
+                    doc.setTextError("not implemented for content-type");
+                    break;
+            }
+        } catch (TextExtractionException e) {
+            doc.setTextError(e.getMessage());
         }
+
+        return doc;
     }
 
-    private static void extractHtmlContent(ArchiveRecord record, Document doc) throws TextExtractionException {
+    private void extractHtmlContent(ArchiveRecord record, Document doc) throws TextExtractionException {
         try {
             BoundedInputStream in = new BoundedInputStream(record, maxDocSize);
             TextDocument textDoc = new BoilerpipeSAXInput(new InputSource(in)).getTextDocument();
             doc.setTitle(textDoc.getTitle());
             doc.setText(textDoc.getText(true, true).replace("\uFFFF", ""));
-            doc.setBoiled(textDoc.getContent().replace("\uFFFF", ""));
-            DefaultExtractor.INSTANCE.process(textDoc);
+            if (boilingEnabled) {
+                DefaultExtractor.INSTANCE.process(textDoc);
+                doc.setBoiled(textDoc.getContent().replace("\uFFFF", ""));
+            }
         } catch (SAXException | BoilerpipeProcessingException | IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
             throw new TextExtractionException(e);
         }
@@ -169,4 +180,11 @@ public class TextExtractor {
         }
     }
 
+    /**
+     * Sets whether to use boilerpipe's article extractor to try to filter out the main article from a page. The article
+     * text will be stored in Document.boiled.
+     */
+    public void setBoilingEnabled(boolean boilingEnabled) {
+        this.boilingEnabled = boilingEnabled;
+    }
 }

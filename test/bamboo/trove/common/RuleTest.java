@@ -124,10 +124,10 @@ public class RuleTest{
 		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,gov,nla,");
 		assertTrue(r.matches(url1, capture));
 		assertFalse(r.matches(url2, capture));
-		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,gov,nla,trove,)/index.html");
+		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "http://(au,gov,nla,trove,)/index.html");
 		assertTrue(r.matches(url1, capture));
 		assertFalse(r.matches(url2, capture));
-		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,gov,nla,trove,)/home.html");
+		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,gov,nla,trove,:80)/home.html");
 		assertFalse(r.matches(url1, capture));
 		assertFalse(r.matches(url2, capture));
 

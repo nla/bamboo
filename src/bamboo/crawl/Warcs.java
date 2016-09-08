@@ -1,11 +1,15 @@
 package bamboo.crawl;
 
-import bamboo.core.NotFoundException;
-import bamboo.util.Pager;
-
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+
+import bamboo.core.NotFoundException;
+import bamboo.util.Pager;
 
 public class Warcs {
     private final WarcsDAO dao;
@@ -162,5 +166,29 @@ public class Warcs {
 
     private Warc getAndLock(long warcId) {
         return NotFoundException.check(dao.selectForUpdate(warcId), "warc", warcId);
+    }
+
+    public List<Warc> findByCollectionId(long collectionId, long start, long rows) {
+        return dao.findByCollectionId(collectionId, start, rows);
+    }
+
+    public boolean healthcheck(PrintWriter out) {
+        out.print("Check filesystem access to a WARC file... ");
+
+        Warc warc = dao.findAnyWarc();
+        if (warc == null) {
+            out.println("UNKNOWN: no warcs in database");
+            return true;
+        }
+
+        try (InputStream stream = Files.newInputStream(warc.getPath())) {
+            stream.read();
+            out.println("OK");
+            return true;
+        } catch (IOException e) {
+            out.println("ERROR: reading " + warc.getPath());
+            e.printStackTrace(out);
+            return false;
+        }
     }
 }

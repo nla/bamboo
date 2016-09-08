@@ -31,6 +31,7 @@ public class WarcProgressManager {
   private static final Logger log = LoggerFactory.getLogger(WarcProgressManager.class);
   private static final int POLL_INTERVAL_SECONDS = 1;
   private long warcId;
+  private long urlCountEstimate;
 
   // Queues for progress monitoring - single threaded access
   private Queue<IndexerDocument> filterProgress = new LinkedList<>();
@@ -58,8 +59,9 @@ public class WarcProgressManager {
   private IndexerDocument trackedDocument = null;
   private long trackedOffset = -1;
 
-  public WarcProgressManager(long warcId, long trackedOffset) {
+  public WarcProgressManager(long warcId, long trackedOffset, long urlCountEstimate) {
     this.warcId = warcId;
+    this.urlCountEstimate = urlCountEstimate;
     this.trackedOffset = trackedOffset;
     this.timeStarted = new Date().getTime();
     checkQueues();
@@ -67,6 +69,10 @@ public class WarcProgressManager {
 
   public long getWarcId() {
     return warcId;
+  }
+
+  public long getUrlCountEstimate() {
+    return urlCountEstimate;
   }
 
   public long getTimeStarted() {
