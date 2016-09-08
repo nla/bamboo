@@ -510,6 +510,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     // Cleanup
     for (Long warcId : completedWarcs) {
       //log.info("De-referencing completed warc: {}", warcId);
+      warcTracking.get(warcId).mothball();
       warcTracking.remove(warcId);
       warcSummaries.remove(warcId);
     }

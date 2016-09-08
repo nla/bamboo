@@ -58,6 +58,7 @@ public class WarcProgressManager {
   private long batchBytes = 0;
   private boolean loadingComplete = false;
   private boolean loadingFailed = false;
+  private boolean mothballed = false;
 
   // Sometimes we will be asked to hold a reference to a particular document
   private IndexerDocument trackedDocument = null;
@@ -127,6 +128,8 @@ public class WarcProgressManager {
   }
 
   private synchronized void checkQueues() {
+    if (mothballed) return;
+
     // Filtering
     while (filterProgress.peek() != null && filterProgress.peek().filter.hasFinished()) {
       if (hasNoErrors(filterProgress.remove())) {
@@ -171,7 +174,7 @@ public class WarcProgressManager {
       }
     }
 
-    if (!(filterComplete && transformComplete && indexComplete)) {
+    if (!mothballed && !(filterComplete && transformComplete && indexComplete)) {
       setTick();
     }
   }
@@ -232,6 +235,14 @@ public class WarcProgressManager {
         checkQueues();
       }
     }, POLL_INTERVAL_SECONDS * 1000);
+  }
+
+  public void mothball() {
+    this.mothballed = true;
+    // Clear the tracking queues to dereference more aggressively
+    filterProgress.clear();
+    transformProgress.clear();
+    indexProgress.clear();
   }
 
   public boolean isFilterComplete() {
