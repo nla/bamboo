@@ -1,4 +1,4 @@
-/target
+target
 /.idea
-/bamboo.iml
-/dependency-reduced-pom.xml
+*.iml
+dependency-reduced-pom.xml
