@@ -5,9 +5,22 @@
     <artifactId>bamboo</artifactId>
     <version>0.2.3.TROVE-SNAPSHOT</version>
     <packaging>pom</packaging>
+
     <modules>
         <module>common</module>
         <module>ui</module>
         <module>trove</module>
     </modules>
+
+    <distributionManagement>
+        <repository>
+            <id>nla-public</id>
+            <name>National Library of Australia Repository</name>
+            <url>http://dev.nla.gov.au/nexus/content/repositories/nla-public</url>
+        </repository>
+        <snapshotRepository>
+            <id>nla-public-snapshots</id>
+            <url>http://dev.nla.gov.au/nexus/content/repositories/nla-public-snapshots</url>
+        </snapshotRepository>
+    </distributionManagement>
 </project>

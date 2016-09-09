@@ -32,7 +32,19 @@
         <dependency>
             <groupId>au.gov.nla.pandas</groupId>
             <artifactId>bamboo-common</artifactId>
-            <version>${pom.version}</version>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jdbi</groupId>
+            <artifactId>jdbi</artifactId>
+            <version>2.71</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.vibur</groupId>
+            <artifactId>vibur-dbcp</artifactId>
+            <version>8.0</version>
         </dependency>
 
         <!-- Trove : Indexer integration -->

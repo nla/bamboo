@@ -32,7 +32,7 @@
         <dependency>
             <groupId>au.gov.nla.pandas</groupId>
             <artifactId>bamboo-common</artifactId>
-            <version>${pom.version}</version>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>

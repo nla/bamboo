@@ -1,13 +1,22 @@
 package bamboo.app;
 
-import bamboo.core.*;
-import bamboo.crawl.*;
+import java.io.PrintWriter;
+
+import bamboo.core.Config;
+import bamboo.core.DAO;
+import bamboo.core.DbPool;
+import bamboo.core.Taskmaster;
+import bamboo.crawl.Collections;
+import bamboo.crawl.Crawls;
+import bamboo.crawl.Serieses;
+import bamboo.crawl.Warcs;
 import bamboo.directory.Categories;
 import bamboo.pandas.Pandas;
 import bamboo.seedlist.Seedlists;
-import bamboo.task.*;
-
-import java.io.PrintWriter;
+import bamboo.task.CdxIndexer;
+import bamboo.task.Importer;
+import bamboo.task.SolrIndexer;
+import bamboo.task.WatchImporter;
 
 public class Bamboo implements AutoCloseable {
 

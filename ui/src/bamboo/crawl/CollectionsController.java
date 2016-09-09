@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import bamboo.app.Bamboo;
+import bamboo.task.WarcToIndex;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
 import bamboo.util.Parsing;
@@ -111,19 +112,16 @@ public class CollectionsController {
             JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
             writer.beginArray();
             for (Warc warc : warcs) {
-                gson.toJson(new WarcSummary(warc), WarcSummary.class, writer);
+                gson.toJson(new BambooWarcToIndex(warc), BambooWarcToIndex.class, writer);
             }
             writer.endArray();
             writer.flush();
         }).withHeader("Content-Type", "application/json");
     }
 
-    private class WarcSummary {
-      public long id;
-      public long urlCount = 0;
-      public WarcSummary(Warc warc) {
-        this.id = warc.getId();
-        this.urlCount = warc.getRecords();
-      }
+    class BambooWarcToIndex extends WarcToIndex {
+        public BambooWarcToIndex(Warc warc) {
+            super(warc.getId(), warc.getRecords());
+        }
     }
 }

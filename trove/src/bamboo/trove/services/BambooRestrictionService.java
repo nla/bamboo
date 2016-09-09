@@ -23,10 +23,12 @@ import javax.annotation.PostConstruct;
 
 import bamboo.task.Document;
 import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.db.RestrictionsDAO;
 import bamboo.util.SurtFilter;
 import org.archive.util.SURT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.stereotype.Service;
 
@@ -51,6 +53,11 @@ public class BambooRestrictionService {
   private List<SurtFilter> parsedFilters; // TODO: Time based embargoes. Can be time of content capture (ie. takedown) or time of indexing run (ie. embargo)
 
   private String bambooApiBaseUrl;
+  private RestrictionsDAO dao;
+
+	@Autowired
+	private JdbiService database;
+
   @Required
   public void setBambooApiBaseUrl(String bambooApiBaseUrl) {
     this.bambooApiBaseUrl = bambooApiBaseUrl;
@@ -58,6 +65,7 @@ public class BambooRestrictionService {
 
   @PostConstruct
   public void init() {
+    dao = database.getDao().restrictions();
     rawFilters = new ArrayList<>();
     segmentedFilters = new FilterSegments();
     parsedFilters = new ArrayList<>();

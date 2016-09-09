@@ -1,8 +1,5 @@
 package bamboo.crawl;
 
-import bamboo.app.Bamboo;
-
-import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -12,6 +9,9 @@ import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
+import javax.xml.bind.DatatypeConverter;
+
+import bamboo.app.Bamboo;
 
 public class Scrub {
 

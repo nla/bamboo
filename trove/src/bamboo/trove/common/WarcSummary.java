@@ -20,6 +20,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.commons.math3.util.Pair;
 
 /**
  * This class exists solely for ferrying data between the App server and the dashboard. We don't won't to be
@@ -57,6 +58,11 @@ public class WarcSummary {
   @JsonProperty("documentCount")
   public int getDocumentCount() {
     return warc.size();
+  }
+
+  @JsonProperty("documentEstimate")
+  public long getDocumentEstimate() {
+    return warc.getUrlCountEstimate();
   }
 
   @JsonProperty("warcBytes")
@@ -111,5 +117,13 @@ public class WarcSummary {
   @JsonProperty("discardedErrors")
   public int getDiscardedErrors() {
     return warc.discardedErrors;
+  }
+
+  @JsonProperty("errorTracking")
+  public Pair<Long, Integer> getErrorTracking() {
+    if (warc.getErrorTracking() == null) {
+      return null;
+    }
+    return new Pair<>(warc.getErrorTracking().getFirst().getTime(), warc.getErrorTracking().getSecond());
   }
 }
