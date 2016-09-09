@@ -2,6 +2,8 @@
 
 Keeps track of our web archiving collection, manages indexing and calculates statistics.
 
+[![Build Status](https://travis-ci.org/nla/bamboo.svg?branch=master)](https://travis-ci.org/nla/bamboo)
+
 ## Status
 
 Usable for basic collection management but some functionality is unfinished or unpolished.
