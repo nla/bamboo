@@ -207,25 +207,13 @@
             <version>1.2.2</version>
         </dependency>
         <dependency>
-            <groupId>com.lowagie</groupId>
-            <artifactId>itext</artifactId>
-            <version>4.2.1</version>
+            <groupId>com.github.albfernandez</groupId>
+            <artifactId>itext2</artifactId>
+            <version>2.1.8</version>
             <exclusions>
-                <exclusion>
-                    <groupId>org.bouncycastle</groupId>
-                    <artifactId>bctsp-jdk14</artifactId>
-                </exclusion>
                 <exclusion>
                     <groupId>jfree</groupId>
                     <artifactId>jfreechart</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>dom4j</groupId>
-                    <artifactId>dom4j</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.swinglabs</groupId>
-                    <artifactId>pdf-renderer</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -268,6 +256,10 @@
         <repository>
             <id>nla-public-releases</id>
             <url>http://maven.nla.gov.au/releases</url>
+        </repository>
+        <repository>
+            <id>nla-public-snapshots</id>
+            <url>http://maven.nla.gov.au/snapshots</url>
         </repository>
     </repositories>
 

@@ -14,6 +14,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.BufferOverflowException;
@@ -86,10 +87,10 @@ public class TextExtractor {
         try {
             switch (doc.getContentType()) {
                 case "text/html":
-                    extractHtmlContent(record, doc);
+                    extractHtml(record, doc);
                     break;
                 case "application/pdf":
-                    extractPdfContent(record, doc);
+                    extractPdf(record, doc);
                     break;
                 default:
                     doc.setTextError("not implemented for content-type");
@@ -102,7 +103,7 @@ public class TextExtractor {
         return doc;
     }
 
-    private void extractHtmlContent(ArchiveRecord record, Document doc) throws TextExtractionException {
+    private void extractHtml(ArchiveRecord record, Document doc) throws TextExtractionException {
         try {
             BoundedInputStream in = new BoundedInputStream(record, maxDocSize);
             TextDocument textDoc = new BoilerpipeSAXInput(new InputSource(in)).getTextDocument();
@@ -117,22 +118,35 @@ public class TextExtractor {
         }
     }
 
-    private static void extractPdfContent(ArchiveRecord record, Document doc) throws TextExtractionException {
-        Path tmp = null;
-        try {
-            CharBuffer buf = CharBuffer.allocate(maxDocSize);
-            PdfReader pdfReader;
+    private static void extractPdf(ArchiveRecord record, Document doc) throws TextExtractionException {
+        doc.setTitle(record.getHeader().getUrl());
 
+        try {
             if (record.getHeader().getLength() > pdfDiskOffloadThreshold) {
                 // PDFReader needs (uncompressed) random access to the file.  When given a stream it loads the whole
                 // lot into a memory buffer. So for large records let's decompress to a temporary file first.
-                tmp = Files.createTempFile("bamboo-solr-tmp", ".pdf");
+                Path tmp = Files.createTempFile("bamboo-solr-tmp", ".pdf");
                 Files.copy(record, tmp, StandardCopyOption.REPLACE_EXISTING);
-                pdfReader = new PdfReader(tmp.toString());
+                try {
+                    extractPdfContent(new PdfReader(tmp.toString()), doc);
+                } finally {
+                    try {
+                        Files.deleteIfExists(tmp);
+                    } catch (IOException e) {
+                        // we can't do anything
+                    }
+                }
             } else {
-                pdfReader = new PdfReader(record);
+                extractPdfContent(new PdfReader(record), doc);
             }
+        } catch (IOException e) {
+            throw new TextExtractionException(e);
+        }
+    }
 
+    static void extractPdfContent(PdfReader pdfReader, Document doc) throws TextExtractionException {
+        try {
+            CharBuffer buf = CharBuffer.allocate(maxDocSize);
             PdfTextExtractor extractor = new PdfTextExtractor(pdfReader);
             try {
                 for (int i = 1; i <= pdfReader.getNumberOfPages(); ++i) {
@@ -144,8 +158,13 @@ public class TextExtractor {
                 // reached maxDocSize amount of content
             }
             buf.flip();
-            doc.setTitle(record.getHeader().getUrl());
             doc.setText(buf.toString());
+
+            // extract the title from the metadata if it has one
+            Object metadataTitle = pdfReader.getInfo().get("Title");
+            if (metadataTitle != null && metadataTitle instanceof String) {
+                doc.setTitle((String) metadataTitle);
+            }
         } catch (NoClassDefFoundError | RuntimeException | IOException e) {
             throw new TextExtractionException(e);
         } catch (Error e) {
@@ -155,14 +174,6 @@ public class TextExtractor {
             } else {
                 // let everything else (eg OutOfMemoryError) through
                 throw e;
-            }
-        } finally {
-            if (tmp != null) {
-                try {
-                    Files.deleteIfExists(tmp);
-                } catch (IOException e) {
-                    // we can't do anything
-                }
             }
         }
     }
