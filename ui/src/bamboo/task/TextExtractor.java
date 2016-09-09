@@ -139,12 +139,12 @@ public class TextExtractor {
             } else {
                 extractPdfContent(new PdfReader(record), doc);
             }
-        } catch (IOException e) {
+        } catch (NoClassDefFoundError | RuntimeException | IOException e) {
             throw new TextExtractionException(e);
         }
     }
 
-    static void extractPdfContent(PdfReader pdfReader, Document doc) throws TextExtractionException {
+    static void extractPdfContent(PdfReader pdfReader, Document doc) throws TextExtractionException, IOException {
         try {
             CharBuffer buf = CharBuffer.allocate(maxDocSize);
             PdfTextExtractor extractor = new PdfTextExtractor(pdfReader);
@@ -165,8 +165,6 @@ public class TextExtractor {
             if (metadataTitle != null && metadataTitle instanceof String) {
                 doc.setTitle((String) metadataTitle);
             }
-        } catch (NoClassDefFoundError | RuntimeException | IOException e) {
-            throw new TextExtractionException(e);
         } catch (Error e) {
             if (e.getClass() == Error.class && (e.getMessage() == null || e.getMessage().startsWith("Unable to process ToUnicode map"))) {
                 // pdf reader abuses java.lang.Error sometimes to indicate a parse error
