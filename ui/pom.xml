@@ -269,6 +269,10 @@
             <id>nla-public-releases</id>
             <url>http://maven.nla.gov.au/releases</url>
         </repository>
+        <repository>
+            <id>nla-public-snapshots</id>
+            <url>http://dev.nla.gov.au/nexus/content/repositories/nla-public-snapshots</url>
+        </repository>
     </repositories>
 
     <profiles>
