@@ -16,11 +16,9 @@
 package bamboo.trove.services;
 
 import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
@@ -35,7 +33,20 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
 
-import bamboo.app.Main;
+import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrQuery.SortClause;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.CloudSolrClient;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.common.params.CursorMarkParams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Required;
+import org.springframework.stereotype.Service;
+
 import bamboo.task.Document;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.Rule;
@@ -43,28 +54,6 @@ import bamboo.trove.common.xml.RulePojo;
 import bamboo.trove.common.xml.RulesPojo;
 import bamboo.trove.db.RestrictionsDAO;
 import bamboo.util.SurtFilter;
-
-import org.apache.http.client.HttpClient;
-import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.SolrQuery.ORDER;
-import org.apache.solr.client.solrj.SolrQuery.SortClause;
-import org.apache.solr.client.solrj.SolrServer;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.CloudSolrServer;
-import org.apache.solr.client.solrj.impl.HttpSolrServer;
-import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.common.SolrDocument;
-import org.apache.solr.common.SolrDocumentList;
-import org.apache.solr.common.params.CursorMarkParams;
-import org.apache.solr.common.params.SolrParams;
-import org.apache.xalan.lib.sql.QueryParameter;
-import org.archive.util.SURT;
-import org.skife.jdbi.v2.sqlobject.Transaction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Required;
-import org.springframework.stereotype.Service;
 
 /******
  * When requesting warc files from Bamboo there will be no awareness of restrictions carried with them.
@@ -130,7 +119,7 @@ public class BambooRestrictionService {
   	try{
 			processChangedRules(rules);
 		}
-		catch (SolrServerException e){
+		catch (SolrServerException | IOException e){
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -330,9 +319,10 @@ service.updateTick();
    * For all the records in solr that match the surt for the rule we need to check against all rules and update.  
    * @param changedRules
    * @throws SolrServerException 
+   * @throws IOException 
    */
-	private void processChangedRules(List<Rule> changedRules) throws SolrServerException{
-  	CloudSolrServer client = new CloudSolrServer("localhost:2181/trove/0.5");
+	private void processChangedRules(List<Rule> changedRules) throws SolrServerException, IOException{
+  	CloudSolrClient client = new CloudSolrClient("localhost:2181/trove/0.5");
   	client.setDefaultCollection("pandora");
   	for(Rule rule : changedRules){
   		if(rule.getUrl().isEmpty())continue; // TODO this could be a full re-index ?
