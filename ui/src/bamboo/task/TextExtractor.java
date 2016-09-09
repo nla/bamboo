@@ -168,7 +168,7 @@ public class TextExtractor {
         } catch (NoClassDefFoundError | RuntimeException | IOException e) {
             throw new TextExtractionException(e);
         } catch (Error e) {
-            if (e.getMessage() == null || e.getMessage().startsWith("Unable to process ToUnicode map")) {
+            if (e.getClass() == Error.class && (e.getMessage() == null || e.getMessage().startsWith("Unable to process ToUnicode map"))) {
                 // pdf reader abuses java.lang.Error sometimes to indicate a parse error
                 throw new TextExtractionException(e);
             } else {
