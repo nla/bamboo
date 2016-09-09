@@ -271,7 +271,7 @@
         </repository>
         <repository>
             <id>nla-public-snapshots</id>
-            <url>http://dev.nla.gov.au/nexus/content/repositories/nla-public-snapshots</url>
+            <url>http://maven.nla.gov.au/snapshots</url>
         </repository>
     </repositories>
 
