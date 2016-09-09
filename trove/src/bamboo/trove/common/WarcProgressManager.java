@@ -15,6 +15,7 @@
  */
 package bamboo.trove.common;
 
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -24,6 +25,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 import bamboo.task.Document;
+import org.apache.commons.math3.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +45,8 @@ public class WarcProgressManager {
   // Error queue
   protected BlockingQueue<IndexerDocument> errorQ = new ArrayBlockingQueue<>(5);
   protected int discardedErrors = 0;
+  private boolean trackedError = false;
+  private Pair<Timestamp, Integer> errorTracking = null;
 
   // Batch state
   private long timeStarted;
@@ -54,6 +58,7 @@ public class WarcProgressManager {
   private long batchBytes = 0;
   private boolean loadingComplete = false;
   private boolean loadingFailed = false;
+  private boolean mothballed = false;
 
   // Sometimes we will be asked to hold a reference to a particular document
   private IndexerDocument trackedDocument = null;
@@ -123,6 +128,8 @@ public class WarcProgressManager {
   }
 
   private synchronized void checkQueues() {
+    if (mothballed) return;
+
     // Filtering
     while (filterProgress.peek() != null && filterProgress.peek().filter.hasFinished()) {
       if (hasNoErrors(filterProgress.remove())) {
@@ -167,7 +174,7 @@ public class WarcProgressManager {
       }
     }
 
-    if (!(filterComplete && transformComplete && indexComplete)) {
+    if (!mothballed && !(filterComplete && transformComplete && indexComplete)) {
       setTick();
     }
   }
@@ -205,6 +212,19 @@ public class WarcProgressManager {
     return true;
   }
 
+  public boolean isTrackedError() {
+    return trackedError;
+  }
+
+  public void trackedError(Pair<Timestamp, Integer> errorData) {
+    trackedError = true;
+    errorTracking = errorData;
+  }
+
+  public Pair<Timestamp, Integer> getErrorTracking() {
+    return errorTracking;
+  }
+
   private void setTick() {
     if (timer == null) {
       timer = new Timer();
@@ -215,6 +235,14 @@ public class WarcProgressManager {
         checkQueues();
       }
     }, POLL_INTERVAL_SECONDS * 1000);
+  }
+
+  public void mothball() {
+    this.mothballed = true;
+    // Clear the tracking queues to dereference more aggressively
+    filterProgress.clear();
+    transformProgress.clear();
+    indexProgress.clear();
   }
 
   public boolean isFilterComplete() {

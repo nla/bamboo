@@ -20,8 +20,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -37,13 +40,14 @@ import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.WarcProgressManager;
 import bamboo.trove.common.WarcSummary;
-import bamboo.trove.common.WarcToIndex;
+import bamboo.task.WarcToIndex;
 import bamboo.trove.db.FullPersistenceDAO;
 import bamboo.trove.services.FilteringCoordinationService;
 import bamboo.trove.services.JdbiService;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.math3.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +59,8 @@ import org.springframework.stereotype.Service;
 public class FullReindexWarcManager extends BaseWarcDomainManager {
   private static final Logger log = LoggerFactory.getLogger(FullReindexWarcManager.class);
   private static final int POLL_INTERVAL_SECONDS = 1;
+  private static final long TIMEOUT_ERROR_RETRY_MS = 15 * 60 * 1000; // 15 mins
+  private static final long TIMEOUT_STALE_WARC_MS = 10 * 60 * 1000; // 10 mins
 
 	@Autowired
 	@Qualifier("solrDomainManager")
@@ -71,7 +77,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private long persistedWarcId = 0;
 
   private long bambooCollectionId = 3;
-  private int bambooBatchSize = 100;
+  private int bambooBatchSize = 10;
   private int bambooReadThreads = 1;
   private String bambooBaseUrl;
   private String bambooCollectionsUrl;
@@ -101,9 +107,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   // Tracking batch information key'd by warc ID so we can run a dashboard
   private Map<Long, WarcProgressManager> warcTracking = new TreeMap<>();
   private Map<Long, WarcSummary> warcSummaries = new TreeMap<>();
+  private Map<Long, Pair<Timestamp, Integer>> retryErrors = new HashMap<>();
+  private Map<Long, Pair<Timestamp, Integer>> ignoredErrors = new HashMap<>();
   private Timer timer;
 
-  private Map<Long, Integer> noSpamErrors = new TreeMap<>();
   private Map<Long, Integer> noSpamTimeout = new TreeMap<>();
 
   public void setBambooBatchSize(int bambooBatchSize) {
@@ -120,6 +127,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   public Map<Long, WarcSummary> getBatchMap() {
     return warcSummaries;
+  }
+
+  public Map<Long, Pair<Timestamp, Integer>> getIgnoredErrors() {
+    return ignoredErrors;
   }
 
   @Required
@@ -166,6 +177,19 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     dao = database.getDao().fullPersistence();
     persistedWarcId = dao.getLastId();
     endOfBatchId = persistedWarcId;
+
+    List<FullPersistenceDAO.OldError> oldErrors = dao.oldErrors();
+    for (FullPersistenceDAO.OldError e : oldErrors) {
+      if (e.error.getSecond() < 5) {
+        WarcToIndex warc = new WarcToIndex();
+        warc.setId(e.warcId);
+        log.info("Old error for warc {} found. Marking for retry.", e.warcId);
+        warcIdQueue.offer(new ToIndex(warc));
+      } else {
+        ignoredErrors.put(e.warcId, e.error);
+      }
+    }
+
     readPool = new WorkProcessor(bambooReadThreads);
 
     tick();
@@ -222,11 +246,15 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   @Override
   public void stop() {
     if (running && !stopping)  {
-      if (timer != null) {
-        timer.cancel();
-      }
+      log.info("Stopping domain... {} Bamboo read threads still need to stop", readWorkers.size());
       stopping = true;
       stopWorkers();
+      log.info("All workers stopped!");
+
+      if (timer != null) {
+        log.info("Cancelling batch management timer");
+        timer.cancel();
+      }
     }
   }
 
@@ -356,13 +384,9 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   }
 
   private void logTimeout(long key, WarcProgressManager warc) {
-    if (warc != null) {
-      log.warn("Warc {} has been pending for a long time. {} of {} URLs, F#{}, T#{}, I#{}", key, warc.size(),
-              warc.getUrlCountEstimate(), warc.getCountFilterCompleted(), warc.getCountTransformCompleted(),
-              warc.getCountIndexCompleted());
-    } else {
-      log.error("Warc {} is completed but has errors!", key);
-    }
+    log.warn("Warc {} has been pending for a long time. {} of {} URLs, F#{}, T#{}, I#{}", key, warc.size(),
+            warc.getUrlCountEstimate(), warc.getCountFilterCompleted(), warc.getCountTransformCompleted(),
+            warc.getCountIndexCompleted());
   }
 
   private void tick() {
@@ -382,35 +406,58 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   }
 
+  private boolean trackError(WarcProgressManager warc) {
+    // Remember an instantiation of a WarcProgressManager is a single attempt for a warc to be indexed.
+    // On a retry attempt it will be a new object, so never track the same _instantiation_ twice.
+    if (warc.isTrackedError()) return false;
+
+    // Persist into the database.
+    // This will update timestamp and (if required) bump the retry counter
+    dao.trackError(warc.getWarcId());
+    Pair<Timestamp, Integer> errorData = dao.checkError(warc.getWarcId());
+    warc.trackedError(errorData);
+
+    if (errorData.getSecond() < 5) {
+      // Schedule for a retry
+      retryErrors.put(warc.getWarcId(), errorData);
+      return false;
+    } else {
+      // Remove it entirely
+      ignoredErrors.put(warc.getWarcId(), errorData);
+      return true;
+    }
+  }
+
   private void checkBatches() {
+    long now = new Date().getTime();
     // Check state
     List<Long> completedWarcs = new ArrayList<>();
     for (Long key : warcTracking.keySet()) {
       WarcProgressManager warc = warcTracking.get(key);
+      // This happened... it was an annoying bug
+      if (warc == null) {
+        throw new IllegalStateException("Warc ID " + key + " is null in the tracking map. This is a logic bug");
+      }
+      // State = Healthy
       if (warc.finishedWithoutError()) {
         completedWarcs.add(key);
+        dao.removeError(key);
         warcsProcessed++;
         if (key > progressInBatchId) {
           progressInBatchId = key;
         }
+
       } else {
+        // State = Error
         if (warc.finished() || warc.isLoadingFailed()) {
-          // First time
-          if (!noSpamErrors.containsKey(key)) {
-            logTimeout(key, null);
-            noSpamErrors.put(key, 0);
-          // Or every 5 minutes
-          } else {
-            int was = noSpamErrors.get(key);
-            if (was > (300 / POLL_INTERVAL_SECONDS)) {
-              logTimeout(key, null);
-              noSpamErrors.put(key, 0);
-            } else {
-              noSpamErrors.put(key, was + 1);
-            }
+          if (trackError(warc)) {
+            completedWarcs.add(key);
           }
+
+        // State = Stale?
         } else {
-          if ((new Date().getTime() - warc.getTimeStarted()) > 600000) {
+          // X minutes without completion
+          if ((now - warc.getTimeStarted()) > TIMEOUT_STALE_WARC_MS) {
             // First time
             if (!noSpamTimeout.containsKey(key)) {
               logTimeout(key, warc);
@@ -430,9 +477,40 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
       }
     }
 
+    // Before cleanup, check the error retry queue and consider moving warcs around based on that
+    // After a queue starts a retry attempt we can add it to the cleanup
+    Iterator<Map.Entry<Long, Pair<Timestamp, Integer>>> itr = retryErrors.entrySet().iterator();
+    while (itr.hasNext()) {
+      Map.Entry<Long, Pair<Timestamp, Integer>> entry = itr.next();
+      long warcId = entry.getKey();
+      long lastError = entry.getValue().getFirst().getTime();
+      if ((now - lastError) > TIMEOUT_ERROR_RETRY_MS) {
+        log.info("Retrying warc {}. last attempt = {}, now = {}, diff = {}", warcId, lastError, now, (now - lastError));
+        // Find the warc
+        WarcProgressManager warc = warcTracking.get(warcId);
+        // Put it back into the queue as a fresh object (retaining a reference to the old instance)
+        // Note. We don't yet use the old reference, but I'm retaining it for now in case we decide we want it later
+        // The DB layer retains a minimal 'history' to the object for errors anyway, but at least until a restart
+        // the old reference will give us a complete error history.
+        warcIdQueue.offer(new ToIndex(warc));
+        // Stop considering it for retries
+        itr.remove();
+        // Make sure the old tracking instance of the warc is cleaned up
+        completedWarcs.add(warcId);
+      }
+    }
+
+    // Cleaning up ignored errors is even simpler... just make sure we aren't tracking them still
+    for (Long warcId : ignoredErrors.keySet()) {
+      if (warcTracking.containsKey(warcId)) {
+        completedWarcs.add(warcId);
+      }
+    }
+
     // Cleanup
     for (Long warcId : completedWarcs) {
       //log.info("De-referencing completed warc: {}", warcId);
+      warcTracking.get(warcId).mothball();
       warcTracking.remove(warcId);
       warcSummaries.remove(warcId);
     }
@@ -527,7 +605,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
         // Load Failed will be set in error cases, so 'retrieval' still occurred for tracking purposes
         toIndex.hasBeenRetrieved = true;
       }
-      log.info("Worker thread exiting.");
+      log.info("Stop received! Bamboo read thread exiting.");
     }
 
     public void stop() {
@@ -537,10 +615,27 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   private class ToIndex extends WarcToIndex {
     private boolean hasBeenRetrieved = false;
+    private WarcProgressManager oldWarcInstance = null;
 
+    // A normal event from Bamboo
     public ToIndex(WarcToIndex warc) {
       setId(warc.getId());
       setUrlCount(warc.getUrlCount());
+    }
+
+    // Something from the retry queue
+    public ToIndex(WarcProgressManager warc) {
+      setId(warc.getWarcId());
+      setUrlCount(warc.getUrlCountEstimate());
+      oldWarcInstance = warc;
+    }
+
+    public boolean isRetryAttempt() {
+      return !(oldWarcInstance == null);
+    }
+
+    public WarcProgressManager oldAttempt() {
+      return oldWarcInstance;
     }
   }
 }

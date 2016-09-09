@@ -30,16 +30,22 @@ public class DbPool implements Closeable {
 
     dbi = new DBI(ds);
     dbi.registerArgumentFactory(new PathArgumentFactory());
-    dbi.setSQLLog(new PrintStreamLog() {
-      @Override
-      public void logReleaseHandle(Handle h) {
-        // suppress
-      }
-      @Override
-      public void logObtainHandle(long time, Handle h) {
-        // suppress
-      }
-    });
+    // Turn this on if you want to see SQL statements.
+    // There will be thousands per second in production contexts,
+    // so we aren't even bothering to make it a config option
+    boolean iWantToLogEverySqlStatement = false;
+    if (iWantToLogEverySqlStatement) {
+      dbi.setSQLLog(new PrintStreamLog() {
+        @Override
+        public void logReleaseHandle(Handle h) {
+          // suppress
+        }
+        @Override
+        public void logObtainHandle(long time, Handle h) {
+          // suppress
+        }
+      });
+    }
     dao = dbi.onDemand(TroveDaoRegistry.class);
   }
 
