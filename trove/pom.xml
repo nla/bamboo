@@ -72,9 +72,9 @@
         </dependency>
         <!-- Trove : Metrics for the indexer -->
         <dependency>
-            <groupId>com.codahale.metrics</groupId>
+            <groupId>io.dropwizard.metrics</groupId>
             <artifactId>metrics-core</artifactId>
-            <version>3.0.2</version>
+            <version>3.1.2</version>
         </dependency>
 
         <!-- Changeable... deserialize data from Bamboo when received by the indexer -->
