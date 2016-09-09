@@ -76,7 +76,7 @@ public class Webapp implements Handler, AutoCloseable {
                 return notFound("Not found: " + e.getMessage());
             } catch (NotFound e) {
                 return notFound(e.getMessage());
-            } catch (Throwable t) {
+            } catch (Exception t) {
                 StringWriter out = new StringWriter();
                 t.printStackTrace();
                 t.printStackTrace(new PrintWriter(out));
