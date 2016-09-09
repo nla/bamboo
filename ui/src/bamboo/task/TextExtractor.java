@@ -196,7 +196,7 @@ public class TextExtractor {
             doc.setText(sw.toString());
         } catch (BufferOverflowException e) {
             // reached maxDocSize, just stop early
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new TextExtractionException(e);
         }
     }
