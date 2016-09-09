@@ -1,11 +1,11 @@
 #!/bin/bash
 
-if [ pom.xml -nt target/classpath ]; then
-    mvn dependency:build-classpath -q -Dmdep.outputFile=target/classpath
+if [ ui/pom.xml -nt ui/target/classpath ]; then
+    mvn -pl ui dependency:build-classpath -q -Dmdep.outputFile=target/classpath
 fi
 
-if [ ! -e target/classes ]; then
-    mvn compile
+if [ ! -e ui/target/classes ]; then
+    mvn -pl ui compile
 fi
 
-java -cp "resources:target/classes:$(cat target/classpath)" bamboo.app.Main "$@"
+java -cp "ui/resources:ui/target/classes:$(cat ui/target/classpath)" bamboo.app.Main "$@"

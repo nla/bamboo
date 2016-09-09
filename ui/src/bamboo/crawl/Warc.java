@@ -1,11 +1,6 @@
 package bamboo.crawl;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 public class Warc {
     public final static int OPEN = 0, IMPORTED = 1, CDX_INDEXED = 2, SOLR_INDEXED = 3;
@@ -22,28 +17,6 @@ public class Warc {
     private String sha256;
 
     public Warc() {
-    }
-
-    public Warc(ResultSet rs) throws SQLException {
-        setId(rs.getLong("id"));
-        setCrawlId(rs.getLong("crawl_id"));
-        setStateId(rs.getInt("warc_state_id"));
-        setPath(Paths.get(rs.getString("path")));
-        setSize(rs.getLong("size"));
-        setRecords(rs.getLong("records"));
-        setRecordBytes(rs.getLong("record_bytes"));
-        setFilename(rs.getString("filename"));
-        setSha256(rs.getString("sha256"));
-    }
-
-    public static Warc fromFile(Path path) throws IOException {
-        Warc warc = new Warc();
-        warc.setPath(path);
-        warc.setFilename(path.getFileName().toString());
-        warc.setSize(Files.size(path));
-        warc.setSha256(Scrub.calculateDigest("SHA-256", path));
-        warc.setStateId(IMPORTED);
-        return warc;
     }
 
     public long getId() {

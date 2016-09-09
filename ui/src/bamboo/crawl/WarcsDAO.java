@@ -1,27 +1,33 @@
 package bamboo.crawl;
 
+import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.sqlobject.*;
+import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
+import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
+
+import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.List;
 
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.sqlobject.Bind;
-import org.skife.jdbi.v2.sqlobject.BindBean;
-import org.skife.jdbi.v2.sqlobject.GetGeneratedKeys;
-import org.skife.jdbi.v2.sqlobject.SqlBatch;
-import org.skife.jdbi.v2.sqlobject.SqlQuery;
-import org.skife.jdbi.v2.sqlobject.SqlUpdate;
-import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
-import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
-
 @RegisterMapper({WarcsDAO.WarcMapper.class, WarcsDAO.CollectionWarcMapper.class})
 public interface WarcsDAO extends Transactional<WarcsDAO> {
     class WarcMapper implements ResultSetMapper<Warc> {
         @Override
-        public Warc map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
-            return new Warc(resultSet);
+        public Warc map(int i, ResultSet rs, StatementContext statementContext) throws SQLException {
+            Warc warc = new Warc();
+            warc.setId(rs.getLong("id"));
+            warc.setCrawlId(rs.getLong("crawl_id"));
+            warc.setStateId(rs.getInt("warc_state_id"));
+            warc.setPath(Paths.get(rs.getString("path")));
+            warc.setSize(rs.getLong("size"));
+            warc.setRecords(rs.getLong("records"));
+            warc.setRecordBytes(rs.getLong("record_bytes"));
+            warc.setFilename(rs.getString("filename"));
+            warc.setSha256(rs.getString("sha256"));
+            return warc;
         }
     }
 
