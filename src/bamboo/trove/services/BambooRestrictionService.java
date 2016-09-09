@@ -41,6 +41,7 @@ import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.Rule;
 import bamboo.trove.common.xml.RulePojo;
 import bamboo.trove.common.xml.RulesPojo;
+import bamboo.trove.db.RestrictionsDAO;
 import bamboo.util.SurtFilter;
 
 import org.apache.http.client.HttpClient;
@@ -58,6 +59,7 @@ import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.xalan.lib.sql.QueryParameter;
 import org.archive.util.SURT;
+import org.skife.jdbi.v2.sqlobject.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,6 +83,7 @@ public class BambooRestrictionService {
   private static Logger log = LoggerFactory.getLogger(BambooRestrictionService.class);
 
   protected List<Rule> currentRules;
+  protected List<Rule> newRules;
   private List<String> rawFilters; // <== this might need to become more complicated that a base string if a rule id is to be retained
   private FilterSegments segmentedFilters; // TODO: Allow vs deny?
   private List<SurtFilter> parsedFilters; // TODO: Time based embargoes. Can be time of content capture (ie. takedown) or time of indexing run (ie. embargo)
@@ -99,6 +102,8 @@ public class BambooRestrictionService {
   @PostConstruct
   public void init() {
     dao = database.getDao().restrictions();
+    currentRules = dao.getCurrentRules();
+    newRules = dao.getNewRules();
     rawFilters = new ArrayList<>();
     segmentedFilters = new FilterSegments();
     parsedFilters = new ArrayList<>();
@@ -110,17 +115,18 @@ public class BambooRestrictionService {
   }
 
   private void updateTick() {
-  	bambooApiBaseUrl = "https://dl.nla.gov.au/agwa/stayback/rules";
   	List<Rule> rules = getRulesFromServer();
   	for(Rule r : rules){
   		String rest = "";
-  		if(r.getEmbargoTime() > 0) rest += r.getEmbargoTime();
-  		else if(r.getCaptureRange() != null) rest += r.getCaptureRange().getStart() + " TO "+ r.getCaptureRange().getEnd();
-  		else if(r.getViewRange() != null) rest += r.getViewRange().getStart() + " TO "+ r.getViewRange().getEnd();
+  		if(r.getEmbargoTime() > 0) rest += "embargo " + r.getEmbargoTime() +" ";
+  		if(r.getCapturedRange() != null) rest += "capturt " + r.getCapturedRange().getStart() + " TO "+ r.getCapturedRange().getEnd() + " ";
+  		if(r.getRetrievedRange() != null) rest += "retrieved "+ r.getRetrievedRange().getStart() + " TO "+ r.getRetrievedRange().getEnd()+ " ";
   		System.out.println(r.getId() + " : " + r.getPolicy() + " : " + r.getLastUpdated()
   			+ " : " + r.getSurt() + " : " + rest);
   	}
 
+  	dao.addNewRuleSet(rules);
+  	dao.makeNewRulesCurrent();
   	try{
 			processChangedRules(rules);
 		}
@@ -135,12 +141,13 @@ public class BambooRestrictionService {
     // 5) Schedule next update tick (? or we can do it all through quartz... a background thread here means we don't need to add quartz to the bamboo dependencies)
   }
 
+
   public Rule filterDocument(Document doc) {
   	return filterDocument(doc.getUrl(), doc.getDate());
   }
   
   public Rule filterDocument(String url, Date capture) {
-    final Comparator<Rule> comp = (o1, o2) -> Integer.compare(o1.getId(), o2.getId());
+    final Comparator<Rule> comp = (o1, o2) -> o1.compareTo(o2);
     Optional<Rule> r = currentRules.stream()
     		.filter(i -> i.matches(url, capture))
     			.max(comp);
@@ -155,11 +162,11 @@ public static void main(String[] args){
 	BambooRestrictionService service = new BambooRestrictionService();  
 	service.currentRules = new ArrayList<Rule>();
 	Date now = new Date();
-	service.currentRules.add(new Rule(1, DocumentStatus.REJECTED, now, 0, null, null, null, null, "("));
-	service.currentRules.add(new Rule(2, DocumentStatus.ACCEPTED, now, 0, null, null, null, null, "(au,gov,"));
-	service.currentRules.add(new Rule(3, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(au,gov,nla,"));
-	service.currentRules.add(new Rule(4, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(au,gov,nla,trove,"));
-	service.currentRules.add(new Rule(5, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(au,gov,nla,trove,)/home.html"));
+	service.currentRules.add(new Rule(1, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(", false));
+	service.currentRules.add(new Rule(2, DocumentStatus.ACCEPTED, now, 0, null, null, null, null, "(au,gov,", false));
+	service.currentRules.add(new Rule(3, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(au,gov,nla,", false));
+	service.currentRules.add(new Rule(4, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(au,gov,nla,trove,", false));
+	service.currentRules.add(new Rule(5, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(au,gov,nla,trove,)/home.html", false));
 	Document doc = new Document();
 	doc.setUrl("trove.nla.gov.au/home.html");
 	Rule r = service.filterDocument(doc);
@@ -207,67 +214,69 @@ service.updateTick();
   private List<Rule> getRulesFromServer(){
   	List<Rule> rules;
   	
-//		try{
-//	    URL url = new URL(bambooApiBaseUrl);
-//	    URLConnection connection = (HttpURLConnection) url.openConnection();
-//	    InputStream in = new BufferedInputStream(connection.getInputStream());
-//	    rules = parseXML(in);
-//		}
-//		catch (IOException e){
-//			// TODO what should we do here 
-//			// 1. Stop with an error OR send an EMail and keep going with the old rules(no change.)
-//			throw new IllegalStateException("Error reading Rules from server." , e);
-//		}
-//    return rules;
-  	String xml = "<list>"
-  			+"  <rule>"
-  			+"    <id>1</id>"
-  			+"    <policy>ACCEPTED</policy>"
-  			+"    <surt>http://(</surt>"
-  			+"    <embargo/>"
-  			+"	<captureStart/>"
-  			+"	<captureEnd/>"
-  			+"	<viewStart/>"
-  			+"	<viewEnd/>"
-  			+"    <who></who>"
-  			+"    <privateComment></privateComment>"
-  			+"    <publicComment></publicComment>"
-  			+"    <exactMatch>false</exactMatch>"
-  			+"    <lastModified class=\"sql-timestamp\">2016-04-01 13:52:39.0</lastModified>"
-  			+"  </rule>"
-  			+"  <rule>"
-  			+"    <id>2</id>"
-  			+"    <policy>RESTRICTED_FOR_DELIVERY</policy>"
-  			+"    <surt>https://(tw,fred,</surt>"
-  			+"    <embargo>1000000</embargo>"
-  			+"	<captureStart/>"
-  			+"	<captureEnd/>"
-  			+"	<viewStart/>"
-  			+"	<viewEnd/>"
-  			+"    <who></who>"
-  			+"    <privateComment></privateComment>"
-  			+"    <publicComment></publicComment>"
-  			+"    <exactMatch>false</exactMatch>"
-  			+"    <lastModified class=\"sql-timestamp\">2014-09-11 18:14:54.0</lastModified>"
-  			+"  </rule>"
-  			+"  <rule>"
-  			+"    <id>26</id>"
-  			+"    <policy>RESTRICTED_FOR_BOTH</policy>"
-  			+"    <surt>https://(au,gov,aec,)/documents/data</surt>"
-  			+"    <embargo/>"
-  			+"    <captureStart class=\"sql-timestamp\">2015-10-02 00:11:56.0</captureStart>"
-  			+"    <captureEnd class=\"sql-timestamp\">2016-08-02 00:12:05.0</captureEnd>"
-  			+"	<viewStart/>"
-  			+"	<viewEnd/>"
-  			+"    <who></who>"
-  			+"    <privateComment></privateComment>"
-  			+"    <publicComment></publicComment>"
-  			+"    <exactMatch>false</exactMatch>"
-  			+"    <lastModified class=\"sql-timestamp\">2016-08-09 14:12:10.0</lastModified>"
-  			+"  </rule>"
-  			+"</list>";
-  	ByteArrayInputStream is = new ByteArrayInputStream(xml.getBytes());
-  	return parseXML(is);
+		try{
+	    URL url = new URL(bambooApiBaseUrl);
+	    URLConnection connection = (HttpURLConnection) url.openConnection();
+	    InputStream in = new BufferedInputStream(connection.getInputStream());
+	    rules = parseXML(in);
+		}
+		catch (IOException e){
+			// TODO what should we do here 
+			// 1. Stop with an error OR send an EMail and keep going with the old rules(no change.)
+			throw new IllegalStateException("Error reading Rules from server." , e);
+		}
+    return rules;
+//  	String xml = "<list>"
+//  			+"  <rule>"
+//  			+"    <id>1</id>"
+//  			+"    <policy>ACCEPTED</policy>"
+//  			+"    <surt>http://(</surt>"
+//  			+"    <embargo/>"
+//  			+"	<captureStart/>"
+//  			+"	<captureEnd/>"
+//  			+"	<retrievedStart/>"
+//  			+"	<retrievedEnd/>"
+//  			+"    <who></who>"
+//  			+"    <privateComment></privateComment>"
+//  			+"    <publicComment></publicComment>"
+//  			+"    <exactMatch>false</exactMatch>"
+//  			+"    <lastModified class=\"sql-timestamp\">2016-04-01 13:52:39.0</lastModified>"
+//  			+"  </rule>"
+//  			+"  <rule>"
+//  			+"    <id>2</id>"
+//  			+"    <policy>RESTRICTED_FOR_DELIVERY</policy>"
+//  			+"    <surt>https://(tw,fred,</surt>"
+//  			+"    <embargo>1000000</embargo>"
+//  			+"	<captureStart/>"
+//  			+"	<captureEnd/>"
+//  			+"	<retrievedStart/>"
+//  			+"	<retrievedEnd/>"
+//  			+"    <who></who>"
+//  			+"    <privateComment></privateComment>"
+//  			+"    <publicComment></publicComment>"
+//  			+"    <exactMatch>false</exactMatch>"
+//  			+"    <lastModified class=\"sql-timestamp\">2014-09-11 18:14:54.0</lastModified>"
+//  			+"  </rule>"
+//  			+"  <rule>"
+//  			+"    <id>26</id>"
+//  			+"    <policy>RESTRICTED_FOR_BOTH</policy>"
+//  			+"    <surt>https://(au,gov,aec,)/documents/data</surt>"
+//  			+"    <embargo/>"
+//  			+"    <captureStart class=\"sql-timestamp\">2015-10-02 00:11:56.0</captureStart>"
+//  			+"    <captureEnd class=\"sql-timestamp\">2016-08-02 00:12:05.0</captureEnd>"
+//  			+"    <retrievedStart/>"
+//  			+"    <retrievedEnd/>"
+//  			+"	<retrievedStart/>"
+//  			+"	<retrievedEnd/>"
+//  			+"    <who></who>"
+//  			+"    <privateComment></privateComment>"
+//  			+"    <publicComment></publicComment>"
+//  			+"    <exactMatch>false</exactMatch>"
+//  			+"    <lastModified class=\"sql-timestamp\">2016-08-09 14:12:10.0</lastModified>"
+//  			+"  </rule>"
+//  			+"</list>";
+//  	ByteArrayInputStream is = new ByteArrayInputStream(xml.getBytes());
+//  	return parseXML(is);
   }
   
   private List<Rule> parseXML(InputStream is){
@@ -304,7 +313,11 @@ service.updateTick();
 				p = "RESTRICTED_FOR_BOTH";
 			}
 			DocumentStatus policy = DocumentStatus.valueOf(p);
-			rules.add(new Rule(r.getId(), policy, r.getLastModified(), r.getEmbargo(), r.getCaptureStart(), r.getCaptureEnd(), r.getViewStart(), r.getViewEnd(), r.getSurt()));
+			boolean matchExact = false;
+			if("true".equalsIgnoreCase(r.getExactMatch())){
+				matchExact = true;
+			}
+			rules.add(new Rule(r.getId(), policy, r.getLastModified(), r.getEmbargo(), r.getCaptureStart(), r.getCaptureEnd(), r.getViewStart(), r.getViewEnd(), r.getSurt(), matchExact));
 		}
   	return rules;
   }

@@ -1,21 +1,24 @@
 package bamboo.trove.common;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Date;
 
 import org.archive.url.SURT;
 
-public class Rule{
+public class Rule implements Comparable<Rule>{
 	private int id;
 	private DocumentStatus policy;
 	private Date lastUpdated;
 	private long embargoTime;
-	private DateRange captureRange;
-	private DateRange viewRange;
+	private DateRange capturedRange;
+	private DateRange retrievedRange;
 	private String surt;
+	private boolean matchExact = false;
 	private String url = "";
 	
 	public Rule(int id, DocumentStatus policy, Date lastUpdated, long embargo, 
-			Date captureStart, Date captureEnd, Date viewStart, Date viewEnd, String surt){
+			Date captureStart, Date captureEnd, Date viewStart, Date viewEnd, String surt, boolean matchExact){
 		if(id <= 0){
 			throw new IllegalArgumentException("Invalid id.");
 		}
@@ -31,21 +34,18 @@ public class Rule{
 		if(surt == null){
 			throw new NullPointerException("Must have a SURT string.");			
 		}
-		if((captureStart != null || captureEnd != null)
-				&& (viewStart != null || viewEnd != null)){
-			throw new IllegalArgumentException("Can not have a range both view and capture.");			
-		}
 		
 		this.id = id;
 		this.policy = policy;
 		this.lastUpdated = lastUpdated;
 		this.embargoTime = embargo;
 		this.surt = surt;
+		this.matchExact = matchExact;
 		if(captureStart != null || captureEnd != null){
-			this.captureRange = new DateRange(captureStart, captureEnd);
+			this.capturedRange = new DateRange(captureStart, captureEnd);
 		}
 		if(viewStart != null || viewEnd != null){
-			this.viewRange = new DateRange(viewStart, viewEnd);
+			this.retrievedRange = new DateRange(viewStart, viewEnd);
 		}
 		convertSurt();
 	}
@@ -65,20 +65,66 @@ public class Rule{
 				return false;
 			}
 		}
-		if(captureRange != null){
-			if(! captureRange.isDateInRange(captureDate)){
+		if(capturedRange != null){
+			if(! capturedRange.isDateInRange(captureDate)){
 				return false;
 			}
 		}
-		if(viewRange != null){
-			if(! viewRange.isDateInRange(new Date())){
+		if(retrievedRange != null){
+			if(! retrievedRange.isDateInRange(new Date())){
 				return false;
 			}
 		}
-		if(!s.startsWith(surt)){
-			return false;
+		if(matchExact){
+			if(!s.equals(surt)){
+				return false;
+			}
+		}
+		else{
+  		if(!s.startsWith(surt)){
+  			return false;
+  		}
 		}
 		return true;
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private int comp(Comparable mine, Comparable other){
+   	if ((mine == null) && (other == null)) {
+  		return 0;
+  	}  	
+  	if ((mine != null) && (other != null)) {
+  		return mine.compareTo(other);
+  	}
+  	return ((mine == null) ? -1 : 1);
+	}
+	
+	@Override
+	public int compareTo(Rule o){
+		int ret = comp(this.getSurt(), o.getSurt());
+		if(ret == 0){
+			ret = comp(this.isMatchExact(), o.isMatchExact());
+		}
+		if(ret == 0){
+			if(this.getCapturedRange()!=null){
+				ret = comp(this.getCapturedRange().getStart(), o.getCapturedRange() != null ? o.getCapturedRange().getStart():null);
+				if(ret == 0){
+					ret = comp(this.getCapturedRange().getEnd(), o.getCapturedRange() != null ? o.getCapturedRange().getEnd():null);
+				}
+			}
+		}
+		if(ret == 0){
+			if(this.getRetrievedRange()!=null){
+				ret = comp(this.getRetrievedRange().getStart(), o.getRetrievedRange() != null ? o.getRetrievedRange().getStart():null);
+				if(ret == 0){
+					ret = comp(this.getRetrievedRange().getEnd(), o.getRetrievedRange() != null ? o.getRetrievedRange().getEnd():null);
+				}
+			}
+		}
+		if(ret == 0){
+			ret = comp(this.getEmbargoTime(), o.getEmbargoTime());
+		}
+		return ret;
 	}
 
 	private void convertSurt(){
@@ -133,13 +179,16 @@ public class Rule{
 	public String getUrl(){
 		return url;
 	}
-	public DateRange getViewRange(){
-		return viewRange;
+	public DateRange getRetrievedRange(){
+		return retrievedRange;
 	}
-	public DateRange getCaptureRange(){
-		return captureRange;
+	public DateRange getCapturedRange(){
+		return capturedRange;
 	}
 	public long getEmbargoTime(){
 		return embargoTime;
+	}
+	public boolean isMatchExact(){
+		return matchExact;
 	}
 }
