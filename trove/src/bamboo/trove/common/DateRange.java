@@ -78,4 +78,9 @@ public class DateRange{
 		}
 		return true;
 	}
+	@Override
+	public String toString(){
+		// TODO Auto-generated method stub
+		return this.getStart() + " TO " + this.getEnd();
+	}
 }

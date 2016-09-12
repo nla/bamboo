@@ -190,21 +190,21 @@ public class RuleTest{
 		Date after = new Date(nowLong + 100000);
 		Rule[] rules = {new Rule(5, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(com,", false),
 				new Rule(4, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,gov,", false),
-				new Rule(10, DocumentStatus.ACCEPTED, new Date(), 0, before, before, now, after , "(com,aa,", false),
-				new Rule(2, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,com,", false),
+				new Rule(8, DocumentStatus.ACCEPTED, new Date(), 0, before, before, now, after , "(com,aa,", false),
+				new Rule(3, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,com,", false),
 				new Rule(9, DocumentStatus.ACCEPTED, new Date(), 0, before, before, before, after , "(com,aa,", false),
-				new Rule(3, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,com,", true),
-				new Rule(12, DocumentStatus.ACCEPTED, new Date(), 0, now, now, before, before , "(com,aa,", false),
-				new Rule(11, DocumentStatus.ACCEPTED, new Date(), 0, before, now, before, before , "(com,aa,", false),			
-				new Rule(6, DocumentStatus.ACCEPTED, new Date(), 0, before, before, before, before , "(com,aa,", false),
-				new Rule(8, DocumentStatus.ACCEPTED, new Date(), 10000, before, before, before, before , "(com,aa,", false),
-				new Rule(7, DocumentStatus.ACCEPTED, new Date(), 1000, before, before, before, before , "(com,aa,", false),
+				new Rule(2, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,com,", true),
+				new Rule(6, DocumentStatus.ACCEPTED, new Date(), 0, now, now, before, before , "(com,aa,", false),
+				new Rule(7, DocumentStatus.ACCEPTED, new Date(), 0, before, now, before, before , "(com,aa,", false),			
+				new Rule(12, DocumentStatus.ACCEPTED, new Date(), 0, before, before, before, before , "(com,aa,", false),
+				new Rule(10, DocumentStatus.ACCEPTED, new Date(), 10000, before, before, before, before , "(com,aa,", false),
+				new Rule(11, DocumentStatus.ACCEPTED, new Date(), 1000, before, before, before, before , "(com,aa,", false),
 				new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,", false),
 				};
 		Arrays.sort(rules);
-//		for(Rule r : rules){
-//			System.out.println(r.getId()+ " : "+r.getSurt());
-//		}
+		for(Rule r : rules){
+			System.out.println(r.getId()+ " : "+r.getSurt()+" : "+r.getCapturedRange() + " : "+r.getRetrievedRange() + " : "+ r.getEmbargoTime());
+		}
 		int i = 1;
 		for(Rule r : rules){
 			assertEquals(i++, r.getId());

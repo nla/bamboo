@@ -94,14 +94,14 @@ public class Rule implements Comparable<Rule>{
   		return 0;
   	}  	
   	if ((mine != null) && (other != null)) {
-  		return mine.compareTo(other);
+  		return -mine.compareTo(other);
   	}
-  	return ((mine == null) ? -1 : 1);
+  	return -((mine == null) ? -1 : 1);
 	}
 	
 	@Override
 	public int compareTo(Rule o){
-		int ret = comp(this.getSurt(), o.getSurt());
+		int ret = -comp(this.getSurt(), o.getSurt());
 		if(ret == 0){
 			ret = comp(this.isMatchExact(), o.isMatchExact());
 		}
