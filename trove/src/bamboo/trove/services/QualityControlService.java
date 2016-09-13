@@ -15,14 +15,29 @@
  */
 package bamboo.trove.services;
 
+import java.util.Arrays;
+import java.util.List;
+
 import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
 import org.springframework.stereotype.Service;
 
 @Service
 public class QualityControlService {
+  public static final List<String> TEXT_CONTENT_TYPES = Arrays.asList("text/html", "application/pdf");
+
   public ContentThreshold filterDocument(Document document) {
-    // TODO
+    // Status code - Unless we actually harvested the content, don't index it
+    if (document.getStatusCode() != 200) {
+      return ContentThreshold.NONE;
+    }
+
+    // Content Type
+    if (!TEXT_CONTENT_TYPES.contains(document.getContentType())) {
+      return ContentThreshold.METADATA_ONLY;
+    }
+
+    // More rules will likely be added here
     return ContentThreshold.FULL_TEXT;
   }
 }
