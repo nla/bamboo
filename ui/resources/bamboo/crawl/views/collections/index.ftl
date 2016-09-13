@@ -5,7 +5,7 @@
 [#if collections.isEmpty()]
     <p>No collections found.</p>
 [#else]
-    [#include "/collections/_list.ftl"]
+    [#include "_list.ftl"]
     [@pagination collectionsPager.currentPage collectionsPager.lastPage /]
 [/#if]
 

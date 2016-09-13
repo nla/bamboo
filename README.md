@@ -1,5 +1,8 @@
 # Bamboo
 
+[![Build Status](https://travis-ci.org/nla/bamboo.svg?branch=master)](https://travis-ci.org/nla/bamboo)
+[![codecov](https://codecov.io/gh/nla/bamboo/branch/master/graph/badge.svg)](https://codecov.io/gh/nla/bamboo)
+
 Keeps track of our web archiving collection, manages indexing and calculates statistics.
 
 ## Status
