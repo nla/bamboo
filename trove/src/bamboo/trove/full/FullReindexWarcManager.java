@@ -78,7 +78,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private long persistedWarcId = 0;
 
   private long bambooCollectionId = 3;
-  private int bambooBatchSize = 10;
+  private int bambooBatchSize = 100;
   private int bambooReadThreads = 1;
   private String bambooBaseUrl;
   private String bambooCollectionsUrl;
