@@ -23,7 +23,6 @@ import java.net.URL;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,15 +31,17 @@ import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentSkipListMap;
 import javax.annotation.PostConstruct;
 
 import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
+import bamboo.task.WarcToIndex;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.WarcProgressManager;
 import bamboo.trove.common.WarcSummary;
-import bamboo.task.WarcToIndex;
 import bamboo.trove.db.FullPersistenceDAO;
 import bamboo.trove.services.FilteringCoordinationService;
 import bamboo.trove.services.JdbiService;
@@ -105,10 +106,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   // This one is for persisting back to the database
   private Queue<Queue<ToIndex>> allBatches = new LinkedList<>();
   // Tracking batch information key'd by warc ID so we can run a dashboard
-  private Map<Long, WarcProgressManager> warcTracking = new TreeMap<>();
-  private Map<Long, WarcSummary> warcSummaries = new TreeMap<>();
-  private Map<Long, Pair<Timestamp, Integer>> retryErrors = new HashMap<>();
-  private Map<Long, Pair<Timestamp, Integer>> ignoredErrors = new HashMap<>();
+  private Map<Long, WarcProgressManager> warcTracking = new ConcurrentSkipListMap<>();
+  private Map<Long, WarcSummary> warcSummaries = new ConcurrentSkipListMap<>();
+  private Map<Long, Pair<Timestamp, Integer>> retryErrors = new ConcurrentHashMap<>();
+  private Map<Long, Pair<Timestamp, Integer>> ignoredErrors = new ConcurrentHashMap<>();
   private Timer timer;
 
   private Map<Long, Integer> noSpamTimeout = new TreeMap<>();
