@@ -76,7 +76,7 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 		workDistributor = new WorkProcessor(NUMBER_OF_DISTRIBUTORS);
 		if(restrictionsService.isRecovery()){
 			log.info("Restart into Rule recovery mode.");
-			startProcessing();
+//			startProcessing();
 		}
   }
 
