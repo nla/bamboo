@@ -33,6 +33,7 @@ import java.util.regex.Pattern;
 public class TextExtractor {
     static final int pdfDiskOffloadThreshold = 32 * 1024 * 1024;
     static final int maxDocSize = 0x100000;
+    static final long timeLimitMillis = 5000;
 
     private boolean boilingEnabled = false;
     private boolean usePdfBox = false;
@@ -153,10 +154,11 @@ public class TextExtractor {
 
     static void extractPdfContent(PdfReader pdfReader, Document doc) throws TextExtractionException, IOException {
         try {
+            long deadline = System.currentTimeMillis() + timeLimitMillis;
             CharBuffer buf = CharBuffer.allocate(maxDocSize);
             PdfTextExtractor extractor = new PdfTextExtractor(pdfReader);
             try {
-                for (int i = 1; i <= pdfReader.getNumberOfPages(); ++i) {
+                for (int i = 1; i <= pdfReader.getNumberOfPages() && System.currentTimeMillis() < deadline; ++i) {
                     String text = extractor.getTextFromPage(i);
                     buf.append(text.replace("\uFFFF", ""));
                     buf.append(' ');
@@ -184,21 +186,21 @@ public class TextExtractor {
     }
 
     static void extractPdfBox(InputStream stream, Document doc) throws TextExtractionException {
+        StringWriter sw = new StringWriter();
         try (PDDocument pdf = PDDocument.load(stream, MemoryUsageSetting.setupTempFileOnly())) {
             String title = pdf.getDocumentInformation().getTitle();
             if (title != null) {
                 doc.setTitle(title);
             }
 
-            StringWriter sw = new StringWriter();
             PDFTextStripper stripper = new PDFTextStripper();
-            stripper.writeText(pdf, new TruncatingWriter(sw, maxDocSize));
-            doc.setText(sw.toString());
+            stripper.writeText(pdf, new TruncatingWriter(sw, maxDocSize, System.currentTimeMillis() + timeLimitMillis));
         } catch (BufferOverflowException e) {
             // reached maxDocSize, just stop early
         } catch (Exception e) {
             throw new TextExtractionException(e);
         }
+        doc.setText(sw.toString());
     }
 
     public void setUsePdfBox(boolean usePdfBox) {
@@ -207,16 +209,18 @@ public class TextExtractor {
 
     static class TruncatingWriter extends FilterWriter {
         private final long limit;
+        private final long deadline;
         private long written;
 
-        TruncatingWriter(Writer out, long limit) {
+        TruncatingWriter(Writer out, long limit, long deadline) {
             super(out);
             this.limit = limit;
+            this.deadline = deadline;
         }
 
         @Override
         public void write(int i) throws IOException {
-            if (remaining() > 0) {
+            if (remaining() > 0 && System.currentTimeMillis() < deadline) {
                 super.write(i);
                 written++;
             } else {
@@ -226,7 +230,7 @@ public class TextExtractor {
 
         @Override
         public void write(String s, int off, int len) throws IOException {
-            if (remaining() <= 0) {
+            if (remaining() <= 0 || System.currentTimeMillis() >= deadline) {
                 throw new BufferOverflowException();
             }
             int clamped = (int)Math.min(len, remaining());
@@ -236,7 +240,7 @@ public class TextExtractor {
 
         @Override
         public void write(char[] chars, int off, int len) throws IOException {
-            if (remaining() <= 0) {
+            if (remaining() <= 0 || System.currentTimeMillis() >= deadline) {
                 throw new BufferOverflowException();
             }
             int clamped = (int)Math.min(len, remaining());
