@@ -27,6 +27,7 @@ public class BambooRestrictionServiceTest{
 	public void testFilterDocument(){
 		BambooRestrictionService service = new BambooRestrictionService();  
 		service.currentRules = new ArrayList<Rule>();
+		service.newRules = new ArrayList<Rule>();
 		Date now = new Date();
 		service.currentRules.add(new Rule(1, DocumentStatus.ACCEPTED, now, 0, null, null, null, null, "(", false));
 		service.currentRules.add(new Rule(2, DocumentStatus.RESTRICTED_FOR_BOTH, now, 0, null, null, null, null, "(au,", false));

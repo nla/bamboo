@@ -1,7 +1,5 @@
 package bamboo.trove.common;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.Date;
 
 import org.archive.url.SURT;
@@ -10,7 +8,7 @@ public class Rule implements Comparable<Rule>{
 	private int id;
 	private DocumentStatus policy;
 	private Date lastUpdated;
-	private long embargoTime;
+	private long embargo;
 	private DateRange capturedRange;
 	private DateRange retrievedRange;
 	private String surt;
@@ -38,7 +36,7 @@ public class Rule implements Comparable<Rule>{
 		this.id = id;
 		this.policy = policy;
 		this.lastUpdated = lastUpdated;
-		this.embargoTime = embargo;
+		this.embargo = embargo;
 		this.surt = surt;
 		this.matchExact = matchExact;
 		if(captureStart != null || captureEnd != null){
@@ -59,8 +57,8 @@ public class Rule implements Comparable<Rule>{
 	 */
 	public boolean matches(String url, Date captureDate){
 		String s = SURT.toSURT(url);
-		if(embargoTime > 0){
-			Date d = new Date(System.currentTimeMillis() - embargoTime);
+		if(embargo > 0){
+			Date d = new Date(System.currentTimeMillis() - embargo);
 			if(captureDate.after(d)){
 				return false;
 			}
@@ -122,7 +120,7 @@ public class Rule implements Comparable<Rule>{
 			}
 		}
 		if(ret == 0){
-			ret = comp(this.getEmbargoTime(), o.getEmbargoTime());
+			ret = comp(this.getEmbargo(), o.getEmbargo());
 		}
 		return ret;
 	}
@@ -185,8 +183,8 @@ public class Rule implements Comparable<Rule>{
 	public DateRange getCapturedRange(){
 		return capturedRange;
 	}
-	public long getEmbargoTime(){
-		return embargoTime;
+	public long getEmbargo(){
+		return embargo;
 	}
 	public boolean isMatchExact(){
 		return matchExact;

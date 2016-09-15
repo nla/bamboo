@@ -16,6 +16,7 @@
 package bamboo.trove.services;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -26,6 +27,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import javax.annotation.PostConstruct;
@@ -40,6 +42,7 @@ import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.params.CursorMarkParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,8 +74,10 @@ import bamboo.util.SurtFilter;
 public class BambooRestrictionService {
   private static Logger log = LoggerFactory.getLogger(BambooRestrictionService.class);
 
+  private boolean recovery = false;
   protected List<Rule> currentRules;
   protected List<Rule> newRules;
+  private Date lastRun;
   private List<String> rawFilters; // <== this might need to become more complicated that a base string if a rule id is to be retained
   private FilterSegments segmentedFilters; // TODO: Allow vs deny?
   private List<SurtFilter> parsedFilters; // TODO: Time based embargoes. Can be time of content capture (ie. takedown) or time of indexing run (ie. embargo)
@@ -93,6 +98,14 @@ public class BambooRestrictionService {
     dao = database.getDao().restrictions();
     currentRules = dao.getCurrentRules();
     newRules = dao.getNewRules();
+    lastRun = dao.getLastRun();
+    log.debug("Found {} current rules", currentRules.size());
+    log.debug("Found {} new rules", newRules.size());
+    log.debug("Rules last run on {}.", lastRun);
+    if(!newRules.isEmpty()){
+    	recovery = true;
+    	log.warn("Server start up with new Rule set not finished. Recovery Reprocess new rule set.");
+    }
     rawFilters = new ArrayList<>();
     segmentedFilters = new FilterSegments();
     parsedFilters = new ArrayList<>();
@@ -100,34 +113,29 @@ public class BambooRestrictionService {
     if (bambooApiBaseUrl == null) {
       throw new IllegalStateException("bambooApiBaseUrl has not been configured");
     }
-    updateTick();
+    checkForChangedRules();
   }
 
-  private void updateTick() {
-  	List<Rule> rules = getRulesFromServer();
-  	for(Rule r : rules){
-  		String rest = "";
-  		if(r.getEmbargoTime() > 0) rest += "embargo " + r.getEmbargoTime() +" ";
-  		if(r.getCapturedRange() != null) rest += "capturt " + r.getCapturedRange().getStart() + " TO "+ r.getCapturedRange().getEnd() + " ";
-  		if(r.getRetrievedRange() != null) rest += "retrieved "+ r.getRetrievedRange().getStart() + " TO "+ r.getRetrievedRange().getEnd()+ " ";
-  		System.out.println(r.getId() + " : " + r.getPolicy() + " : " + r.getLastUpdated()
-  			+ " : " + r.getSurt() + " : " + rest);
+  public boolean checkForChangedRules() {
+  	if(!recovery){
+    	List<Rule> rules = getRulesFromServer();
+    	for(Rule r : rules){
+    		String rest = "";
+    		if(r.getEmbargo() > 0) rest += "embargo " + r.getEmbargo() +" ";
+    		if(r.getCapturedRange() != null) rest += "capturt " + r.getCapturedRange().getStart() + " TO "+ r.getCapturedRange().getEnd() + " ";
+    		if(r.getRetrievedRange() != null) rest += "retrieved "+ r.getRetrievedRange().getStart() + " TO "+ r.getRetrievedRange().getEnd()+ " ";
+    		System.out.println(r.getId() + " : " + r.getPolicy() + " : " + r.getLastUpdated()
+    			+ " : " + r.getSurt() + " : " + rest);
+    	}
+  
+    	List<Rule> changed = getChangedRules(currentRules, rules);
+    	if(!changed.isEmpty()){
+    		// some rules have changed so we will save to the DB.
+    		dao.addNewRuleSet(rules);
+    		return true;
+    	}
   	}
-
-  	dao.addNewRuleSet(rules);
-  	dao.makeNewRulesCurrent();
-  	try{
-			processChangedRules(rules);
-		}
-		catch (SolrServerException | IOException e){
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    // 1) Contact Bamboo
-    // 2) Parse the response
-    // 3) Process the response
-    // 4) Flag follow up actions
-    // 5) Schedule next update tick (? or we can do it all through quartz... a background thread here means we don't need to add quartz to the bamboo dependencies)
+  	return false;
   }
 
 
@@ -136,8 +144,12 @@ public class BambooRestrictionService {
   }
   
   public Rule filterDocument(String url, Date capture) {
+  	List<Rule> rules = currentRules;
+  	if(!newRules.isEmpty()){
+  		rules = newRules;
+  	}
     final Comparator<Rule> comp = (o1, o2) -> o1.compareTo(o2);
-    Optional<Rule> r = currentRules.stream()
+    Optional<Rule> r = rules.stream()
     		.filter(i -> i.matches(url, capture))
     			.max(comp);
 
@@ -145,6 +157,98 @@ public class BambooRestrictionService {
       throw new IllegalStateException("No matching rule found for : " + url);
     }
   	return r.get();
+  }
+  
+  public Date getLastProcessed(){
+  	return lastRun;
+  }
+  
+  public Rule getRule(int id){
+  	Rule r = null;
+  	for(Rule i : currentRules){
+  		if(i.getId() == id){
+  			r = i;
+  			break;
+  		}
+  	}
+  	return r;
+  }
+  
+	/**
+	 * Get the list of rules that have changed.
+	 * <p/>
+	 * This is the list to process by re-checking the documents that may need
+	 * there restrictions updated.<br/>
+	 * This should only include rules that have changed(edited).
+	 * 
+	 * @return
+	 */
+  public List<Rule> getChangedRules(){
+  	return getChangedRules(currentRules, newRules);
+  }
+  public List<Rule> getChangedRules(List<Rule> current, List<Rule> next){ 
+  	Map<Integer, Rule> nRuleMap = new HashMap<>();
+  	for(Rule r : next){
+  		nRuleMap.put(r.getId(), r);
+  	}
+  	List<Rule> changed = new ArrayList<>();
+  	List<Rule> unchanged = new ArrayList<>();
+  	for(Rule cRule : current){
+  		Rule nRule = nRuleMap.remove(cRule.getId());
+  		if(nRule == null){
+  			changed.add(cRule);
+  		}
+  		else{
+  			if(cRule.getLastUpdated().equals(nRule.getLastUpdated())){
+  				unchanged.add(cRule);
+  			}
+  			else{
+  				changed.add(cRule);
+  			}
+  		}
+  	}
+  	if(!nRuleMap.isEmpty()){
+  		// new rule not in current rules so add to changed.
+  		changed.addAll(nRuleMap.values());
+  	}
+  	return changed;
+  }
+  
+	/**
+	 * Get the list of rules that have date dependence.
+	 * <p/>
+	 * This is the list to process by re-checking the documents that may need
+	 * there restrictions updated.<br/>
+	 * This should only include rules that have dates in there rules(edited).
+	 * 
+	 * @return
+	 */
+  public List<Rule> getDateRules(){ 
+  	List<Rule> list = new ArrayList<>();
+  	List<Rule> current = currentRules;
+  	// if we have a new set of rule we will use them as this will be applied after the changed rules.
+  	if(!newRules.isEmpty()){
+  		current = newRules;
+  	}
+  	for(Rule r : current){
+  		if(r.getCapturedRange() != null){
+  			list.add(r);
+  		}
+  		else if(r.getRetrievedRange() != null){
+  			list.add(r);
+  		}
+  		else if(r.getEmbargo() > 0){
+  			list.add(r);
+  		}
+  	}
+  	return list;
+  }
+  
+  public void changeToNewRules(Date lastRun){
+  	dao.makeNewRulesCurrent(lastRun);
+    currentRules = dao.getCurrentRules();
+    newRules = dao.getNewRules(); // should now be empty
+    lastRun = dao.getLastRun();
   }
   
 public static void main(String[] args){
@@ -170,7 +274,7 @@ doc.setUrl("dlir.aec.gov.au/home.html");
 r = service.filterDocument(doc);
 System.out.println(r.getId() + " : " + r.getPolicy());
 
-service.updateTick();
+service.checkForChangedRules();
 }
   // TODO: No consideration of embargo dates yet...
   // TODO: Polling background thread.
@@ -203,69 +307,69 @@ service.updateTick();
   private List<Rule> getRulesFromServer(){
   	List<Rule> rules;
   	
-		try{
-	    URL url = new URL(bambooApiBaseUrl);
-	    URLConnection connection = (HttpURLConnection) url.openConnection();
-	    InputStream in = new BufferedInputStream(connection.getInputStream());
-	    rules = parseXML(in);
-		}
-		catch (IOException e){
-			// TODO what should we do here 
-			// 1. Stop with an error OR send an EMail and keep going with the old rules(no change.)
-			throw new IllegalStateException("Error reading Rules from server." , e);
-		}
-    return rules;
-//  	String xml = "<list>"
-//  			+"  <rule>"
-//  			+"    <id>1</id>"
-//  			+"    <policy>ACCEPTED</policy>"
-//  			+"    <surt>http://(</surt>"
-//  			+"    <embargo/>"
-//  			+"	<captureStart/>"
-//  			+"	<captureEnd/>"
-//  			+"	<retrievedStart/>"
-//  			+"	<retrievedEnd/>"
-//  			+"    <who></who>"
-//  			+"    <privateComment></privateComment>"
-//  			+"    <publicComment></publicComment>"
-//  			+"    <exactMatch>false</exactMatch>"
-//  			+"    <lastModified class=\"sql-timestamp\">2016-04-01 13:52:39.0</lastModified>"
-//  			+"  </rule>"
-//  			+"  <rule>"
-//  			+"    <id>2</id>"
-//  			+"    <policy>RESTRICTED_FOR_DELIVERY</policy>"
-//  			+"    <surt>https://(tw,fred,</surt>"
-//  			+"    <embargo>1000000</embargo>"
-//  			+"	<captureStart/>"
-//  			+"	<captureEnd/>"
-//  			+"	<retrievedStart/>"
-//  			+"	<retrievedEnd/>"
-//  			+"    <who></who>"
-//  			+"    <privateComment></privateComment>"
-//  			+"    <publicComment></publicComment>"
-//  			+"    <exactMatch>false</exactMatch>"
-//  			+"    <lastModified class=\"sql-timestamp\">2014-09-11 18:14:54.0</lastModified>"
-//  			+"  </rule>"
-//  			+"  <rule>"
-//  			+"    <id>26</id>"
-//  			+"    <policy>RESTRICTED_FOR_BOTH</policy>"
-//  			+"    <surt>https://(au,gov,aec,)/documents/data</surt>"
-//  			+"    <embargo/>"
-//  			+"    <captureStart class=\"sql-timestamp\">2015-10-02 00:11:56.0</captureStart>"
-//  			+"    <captureEnd class=\"sql-timestamp\">2016-08-02 00:12:05.0</captureEnd>"
-//  			+"    <retrievedStart/>"
-//  			+"    <retrievedEnd/>"
-//  			+"	<retrievedStart/>"
-//  			+"	<retrievedEnd/>"
-//  			+"    <who></who>"
-//  			+"    <privateComment></privateComment>"
-//  			+"    <publicComment></publicComment>"
-//  			+"    <exactMatch>false</exactMatch>"
-//  			+"    <lastModified class=\"sql-timestamp\">2016-08-09 14:12:10.0</lastModified>"
-//  			+"  </rule>"
-//  			+"</list>";
-//  	ByteArrayInputStream is = new ByteArrayInputStream(xml.getBytes());
-//  	return parseXML(is);
+//		try{
+//	    URL url = new URL(bambooApiBaseUrl);
+//	    URLConnection connection = (HttpURLConnection) url.openConnection();
+//	    InputStream in = new BufferedInputStream(connection.getInputStream());
+//	    rules = parseXML(in);
+//		}
+//		catch (IOException e){
+//			// TODO what should we do here 
+//			// 1. Stop with an error OR send an EMail and keep going with the old rules(no change.)
+//			throw new IllegalStateException("Error reading Rules from server." , e);
+//		}
+//    return rules;
+  	String xml = "<list>"
+  			+"  <rule>"
+  			+"    <id>1</id>"
+  			+"    <policy>ACCEPTED</policy>"
+  			+"    <surt>http://(</surt>"
+  			+"    <embargo/>"
+  			+"	<captureStart/>"
+  			+"	<captureEnd/>"
+  			+"	<retrievedStart/>"
+  			+"	<retrievedEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2016-04-01 13:52:39.0</lastModified>"
+  			+"  </rule>"
+  			+"  <rule>"
+  			+"    <id>2</id>"
+  			+"    <policy>RESTRICTED_FOR_DELIVERY</policy>"
+  			+"    <surt>https://(tw,fred,</surt>"
+  			+"    <embargo>1000000</embargo>"
+  			+"	<captureStart/>"
+  			+"	<captureEnd/>"
+  			+"	<retrievedStart/>"
+  			+"	<retrievedEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2014-09-11 18:14:54.0</lastModified>"
+  			+"  </rule>"
+  			+"  <rule>"
+  			+"    <id>26</id>"
+  			+"    <policy>RESTRICTED_FOR_BOTH</policy>"
+  			+"    <surt>https://(au,gov,aec,)/documents/data</surt>"
+  			+"    <embargo/>"
+  			+"    <captureStart class=\"sql-timestamp\">2015-10-02 00:11:56.0</captureStart>"
+  			+"    <captureEnd class=\"sql-timestamp\">2016-08-02 00:12:05.0</captureEnd>"
+  			+"    <retrievedStart/>"
+  			+"    <retrievedEnd/>"
+  			+"	<retrievedStart/>"
+  			+"	<retrievedEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2016-08-09 14:12:10.0</lastModified>"
+  			+"  </rule>"
+  			+"</list>";
+  	ByteArrayInputStream is = new ByteArrayInputStream(xml.getBytes());
+  	return parseXML(is);
   }
   
   private List<Rule> parseXML(InputStream is){
@@ -311,71 +415,8 @@ service.updateTick();
   	return rules;
   }
   
-  /**
-   * We are processing the rules that have changed.<p/>
-   * 
-   * We will have to check each rule that has changed(including deleted).<br/>
-   * For each record in solr that was controlled by that rule we will have to check against all rules and update.
-   * For all the records in solr that match the surt for the rule we need to check against all rules and update.  
-   * @param changedRules
-   * @throws SolrServerException 
-   * @throws IOException 
-   */
-	private void processChangedRules(List<Rule> changedRules) throws SolrServerException, IOException{
-  	CloudSolrClient client = new CloudSolrClient("localhost:2181/trove/0.5");
-  	client.setDefaultCollection("pandora");
-  	for(Rule rule : changedRules){
-  		if(rule.getUrl().isEmpty())continue; // TODO this could be a full re-index ?
-    	SolrQuery query = new SolrQuery("url:" + rule.getUrl());
-    	query.setFields(new String[]{"fileNameHash", "url", "capture"});
-    	query.setSort(SortClause.asc("fileNameHash"));
-    	query.setRows(1000);
-    	boolean more = true;
-    	count = 0;
-    	String cursor = CursorMarkParams.CURSOR_MARK_START;
-    	while(more){
-      	query.set(CursorMarkParams.CURSOR_MARK_PARAM, cursor);
-      	QueryResponse response = client.query(query);
-      	SolrDocumentList results = response.getResults();
-      	System.out.println(results.getNumFound());
-      	String nextCursor = response.getNextCursorMark();
-      	System.out.println("Cursor : " + nextCursor);
-      	if(cursor.equals(nextCursor)){
-      		more = false;
-      	}
-      	processResultsRecheckRule(results);
-    		cursor = nextCursor;
-    	}
-  	}
-  }
 	
-	int count = 0;
-	private void processResultsRecheckRule(SolrDocumentList list){
-  	for(SolrDocument doc : list){
-  		String url = (String)doc.getFieldValue("url");
-  		Date capture = (Date)doc.getFieldValue("capture");
-  		String id = (String)doc.getFieldValue("fileNameHash");
-  		System.out.println(count++ + " : " + id + " : " + url + " : " + capture);
-  		Rule r = filterDocument(url, capture);
-  		System.out.println(r.getId()+ " : "+r.getPolicy());
-  		String update = "{add:{doc:{\"fileNameHash\":\"" + id
-  				+"\", \"rule\":{set:"+r.getId()+"},\""
-  				+ "restricted\":{set:\"" + r.getPolicy()+"\"}}}}";
-  		try{
-				URL solr = new URL("http://203.4.201.132:8981/solr/pandora/update/json");
-        HttpURLConnection conn = (HttpURLConnection) solr.openConnection();
-        conn.setRequestMethod("POST");
-        conn.addRequestProperty("Content-Type", "application/json");
-        conn.setFixedLengthStreamingMode(update.length());
-        conn.setDoOutput(true);
-        conn.getOutputStream().write(update.getBytes());
-        System.out.println(conn.getResponseMessage());
-			}
-			catch (Exception e){
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-  	}
-		
+	public boolean isRecovery(){
+		return recovery;
 	}
 }

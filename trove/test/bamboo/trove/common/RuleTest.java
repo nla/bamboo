@@ -202,9 +202,9 @@ public class RuleTest{
 				new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,", false),
 				};
 		Arrays.sort(rules);
-		for(Rule r : rules){
-			System.out.println(r.getId()+ " : "+r.getSurt()+" : "+r.getCapturedRange() + " : "+r.getRetrievedRange() + " : "+ r.getEmbargoTime());
-		}
+//		for(Rule r : rules){
+//			System.out.println(r.getId()+ " : "+r.getSurt()+" : "+r.getCapturedRange() + " : "+r.getRetrievedRange() + " : "+ r.getEmbargo());
+//		}
 		int i = 1;
 		for(Rule r : rules){
 			assertEquals(i++, r.getId());

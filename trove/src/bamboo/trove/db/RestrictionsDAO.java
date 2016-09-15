@@ -7,6 +7,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.List;
 
@@ -29,7 +30,8 @@ import bamboo.trove.common.Rule;
 
 @RegisterMapper({RestrictionsDAO.CollectionRuleMapper.class})
 public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> {
-  public static final String TABLE = "restriction_rule_web_archives";
+  public static final String TABLE     = "restriction_rule_web_archives";
+  public static final String TABLE_RUN = "restriction_rule_last_run_web_archives";
   
   @SqlQuery("select * from "+TABLE+ " where status = :status")
   protected abstract List<Rule> getRules(@Bind("status") String status);
@@ -40,10 +42,17 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   	return getRules("n");
   }
   
+  @SqlQuery("select last_run from " + TABLE_RUN + " where id = 1")
+  public abstract Timestamp getLastRun();
+  
+  @SqlUpdate("update " + TABLE_RUN + " set last_run = :d where id = 1")
+  public abstract void setLastRun(@Bind("d") Date date);
+  
   @SqlBatch("insert into " + TABLE
-  		+ "(id, status, last_updated, surt, policy, embargo, captured_start, captured_end, retrieved_start, retrieved_end) "
+  		+ "(id, status, last_updated, surt, policy, embargo, captured_start, "
+  		+ "captured_end, retrieved_start, retrieved_end, match_exact) "
   		+ "VALUES (:id, 'n', :lastUpdated, :surt, :policy, :embargo, :capturedRangeStart, :capturedRangeEnd, "
-  		+ ":retrievedRangeStart, :retrievedRangeEnd)")
+  		+ ":retrievedRangeStart, :retrievedRangeEnd, :matchExact)")
   public abstract void addNewRuleSet(@RuleBinder List<Rule> rule);
   
   @SqlUpdate("delete from " + TABLE + " where status = 'p'")
@@ -56,17 +65,18 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   protected abstract void makeNewRuleSetCurrent();
 
   @Transaction
-  public void makeNewRulesCurrent(){
+  public void makeNewRulesCurrent(Date lastRun){
   	removePreviousRuleSet();
   	makeCurrentRuleSetPrevious();
   	makeNewRuleSetCurrent();
+  	Timestamp ts = new Timestamp(lastRun.getTime());
+  	setLastRun(lastRun);
   }
   
 
   public static class CollectionRuleMapper implements ResultSetMapper<Rule> {
     @Override
     public Rule map(int index, ResultSet rs, StatementContext ctx) throws SQLException {
-    	System.out.println("match_exact : "+"t".equals(rs.getString("match_exact")));
     	return new Rule(rs.getInt("id"), DocumentStatus.valueOf(rs.getString("policy")), 
     				rs.getTimestamp("last_updated"), rs.getLong("embargo"),
     				rs.getTimestamp("captured_start"), rs.getTimestamp("captured_end"), 
@@ -75,6 +85,24 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
     }
   }
 
+//  @BindingAnnotation(RestrictionsDAO.DateBinder.DateBinderFactory.class)
+//  @Retention(RetentionPolicy.RUNTIME)
+//  @Target({ElementType.PARAMETER})
+//  public @interface DateBinder{
+//    String value() default "it";  
+//
+//  	public static class DateBinderFactory implements BinderFactory{
+//  		public Binder<DateBinder, Date> build(Annotation annotation){
+//  			return new Binder<DateBinder, Date>(){
+//					@Override
+//  				public void bind(SQLStatement<?> q, DateBinder bind, Date d){
+//						q.bind(bind.value(), d);
+//					}
+//  			};
+//  		}
+//  	}
+//  }
+  
   @BindingAnnotation(RestrictionsDAO.RuleBinder.RuleBinderFactory.class)
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.PARAMETER})
@@ -88,7 +116,8 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   					q.bind("lastUpdated", r.getLastUpdated());
   					q.bind("surt", r.getSurt());
   					q.bind("policy", r.getPolicy().toString());
-  					q.bind("embargo", r.getEmbargoTime());
+  					q.bind("embargo", r.getEmbargo());
+  					q.bind("matchExact", r.isMatchExact());
   					if(r.getCapturedRange() == null){
     					q.bind("capturedRangeStart", (Date)null);
     					q.bind("capturedRangeEnd", (Date)null);  						
