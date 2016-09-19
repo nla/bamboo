@@ -113,27 +113,28 @@ public class BambooRestrictionService {
     if (bambooApiBaseUrl == null) {
       throw new IllegalStateException("bambooApiBaseUrl has not been configured");
     }
-    checkForChangedRules();
   }
 
   public boolean checkForChangedRules() {
-  	if(!recovery){
-    	List<Rule> rules = getRulesFromServer();
-    	for(Rule r : rules){
-    		String rest = "";
-    		if(r.getEmbargo() > 0) rest += "embargo " + r.getEmbargo() +" ";
-    		if(r.getCapturedRange() != null) rest += "capturt " + r.getCapturedRange().getStart() + " TO "+ r.getCapturedRange().getEnd() + " ";
-    		if(r.getRetrievedRange() != null) rest += "retrieved "+ r.getRetrievedRange().getStart() + " TO "+ r.getRetrievedRange().getEnd()+ " ";
-    		System.out.println(r.getId() + " : " + r.getPolicy() + " : " + r.getLastUpdated()
-    			+ " : " + r.getSurt() + " : " + rest);
-    	}
-  
-    	List<Rule> changed = getChangedRules(currentRules, rules);
-    	if(!changed.isEmpty()){
-    		// some rules have changed so we will save to the DB.
-    		dao.addNewRuleSet(rules);
-    		return true;
-    	}
+  	if(recovery){
+  		return true;
+  	}
+  	List<Rule> rules = getRulesFromServer();
+  	for(Rule r : rules){
+  		String rest = "";
+  		if(r.getEmbargo() > 0) rest += "embargo " + r.getEmbargo() +" ";
+  		if(r.getCapturedRange() != null) rest += "capturt " + r.getCapturedRange().getStart() + " TO "+ r.getCapturedRange().getEnd() + " ";
+  		if(r.getRetrievedRange() != null) rest += "retrieved "+ r.getRetrievedRange().getStart() + " TO "+ r.getRetrievedRange().getEnd()+ " ";
+  		System.out.println(r.getId() + " : " + r.getPolicy() + " : " + r.getLastUpdated()
+  			+ " : " + r.getSurt() + " : " + rest);
+  	}
+
+  	if(haveRulesChanged(currentRules, rules)){
+  		// some rules have changed so we will save to the DB.
+  		log.info("Changed rules received.");
+  		dao.addNewRuleSet(rules);
+  		newRules = rules;
+  		return true;
   	}
   	return false;
   }
@@ -165,7 +166,11 @@ public class BambooRestrictionService {
   
   public Rule getRule(int id){
   	Rule r = null;
-  	for(Rule i : currentRules){
+  	List<Rule> rules = currentRules;
+  	if(!newRules.isEmpty()){
+  		rules = newRules; // use the new rules
+  	}
+  	for(Rule i : rules){
   		if(i.getId() == id){
   			r = i;
   			break;
@@ -184,36 +189,71 @@ public class BambooRestrictionService {
 	 * @return
 	 */
   public List<Rule> getChangedRules(){
-  	return getChangedRules(currentRules, newRules);
-  }
-  public List<Rule> getChangedRules(List<Rule> current, List<Rule> next){ 
   	Map<Integer, Rule> nRuleMap = new HashMap<>();
-  	for(Rule r : next){
+  	for(Rule r : newRules){
   		nRuleMap.put(r.getId(), r);
   	}
   	List<Rule> changed = new ArrayList<>();
-  	List<Rule> unchanged = new ArrayList<>();
-  	for(Rule cRule : current){
+  	for(Rule cRule : currentRules){
   		Rule nRule = nRuleMap.remove(cRule.getId());
-  		if(nRule == null){
-  			changed.add(cRule);
-  		}
-  		else{
-  			if(cRule.getLastUpdated().equals(nRule.getLastUpdated())){
-  				unchanged.add(cRule);
-  			}
-  			else{
+  		if(nRule != null){
+  			if(!cRule.getLastUpdated().equals(nRule.getLastUpdated())){
   				changed.add(cRule);
   			}
   		}
+  	}
+  	return changed;
+  }
+  
+  public List<Rule> getNewRules(){
+  	Map<Integer, Rule> nRuleMap = new HashMap<>();
+  	for(Rule r : newRules){
+  		nRuleMap.put(r.getId(), r);
+  	}
+  	List<Rule> changed = new ArrayList<>();
+  	for(Rule cRule : currentRules){
+  		nRuleMap.remove(cRule.getId());
   	}
   	if(!nRuleMap.isEmpty()){
   		// new rule not in current rules so add to changed.
   		changed.addAll(nRuleMap.values());
   	}
-  	return changed;
+  	return changed;  	
   }
-  
+
+  public boolean haveRulesChanged(List<Rule> current, List<Rule> next){
+  	Map<Integer, Rule> nRuleMap = new HashMap<>();
+  	for(Rule r : next){
+  		nRuleMap.put(r.getId(), r);
+  	}
+  	for(Rule cRule : current){
+  		Rule nRule = nRuleMap.remove(cRule.getId());
+  		if(nRule != null){
+  			if(!cRule.getLastUpdated().equals(nRule.getLastUpdated())){
+  				return true; // changed
+  			}
+  		}
+  		else{
+  			return true; // deleted
+  		}
+  	}
+  	if(!nRuleMap.isEmpty()){
+  		return true; // new
+  	}
+  	return false;
+  }
+  public List<Rule> getDeletedRules(){
+  	List<Rule> list = new ArrayList<>();
+  	Map<Integer, Rule> map = new HashMap<>();
+  	for(Rule r : currentRules){
+  		map.put(r.getId(), r);
+  	}
+  	for(Rule r : newRules){
+  		map.remove(r.getId());
+  	}
+  	list.addAll(map.values());
+  	return list;
+  }
 	/**
 	 * Get the list of rules that have date dependence.
 	 * <p/>
@@ -336,10 +376,25 @@ service.checkForChangedRules();
   			+"    <lastModified class=\"sql-timestamp\">2016-04-01 13:52:39.0</lastModified>"
   			+"  </rule>"
   			+"  <rule>"
+  			+"    <id>3</id>"
+  			+"    <policy>RESTRICTED_FOR_DISCOVERY</policy>"
+  			+"    <surt>http://(uk,</surt>"
+  			+"    <embargo/>"
+  			+"	<captureStart/>"
+  			+"	<captureEnd/>"
+  			+"	<retrievedStart/>"
+  			+"	<retrievedEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2016-04-01 13:52:39.0</lastModified>"
+  			+"  </rule>"
+  			+"  <rule>"
   			+"    <id>2</id>"
   			+"    <policy>RESTRICTED_FOR_DELIVERY</policy>"
   			+"    <surt>https://(tw,fred,</surt>"
-  			+"    <embargo>1000000</embargo>"
+  			+"    <embargo>15552000</embargo>"
   			+"	<captureStart/>"
   			+"	<captureEnd/>"
   			+"	<retrievedStart/>"
@@ -355,7 +410,7 @@ service.checkForChangedRules();
   			+"    <policy>RESTRICTED_FOR_BOTH</policy>"
   			+"    <surt>https://(au,gov,aec,)/documents/data</surt>"
   			+"    <embargo/>"
-  			+"    <captureStart class=\"sql-timestamp\">2015-10-02 00:11:56.0</captureStart>"
+  			+"    <captureStart class=\"sql-timestamp\">2015-03-02 00:11:56.0</captureStart>"
   			+"    <captureEnd class=\"sql-timestamp\">2016-08-02 00:12:05.0</captureEnd>"
   			+"    <retrievedStart/>"
   			+"    <retrievedEnd/>"
@@ -366,6 +421,40 @@ service.checkForChangedRules();
   			+"    <publicComment></publicComment>"
   			+"    <exactMatch>false</exactMatch>"
   			+"    <lastModified class=\"sql-timestamp\">2016-08-09 14:12:10.0</lastModified>"
+  			+"  </rule>"
+  			+"  <rule>"
+  			+"    <id>27</id>"
+  			+"    <policy>RESTRICTED_FOR_BOTH</policy>"
+  			+"    <surt>https://(au,fred,aec,)/documents/data</surt>"
+  			+"    <embargo/>"
+  			+"    <captureStart class=\"sql-timestamp\">2015-03-02 00:11:56.0</captureStart>"
+  			+"    <captureEnd class=\"sql-timestamp\">2016-08-02 00:12:05.0</captureEnd>"
+  			+"    <retrievedStart class=\"sql-timestamp\">2017-08-02 00:12:05.0</retrievedStart>"
+  			+"    <retrievedEnd/>"
+  			+"	<retrievedStart/>"
+  			+"	<retrievedEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2016-08-09 14:12:10.0</lastModified>"
+  			+"  </rule>"
+  			+"  <rule>"
+  			+"    <id>28</id>"
+  			+"    <policy>RESTRICTED_FOR_DELIVERY</policy>"
+  			+"    <surt>https://(au,net,aec,)/documents/data</surt>"
+  			+"    <embargo/>"
+  			+"    <captureStart/>"
+  			+"    <captureEnd/>"
+  			+"    <retrievedStart class=\"sql-timestamp\">2015-08-02 00:12:05.0</retrievedStart>"
+  			+"    <retrievedEnd class=\"sql-timestamp\">2017-08-02 00:12:05.0</retrievedEnd>"
+  			+"	<retrievedStart/>"
+  			+"	<retrievedEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2016-08-10 14:12:10.0</lastModified>"
   			+"  </rule>"
   			+"</list>";
   	ByteArrayInputStream is = new ByteArrayInputStream(xml.getBytes());
