@@ -24,6 +24,7 @@ import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.IndexerDocument;
+import bamboo.trove.common.Rule;
 import bamboo.util.SurtFilter;
 import bamboo.util.Urls;
 import com.codahale.metrics.Histogram;
@@ -80,11 +81,11 @@ public class FilteringCoordinationService {
 
   public void filterDocument(IndexerDocument document) {
     ContentThreshold threshold = qualityControlService.filterDocument(document.getBambooDocument());
-    DocumentStatus status = DocumentStatus.REJECTED;
+    Rule rule = null;
     if (!threshold.equals(ContentThreshold.NONE)) {
-      status = bambooRestrictionService.filterDocument(document.getBambooDocument());
+      rule = bambooRestrictionService.filterDocument(document.getBambooDocument());
     }
-    document.applyFiltering(status, threshold);
+    document.applyFiltering(rule, threshold);
 
     if (collectMetrics) {
       // Never fail because of this secondary stuff

@@ -24,7 +24,8 @@ public enum SolrEnum {
   SITE("site"),
   DELIVERABLE("deliverable"),
   DISCOVERABLE("discoverable"),
-  TEXT_ERROR("textError");
+  TEXT_ERROR("textError"),
+  RULE("rule");
 
   private String value;
   SolrEnum(String value) {

@@ -23,12 +23,14 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Date;
 import java.util.List;
 
 import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.IndexerDocument;
+import bamboo.trove.common.Rule;
 import bamboo.trove.services.BambooRestrictionService.FilterSegments;
 import bamboo.util.SurtFilter;
 import bamboo.util.Urls;
@@ -225,7 +227,8 @@ public class TroveIndexerTest {
 
     // Filtering
     startWithAssertions(document.filter, timer);
-    document.applyFiltering(DocumentStatus.RESTRICTED_FOR_BOTH, ContentThreshold.DOCUMENT_START_ONLY);
+    Rule rule = new Rule(1, DocumentStatus.RESTRICTED_FOR_BOTH, new Date(), 0, null, null, null, null, "(", false);
+    document.applyFiltering(rule, ContentThreshold.DOCUMENT_START_ONLY);
     document.filter.finish();
 
     // Working

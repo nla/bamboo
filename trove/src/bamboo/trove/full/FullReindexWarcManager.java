@@ -40,6 +40,7 @@ import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.task.WarcToIndex;
 import bamboo.trove.common.BaseWarcDomainManager;
+import bamboo.trove.common.ToIndex;
 import bamboo.trove.common.WarcProgressManager;
 import bamboo.trove.common.WarcSummary;
 import bamboo.trove.db.FullPersistenceDAO;
@@ -596,7 +597,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
           continue;
         }
 
-        WarcProgressManager batch = getAndEnqueueWarc(toIndex.getId(), toIndex.getUrlCount());
+        WarcProgressManager batch = getAndEnqueueWarc(toIndex);
         if (batch != null) {
           //log.info("Warc #{} retrieval complete. {} docs, estimated {}",
           //        toIndex.getId(), batch.size(), toIndex.getUrlCount());
@@ -611,32 +612,6 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
     public void stop() {
       stop = true;
-    }
-  }
-
-  private class ToIndex extends WarcToIndex {
-    private boolean hasBeenRetrieved = false;
-    private WarcProgressManager oldWarcInstance = null;
-
-    // A normal event from Bamboo
-    public ToIndex(WarcToIndex warc) {
-      setId(warc.getId());
-      setUrlCount(warc.getUrlCount());
-    }
-
-    // Something from the retry queue
-    public ToIndex(WarcProgressManager warc) {
-      setId(warc.getWarcId());
-      setUrlCount(warc.getUrlCountEstimate());
-      oldWarcInstance = warc;
-    }
-
-    public boolean isRetryAttempt() {
-      return !(oldWarcInstance == null);
-    }
-
-    public WarcProgressManager oldAttempt() {
-      return oldWarcInstance;
     }
   }
 }

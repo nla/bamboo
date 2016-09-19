@@ -214,22 +214,23 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     return indexQueue.poll();
   }
 
-  public WarcProgressManager getAndEnqueueWarc(long warcId, long urlCountEstimate) {
-    return getAndEnqueueWarc(warcId, -1, urlCountEstimate);
-  }
-
   // Full domain overrides this
   protected WarcProgressManager newWarc(long warcId, long trackedOffset, long urlCountEstimate) {
     return new WarcProgressManager(warcId, trackedOffset, urlCountEstimate);
   }
 
-  public WarcProgressManager getAndEnqueueWarc(long warcId, long trackedOffset, long urlCountEstimate) {
+  public WarcProgressManager getAndEnqueueWarc(ToIndex warcToIndex) {
     Timer.Context ctx = bambooReadTimer.time();
     HttpURLConnection connection = null;
-    WarcProgressManager warc = newWarc(warcId, trackedOffset, urlCountEstimate);
+    Long warcId = warcToIndex.getId();
+    WarcProgressManager warc = newWarc(warcId, warcToIndex.getTrackedOffset(), warcToIndex.getUrlCount());
 
     try {
-      URL url = new URL(bambooBaseUrl + "warcs/" + warcId + "/text");
+      String urlString = bambooBaseUrl + "warcs/" + warcId + "/text";
+      if (warcToIndex.isRetryAttempt()) {
+        urlString += "?bypass=1";
+      }
+      URL url = new URL(urlString);
       connection = (HttpURLConnection) url.openConnection();
       InputStream in = new BufferedInputStream(connection.getInputStream());
       parseJson(warc, in);
