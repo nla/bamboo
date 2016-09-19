@@ -14,8 +14,11 @@ import droute.*;
 import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.Configuration;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.UncheckedIOException;
+import java.net.URL;
 
 import static bamboo.util.Parsing.parseLongOrDefault;
 import static droute.Response.*;
@@ -29,7 +32,7 @@ public class Webapp implements Handler, AutoCloseable {
         this.bamboo = bamboo;
 
         final Handler routes = routes(
-                resources("/webjars", "META-INF/resources/webjars"),
+                GET("/webjars/*", this::serveWebjars),
                 resources("/assets", "bamboo/assets"),
                 GET("/", this::index),
                 GET("/import", this::showImportForm),
@@ -55,6 +58,24 @@ public class Webapp implements Handler, AutoCloseable {
         this.handler = errorHandler(handler);
     }
 
+    private Response serveWebjars(Request request) {
+        String path = "/META-INF/resources/webjars/" + request.urlParam("*").replace("../", "");
+
+        // workaround for something in droute converting "+" to " "
+        path = path.replace(" ", "+");
+
+        URL url = getClass().getResource(path);
+        if (url != null) {
+            try {
+                return Response.resource(url);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        } else {
+            return NEXT_HANDLER;
+        }
+    }
+
     private Response healthcheck(Request request) {
         StringWriter out = new StringWriter();
         boolean ok = bamboo.healthcheck(new PrintWriter(out));
@@ -76,7 +97,7 @@ public class Webapp implements Handler, AutoCloseable {
                 return notFound("Not found: " + e.getMessage());
             } catch (NotFound e) {
                 return notFound(e.getMessage());
-            } catch (Throwable t) {
+            } catch (Exception t) {
                 StringWriter out = new StringWriter();
                 t.printStackTrace();
                 t.printStackTrace(new PrintWriter(out));

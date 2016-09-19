@@ -48,7 +48,7 @@ public class Crawls {
     public long createInPlace(Crawl metadata, Collection<Path> warcPaths) throws IOException {
         List<Warc> warcs = new ArrayList<>();
         for (Path path: warcPaths) {
-            warcs.add(Warc.fromFile(path));
+            warcs.add(Warcs.fromFile(path));
         }
 
         long id = dao.inTransaction((dao1, ts) -> {

@@ -105,6 +105,10 @@ public class TransformWorker implements Runnable {
       solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
     }
 
+    if (document.getBambooDocument().getTextError() != null) {
+      solr.addField(SolrEnum.TEXT_ERROR.toString(), true);
+    }
+
     if (ContentThreshold.METADATA_ONLY.equals(document.getTheshold())) {
       document.converted(solr);
       return;

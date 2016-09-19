@@ -191,4 +191,14 @@ public class Warcs {
             return false;
         }
     }
+
+    public static Warc fromFile(Path path) throws IOException {
+        Warc warc = new Warc();
+        warc.setPath(path);
+        warc.setFilename(path.getFileName().toString());
+        warc.setSize(Files.size(path));
+        warc.setSha256(Scrub.calculateDigest("SHA-256", path));
+        warc.setStateId(Warc.IMPORTED);
+        return warc;
+    }
 }

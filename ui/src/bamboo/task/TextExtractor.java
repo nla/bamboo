@@ -8,12 +8,15 @@ import de.l3s.boilerpipe.document.TextDocument;
 import de.l3s.boilerpipe.extractors.DefaultExtractor;
 import de.l3s.boilerpipe.sax.BoilerpipeSAXInput;
 import org.apache.commons.io.input.BoundedInputStream;
+import org.apache.pdfbox.io.MemoryUsageSetting;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.BufferOverflowException;
@@ -30,8 +33,10 @@ import java.util.regex.Pattern;
 public class TextExtractor {
     static final int pdfDiskOffloadThreshold = 32 * 1024 * 1024;
     static final int maxDocSize = 0x100000;
+    static final long timeLimitMillis = 5000;
 
     private boolean boilingEnabled = false;
+    private boolean usePdfBox = false;
 
     public Document extract(ArchiveRecord record) throws TextExtractionException {
         Document doc = new Document();
@@ -86,10 +91,14 @@ public class TextExtractor {
         try {
             switch (doc.getContentType()) {
                 case "text/html":
-                    extractHtmlContent(record, doc);
+                    extractHtml(record, doc);
                     break;
                 case "application/pdf":
-                    extractPdfContent(record, doc);
+                    if (usePdfBox) {
+                        extractPdfBox(record, doc);
+                    } else {
+                        extractPdf(record, doc);
+                    }
                     break;
                 default:
                     doc.setTextError("not implemented for content-type");
@@ -102,7 +111,7 @@ public class TextExtractor {
         return doc;
     }
 
-    private void extractHtmlContent(ArchiveRecord record, Document doc) throws TextExtractionException {
+    private void extractHtml(ArchiveRecord record, Document doc) throws TextExtractionException {
         try {
             BoundedInputStream in = new BoundedInputStream(record, maxDocSize);
             TextDocument textDoc = new BoilerpipeSAXInput(new InputSource(in)).getTextDocument();
@@ -117,25 +126,39 @@ public class TextExtractor {
         }
     }
 
-    private static void extractPdfContent(ArchiveRecord record, Document doc) throws TextExtractionException {
-        Path tmp = null;
-        try {
-            CharBuffer buf = CharBuffer.allocate(maxDocSize);
-            PdfReader pdfReader;
+    private static void extractPdf(ArchiveRecord record, Document doc) throws TextExtractionException {
+        doc.setTitle(record.getHeader().getUrl());
 
+        try {
             if (record.getHeader().getLength() > pdfDiskOffloadThreshold) {
                 // PDFReader needs (uncompressed) random access to the file.  When given a stream it loads the whole
                 // lot into a memory buffer. So for large records let's decompress to a temporary file first.
-                tmp = Files.createTempFile("bamboo-solr-tmp", ".pdf");
+                Path tmp = Files.createTempFile("bamboo-solr-tmp", ".pdf");
                 Files.copy(record, tmp, StandardCopyOption.REPLACE_EXISTING);
-                pdfReader = new PdfReader(tmp.toString());
+                try {
+                    extractPdfContent(new PdfReader(tmp.toString()), doc);
+                } finally {
+                    try {
+                        Files.deleteIfExists(tmp);
+                    } catch (IOException e) {
+                        // we can't do anything
+                    }
+                }
             } else {
-                pdfReader = new PdfReader(record);
+                extractPdfContent(new PdfReader(record), doc);
             }
+        } catch (NoClassDefFoundError | RuntimeException | IOException e) {
+            throw new TextExtractionException(e);
+        }
+    }
 
+    static void extractPdfContent(PdfReader pdfReader, Document doc) throws TextExtractionException, IOException {
+        try {
+            long deadline = System.currentTimeMillis() + timeLimitMillis;
+            CharBuffer buf = CharBuffer.allocate(maxDocSize);
             PdfTextExtractor extractor = new PdfTextExtractor(pdfReader);
             try {
-                for (int i = 1; i <= pdfReader.getNumberOfPages(); ++i) {
+                for (int i = 1; i <= pdfReader.getNumberOfPages() && System.currentTimeMillis() < deadline; ++i) {
                     String text = extractor.getTextFromPage(i);
                     buf.append(text.replace("\uFFFF", ""));
                     buf.append(' ');
@@ -144,26 +167,89 @@ public class TextExtractor {
                 // reached maxDocSize amount of content
             }
             buf.flip();
-            doc.setTitle(record.getHeader().getUrl());
             doc.setText(buf.toString());
-        } catch (NoClassDefFoundError | RuntimeException | IOException e) {
-            throw new TextExtractionException(e);
+
+            // extract the title from the metadata if it has one
+            Object metadataTitle = pdfReader.getInfo().get("Title");
+            if (metadataTitle != null && metadataTitle instanceof String) {
+                doc.setTitle((String) metadataTitle);
+            }
         } catch (Error e) {
-            if (e.getMessage() == null || e.getMessage().startsWith("Unable to process ToUnicode map")) {
+            if (e.getClass() == Error.class && (e.getMessage() == null || e.getMessage().startsWith("Unable to process ToUnicode map"))) {
                 // pdf reader abuses java.lang.Error sometimes to indicate a parse error
                 throw new TextExtractionException(e);
             } else {
                 // let everything else (eg OutOfMemoryError) through
                 throw e;
             }
-        } finally {
-            if (tmp != null) {
-                try {
-                    Files.deleteIfExists(tmp);
-                } catch (IOException e) {
-                    // we can't do anything
-                }
+        }
+    }
+
+    static void extractPdfBox(InputStream stream, Document doc) throws TextExtractionException {
+        StringWriter sw = new StringWriter();
+        try (PDDocument pdf = PDDocument.load(stream, MemoryUsageSetting.setupTempFileOnly())) {
+            String title = pdf.getDocumentInformation().getTitle();
+            if (title != null) {
+                doc.setTitle(title);
             }
+
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.writeText(pdf, new TruncatingWriter(sw, maxDocSize, System.currentTimeMillis() + timeLimitMillis));
+        } catch (BufferOverflowException e) {
+            // reached maxDocSize, just stop early
+        } catch (Exception e) {
+            throw new TextExtractionException(e);
+        }
+        doc.setText(sw.toString());
+    }
+
+    public void setUsePdfBox(boolean usePdfBox) {
+        this.usePdfBox = usePdfBox;
+    }
+
+    static class TruncatingWriter extends FilterWriter {
+        private final long limit;
+        private final long deadline;
+        private long written;
+
+        TruncatingWriter(Writer out, long limit, long deadline) {
+            super(out);
+            this.limit = limit;
+            this.deadline = deadline;
+        }
+
+        @Override
+        public void write(int i) throws IOException {
+            if (remaining() > 0 && System.currentTimeMillis() < deadline) {
+                super.write(i);
+                written++;
+            } else {
+                throw new BufferOverflowException();
+            }
+        }
+
+        @Override
+        public void write(String s, int off, int len) throws IOException {
+            if (remaining() <= 0 || System.currentTimeMillis() >= deadline) {
+                throw new BufferOverflowException();
+            }
+            int clamped = (int)Math.min(len, remaining());
+            super.write(s, off, clamped);
+            written += clamped;
+        }
+
+        @Override
+        public void write(char[] chars, int off, int len) throws IOException {
+            if (remaining() <= 0 || System.currentTimeMillis() >= deadline) {
+                throw new BufferOverflowException();
+            }
+            int clamped = (int)Math.min(len, remaining());
+            super.write(chars, off, clamped);
+            written += clamped;
+        }
+
+        private long remaining() {
+            return limit - written;
         }
     }
 

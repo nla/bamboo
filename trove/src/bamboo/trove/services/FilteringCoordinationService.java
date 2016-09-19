@@ -88,7 +88,13 @@ public class FilteringCoordinationService {
     document.applyFiltering(rule, threshold);
 
     if (collectMetrics) {
-      collectMetrics(document);
+      // Never fail because of this secondary stuff
+      try {
+        collectMetrics(document);
+
+      } catch (Exception ex) {
+        log.error("Metrics failed on document: {}", document.getDocId(), ex);
+      }
     }
   }
 
@@ -101,11 +107,21 @@ public class FilteringCoordinationService {
   private final Map<SurtFilter, Histogram> domainSizes = new HashMap<>();
   private final Map<String, Histogram> yearSizes = new HashMap<>();
 
+  private long contentLength(Document document) {
+    // At first we were capturing the content length as measured by Bamboo,
+    // but that is less useful to us when collecting analytics for the indexer 
+    //return document.getContentLength();
+    if (document.getText() == null) {
+      return 0;
+    }
+    return document.getText().length();
+  }
+
   private void collectMetrics(IndexerDocument document) {
     lazyLoadChecks(document);
     recordSizeByKey(thresholdSizes, document.getTheshold(), document);
     // Cutout here if we aren't going to index it
-    if (document.getTheshold().equals(ContentThreshold.NONE)) return;
+    //if (document.getTheshold().equals(ContentThreshold.NONE)) return;
 
     recordSizeByDomain(document);
     recordSizeByKey(statusSizes,    document.getStatus(),   document);
@@ -118,7 +134,7 @@ public class FilteringCoordinationService {
     // Avoid going through sdf twice and do both the lazy load and work in one step
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy");
     String year = sdf.format(doc.getDate());
-    yearHistogram(year).update(doc.getContentLength());
+    yearHistogram(year).update(contentLength(doc));
   }
 
   private Histogram yearHistogram(String year) {
@@ -139,10 +155,10 @@ public class FilteringCoordinationService {
     String surt = SURT.toSURT(Urls.removeScheme(doc.getUrl()));
     domainSizes.keySet().stream()
             .filter(thisFilter -> thisFilter.accepts(surt))
-            .forEach(thisFilter -> domainSizes.get(thisFilter).update(doc.getContentLength()));
+            .forEach(thisFilter -> domainSizes.get(thisFilter).update(contentLength(doc)));
   }
   private void recordSizeByKey(Map<?, Histogram> map, Object key, IndexerDocument document) {
-    map.get(key).update(document.getBambooDocument().getContentLength());
+    map.get(key).update(contentLength(document.getBambooDocument()));
   }
 
   private void lazyLoadChecks(IndexerDocument document) {

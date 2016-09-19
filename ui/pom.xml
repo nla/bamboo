@@ -20,6 +20,27 @@
                 <directory>${basedir}/test-resources</directory>
             </testResource>
         </testResources>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.7.7.201606060606</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
     <properties>
@@ -207,25 +228,13 @@
             <version>1.2.2</version>
         </dependency>
         <dependency>
-            <groupId>com.lowagie</groupId>
-            <artifactId>itext</artifactId>
-            <version>4.2.1</version>
+            <groupId>com.github.albfernandez</groupId>
+            <artifactId>itext2</artifactId>
+            <version>2.1.8</version>
             <exclusions>
-                <exclusion>
-                    <groupId>org.bouncycastle</groupId>
-                    <artifactId>bctsp-jdk14</artifactId>
-                </exclusion>
                 <exclusion>
                     <groupId>jfree</groupId>
                     <artifactId>jfreechart</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>dom4j</groupId>
-                    <artifactId>dom4j</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.swinglabs</groupId>
-                    <artifactId>pdf-renderer</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -262,12 +271,22 @@
             <version>2.7</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.2</version>
+        </dependency>
+
     </dependencies>
 
     <repositories>
         <repository>
             <id>nla-public-releases</id>
             <url>http://maven.nla.gov.au/releases</url>
+        </repository>
+        <repository>
+            <id>nla-public-snapshots</id>
+            <url>http://maven.nla.gov.au/snapshots</url>
         </repository>
     </repositories>
 

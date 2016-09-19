@@ -210,6 +210,10 @@ public class WarcsController {
     private Response showText(Request request) {
         TextExtractor extractor = new TextExtractor();
 
+        if (Parsing.parseLongOrDefault(request.queryParam("pdfbox"), 0) != 0) {
+            extractor.setUsePdfBox(true);
+        }
+
         if (Parsing.parseLongOrDefault(request.queryParam("boiled"), 0) != 0) {
             extractor.setBoilingEnabled(true);
         }
