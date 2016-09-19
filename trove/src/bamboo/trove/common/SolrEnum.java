@@ -25,7 +25,8 @@ public enum SolrEnum {
   DELIVERABLE("deliverable"),
   DISCOVERABLE("discoverable"),
   TEXT_ERROR("textError"),
-  RULE("rule");
+  RULE("ruleId"),
+  LAST_INDEXED("lastIndexed");
 
   private String value;
   SolrEnum(String value) {

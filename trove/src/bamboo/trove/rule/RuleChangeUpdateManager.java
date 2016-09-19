@@ -28,7 +28,9 @@ import au.gov.nla.trove.indexer.api.BaseDomainManager;
 import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.trove.common.DateRange;
+import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.Rule;
+import bamboo.trove.common.SolrEnum;
 import bamboo.trove.services.BambooRestrictionService;
 
 public class RuleChangeUpdateManager extends BaseDomainManager implements Runnable, AcknowledgeWorker{
@@ -85,7 +87,15 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 		// check if we have a changed rule set.
 		progress = "Checking for new Rules";
 		runStart = new Date();
-		changedRules = restrictionsService.getChangedRules();
+		changedRules = new ArrayList<>();
+		List<Rule> deletedRules = new ArrayList<>();
+		List<Rule> newRules = new ArrayList<>();
+		boolean changes = restrictionsService.checkForChangedRules();
+		if(changes){
+			changedRules = restrictionsService.getChangedRules();
+			deletedRules = restrictionsService.getDeletedRules();
+			newRules = restrictionsService.getNewRules();
+		}
 		dateRules = restrictionsService.getDateRules();
 		lastProcessed = restrictionsService.getLastProcessed();
 		// remove any rules that have changed from the date list as we don't need to process twice.
@@ -94,20 +104,36 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 
 		int changeCount = 1;
 		while(running){
+			for(Rule r : deletedRules){
+				progress = "Processing deleted Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
+				try{
+					findDocumentsDeleteRule(r);
+				}
+				catch (SolrServerException | IOException e){
+					setError("Error processing changed rule : " + r.getId(), e);
+					stopProcessing();
+				}
+			}
 			for(Rule r : changedRules){
-				Rule current = restrictionsService.getRule(r.getId());
+				Rule newRule = restrictionsService.getRule(r.getId());
 				progress = "Processing changed Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
 				try{
-					findDocuments(current, r);
+					findDocuments(r, newRule);
 				}
 				catch(IOException | SolrServerException e){
 					setError("Error processing changed rule : " + r.getId(), e);
 					stopProcessing();
 				}
 			}
-			if(!changedRules.isEmpty()){
-				// finished processing the changes so we will save the new rules
-				restrictionsService.changeToNewRules(runStart);
+			for(Rule r : newRules){
+				progress = "Processing New Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
+				try{
+					findDocuments(null, r);
+				}
+				catch(IOException | SolrServerException e){
+					setError("Error processing changed rule : " + r.getId(), e);
+					stopProcessing();
+				}
 			}
 			for(Rule r : dateRules){
 				progress = "Processing date Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
@@ -119,12 +145,18 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 					stopProcessing();
 				}
 			}
+			if(!changedRules.isEmpty()){
+				// finished processing the changes so we will save the new rules
+				restrictionsService.changeToNewRules(runStart);
+			}
 			progress = "Finished checking rules";
 			stopProcessing();		
 			if(stopping){
 				running = false;
 			}
 		}
+		running = false;
+		stopping = false;
 	}
 
 	private List<String> documents = new ArrayList<>();
@@ -174,41 +206,57 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 	 * @throws SolrServerException
 	 */
 	private void findDocuments(Rule currentRule, Rule newRule) throws SolrServerException, IOException{
-		log.debug("Find docs for rules {}", currentRule.getId());
+		log.debug("Find docs for rules {}", currentRule != null? currentRule.getId():newRule.getId());
 //		if(rule.getUrl().isEmpty())continue; // TODO this could be a full re-index ?
 
+		// query part to stop records being processed more that once
+		String notLastIndexed = " AND lastIndexed:[* TO " + format(runStart) + "]";
+		
+		if(currentRule == null){
+			// this is a new rule search by url and possibly date
+			findDocumentsNewRule(newRule, notLastIndexed);
+			return;
+		}
+		if(newRule == null){
+			// this is a current rule search date change processing
+			findDocumentsDateRule(currentRule, notLastIndexed);
+			return;
+		}
+		
 		boolean urlChanged = false;
 		boolean embargoChanged = false;
 		boolean captureRangeChanged = false;
 		boolean retreivedRangeChanged = false;
-		
-		// query part to stop records being processed more that once
-		String notLastIndexed = " AND lastIndexed:[* TO " + format(runStart) + "]";
+		boolean policyChanged = false;
 		
 		String url = currentRule.getUrl();
 		long embargo = currentRule.getEmbargo();
 		DateRange captuer = currentRule.getCapturedRange(); 
 		DateRange retrieved = currentRule.getRetrievedRange(); 
+		DocumentStatus policy = currentRule.getPolicy();
 		if(newRule != null){
 			log.debug("Rule {} has changed.", currentRule.getId());
 			// use the new url if we have one
-			if(url.equals(newRule.getUrl())){
+			if(!url.equals(newRule.getUrl())){
 				urlChanged = true;
 			}
 			if(embargo != newRule.getEmbargo()){
 				embargoChanged = true;
 			}
-			if(captuer != null && captuer.equals(newRule.getCapturedRange())){
+			if(captuer != null && !captuer.equals(newRule.getCapturedRange())){
 				captureRangeChanged = true; 
 			}
-			else if(newRule.getCapturedRange() != null && newRule.getCapturedRange().equals(captuer)){
+			else if(newRule.getCapturedRange() != null && !newRule.getCapturedRange().equals(captuer)){
 				captureRangeChanged = true; 				
 			}
-			if(retrieved != null && retrieved.equals(newRule.getRetrievedRange())){
+			if(retrieved != null && !retrieved.equals(newRule.getRetrievedRange())){
 				retreivedRangeChanged = true; 
 			}
-			else if(newRule.getRetrievedRange() != null && newRule.getRetrievedRange().equals(retrieved)){
+			else if(newRule.getRetrievedRange() != null && !newRule.getRetrievedRange().equals(retrieved)){
 				retreivedRangeChanged = true; 
+			}
+			if(policy != newRule.getPolicy()){
+				policyChanged = true;
 			}
 			url = newRule.getUrl();
 			if(embargo < newRule.getEmbargo()){
@@ -228,56 +276,108 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 		}
 		if(urlChanged){
 			// url changed search old rule and new url
-			SolrQuery query = createQuery("ruleId:"+currentRule.getId() + notLastIndexed);
+			SolrQuery query = createQuery(SolrEnum.RULE + ":"+currentRule.getId() + notLastIndexed);
 			processQuery(query);
 			query = createQuery("url:"+url + notLastIndexed);
 			processQuery(query);
 			return; // as we searched by url we should have tried all matching records.
 		}
 		if(captureRangeChanged){
-			SolrQuery query = createQuery("url:" + url + notLastIndexed);
+			SolrQuery query = createQuery(SolrEnum.URL + ":" + url + notLastIndexed);
 			processQuery(query);
 			return; // as we searched by url we should have tried all matching records.
 		}
 		if(retreivedRangeChanged){
-			SolrQuery query = createQuery("url:" + url + notLastIndexed);
+			SolrQuery query = createQuery(SolrEnum.URL + ":" + url + notLastIndexed);
 			processQuery(query);
 			return; // as we searched by url we should have tried all matching records.
 		}
 		if(embargoChanged){
-			SolrQuery query = createQuery("ruleId:"+currentRule.getId() + notLastIndexed);
+			SolrQuery query = createQuery(SolrEnum.RULE+":"+currentRule.getId() + notLastIndexed);
 			processQuery(query);
 			if(embargo > 0){
-				Date embargoDate = new Date(runStart.getTime() - (embargo * 100)); // change seconds to milli
-				query = createQuery("url:"+url
-					+ " AND capture:[" + format(embargoDate) + " TO *]" 
+				Date embargoDate = new Date(runStart.getTime() - (embargo * 1000)); // change seconds to milli
+				query = createQuery(SolrEnum.URL + ":"+url
+					+ " AND " + SolrEnum.DATE + ":[" + format(embargoDate) + " TO *]" 
 					+ notLastIndexed);
 				processQuery(query);
 			}
 			return;
 		}
-		
+		if(policyChanged){
+			SolrQuery query = createQuery(SolrEnum.RULE+":"+currentRule.getId() + notLastIndexed);
+			processQuery(query);
+			return; 			
+		}
+	}
+	
+	private void findDocumentsDateRule(Rule currentRule, String notLastIndexed) throws SolrServerException, IOException{
 		// these are from no change to the rule so we are checking date coming into or going out of range
 		boolean searchNeeded = false;
+		String url = currentRule.getUrl();
+		long embargo = currentRule.getEmbargo();
+		DateRange captuer = currentRule.getCapturedRange(); 
+		DateRange retrieved = currentRule.getRetrievedRange(); 
 		if(embargo > 0){
 			// only looking for records where the embargo has expired so search using rule
-			SolrQuery query = createQuery("ruleId:" + currentRule.getId()	+ notLastIndexed);
+			SolrQuery query = createQuery(SolrEnum.RULE + ":" + currentRule.getId()	+ notLastIndexed);
 			processQuery(query);
 		}
 		if(retrieved != null){
-			// look for records set by the rule to see if still in date
-			SolrQuery query = createQuery("ruleId:" + currentRule.getId()	+ notLastIndexed);
-			processQuery(query);
 			if (retrieved.isDateInRange(runStart)){
 				// now is in range so we need to search by url
 				searchNeeded = true;
 			}
+			else{
+				// look for records set by the rule to see if still in date
+				SolrQuery query = createQuery(SolrEnum.RULE + ":" + currentRule.getId()	+ notLastIndexed);
+				processQuery(query);
+			}
 		}
 		if(searchNeeded){
-			String queryText = "url:" + url + notLastIndexed;
+			if(url.trim().isEmpty()){
+				log.info("URL is empty searching all records.");
+				url = "*";
+			}
+			String queryText = SolrEnum.URL + ":" + url + notLastIndexed;
 			SolrQuery query = createQuery(queryText);
 			processQuery(query);
 		}
+	}
+	
+	private void findDocumentsNewRule(Rule newRule, String notLastIndexed) throws SolrServerException, IOException{
+		// these are from no change to the rule so we are checking date coming into or going out of range
+		String url = newRule.getUrl();
+		long embargo = newRule.getEmbargo();
+		DateRange captuer = newRule.getCapturedRange(); 
+		DateRange retrieved = newRule.getRetrievedRange(); 
+		if(url.trim().isEmpty()){
+			log.info("URL is empty searching all records.");
+			url = "*";
+		}
+		String queryText = SolrEnum.URL + ":" + url;
+		if(retrieved != null){
+			if (!retrieved.isDateInRange(runStart)){
+				// now is not in range so rule does not apply
+				return;
+			}
+		}
+		if(captuer != null){
+			queryText += " AND " + SolrEnum.DATE + ":[" + format(captuer.getStart()) + " TO " + format(captuer.getEnd())+ "]";
+		}
+		if(embargo > 0){
+			Date embargoDate = new Date(System.currentTimeMillis()-(embargo*1000));
+			queryText += " AND " + SolrEnum.DATE + ":[" + format(embargoDate) + " TO *]";
+		}
+		queryText += " " + notLastIndexed;
+		SolrQuery query = createQuery(queryText);
+		processQuery(query);
+	}
+
+	private void findDocumentsDeleteRule(Rule deleteRule) throws SolrServerException, IOException{
+		// this rule was delete so we have to recheck any records covered by this rule
+		SolrQuery query = createQuery(SolrEnum.RULE + ":" + deleteRule.getId());
+		processQuery(query);		
 	}
 	
 	private SolrQuery createQuery(String query){
@@ -319,6 +419,8 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 				empty = documents.isEmpty();
 			}
 		}
+		// need to commit here so that we can ignore documents just processed 
+		client.commit();
 	}
 	
 	private void distributeResponse(SolrDocumentList results){
@@ -363,6 +465,7 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 
 	@Override
 	public void start(){
+//		startProcessing();
 		throw new IllegalArgumentException();
 	}
 	private void startProcessing(){

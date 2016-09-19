@@ -7,6 +7,7 @@ import java.util.Map;
 import org.apache.solr.common.SolrInputDocument;
 
 import bamboo.trove.common.Rule;
+import bamboo.trove.common.SolrEnum;
 import bamboo.trove.services.BambooRestrictionService;
 
 public class RuleRecheckWorker implements Runnable{
@@ -33,16 +34,44 @@ public class RuleRecheckWorker implements Runnable{
 	private SolrInputDocument processResultsRecheckRule(){ 
 		Rule r = service.filterDocument(url, capture);
 		SolrInputDocument update = new SolrInputDocument();
-		update.addField("id", id);
+		update.addField(SolrEnum.ID.toString(), id);
 		Map<String, Object> partialUpdate = new HashMap<>();
 		partialUpdate.put("set", r.getId());
 		update.addField("ruleId", partialUpdate);
-		partialUpdate = new HashMap<>();
-		partialUpdate.put("set", r.getPolicy().toString());
-		update.addField("restricted", partialUpdate);
+		switch (r.getPolicy()) {
+			case RESTRICTED_FOR_BOTH:
+				partialUpdate = new HashMap<>();
+				partialUpdate.put("set", false);
+				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdate);				
+				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdate);				
+				break;
+			case RESTRICTED_FOR_DELIVERY:
+				partialUpdate = new HashMap<>();
+				partialUpdate.put("set", true);
+				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdate);				
+				partialUpdate = new HashMap<>();
+				partialUpdate.put("set", false);
+				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdate);				
+				break;
+			case RESTRICTED_FOR_DISCOVERY:
+				partialUpdate = new HashMap<>();
+				partialUpdate.put("set", false);
+				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdate);				
+				partialUpdate = new HashMap<>();
+				partialUpdate.put("set", true);
+				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdate);				
+				break;
+
+			default:
+				partialUpdate = new HashMap<>();
+				partialUpdate.put("set", true);
+				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdate);				
+				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdate);				
+				break;
+		}
 		partialUpdate = new HashMap<>();
 		partialUpdate.put("set", new Date());
-		update.addField("lastIndexed", partialUpdate);
+		update.addField(SolrEnum.LAST_INDEXED.toString(), partialUpdate);
 
 //		System.out.println(update.toString());
 		return update;

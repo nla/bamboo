@@ -78,10 +78,16 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
     @Override
     public Rule map(int index, ResultSet rs, StatementContext ctx) throws SQLException {
     	return new Rule(rs.getInt("id"), DocumentStatus.valueOf(rs.getString("policy")), 
-    				rs.getTimestamp("last_updated"), rs.getLong("embargo"),
-    				rs.getTimestamp("captured_start"), rs.getTimestamp("captured_end"), 
-    				rs.getTimestamp("retrieved_start"), rs.getTimestamp("retrieved_end"),
+    				date(rs.getTimestamp("last_updated")), rs.getLong("embargo"),
+    				date(rs.getTimestamp("captured_start")), date(rs.getTimestamp("captured_end")), 
+    						date(rs.getTimestamp("retrieved_start")), date(rs.getTimestamp("retrieved_end")),
     				rs.getString("surt"), "t".equals(rs.getString("match_exact")));
+    }
+    private Date date(Timestamp t){
+    	if(t == null){
+    		return null;
+    	}
+    	return new Date(t.getTime());
     }
   }
 
@@ -117,7 +123,7 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   					q.bind("surt", r.getSurt());
   					q.bind("policy", r.getPolicy().toString());
   					q.bind("embargo", r.getEmbargo());
-  					q.bind("matchExact", r.isMatchExact());
+  					q.bind("matchExact", r.isMatchExact()?"t":"f");
   					if(r.getCapturedRange() == null){
     					q.bind("capturedRangeStart", (Date)null);
     					q.bind("capturedRangeEnd", (Date)null);  						
