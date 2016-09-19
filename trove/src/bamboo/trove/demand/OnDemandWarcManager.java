@@ -17,8 +17,10 @@ package bamboo.trove.demand;
 
 import javax.annotation.PostConstruct;
 
+import bamboo.task.WarcToIndex;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.IndexerDocument;
+import bamboo.trove.common.ToIndex;
 import bamboo.trove.common.WarcProgressManager;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.slf4j.Logger;
@@ -51,7 +53,12 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
     }
 
     log.info("Indexing on demand. Warc #{}", warcId);
-    WarcProgressManager batch = getAndEnqueueWarc(warcId, warcOffset, 0);
+    // Fake up the objects we normally build in communication with Bamboo
+    WarcToIndex warcToIndex = new WarcToIndex(warcId, 0);
+    ToIndex toIndex = new ToIndex(warcToIndex);
+    toIndex.setTrackedOffset(warcOffset);
+
+    WarcProgressManager batch = getAndEnqueueWarc(toIndex);
     IndexerDocument responseDocument = batch.getTrackedDocument();
     log.info("Warc #{} has {} documents. Loading has completed.", warcId, batch.size());
 
