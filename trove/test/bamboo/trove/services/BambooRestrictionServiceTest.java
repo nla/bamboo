@@ -32,13 +32,13 @@ public class BambooRestrictionServiceTest{
 		service.currentRules.add(new Rule(1, DocumentStatus.ACCEPTED, now, 0, null, null, null, null, "(", false));
 		service.currentRules.add(new Rule(2, DocumentStatus.RESTRICTED_FOR_BOTH, now, 0, null, null, null, null, "(au,", false));
 		service.currentRules.add(new Rule(3, DocumentStatus.RESTRICTED_FOR_DELIVERY, now, 0, null, null, null, null, "(au,gov,", false));
-		service.currentRules.add(new Rule(4, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(au,gov,nla,", false));
+		service.currentRules.add(new Rule(4, DocumentStatus.NOT_APPLICABLE, now, 0, null, null, null, null, "(au,gov,nla,", false));
 		service.currentRules.add(new Rule(5, DocumentStatus.ACCEPTED, now, 0, null, null, null, null, "(au,gov,nla,trove,", false));
-		service.currentRules.add(new Rule(6, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(au,gov,nla,trove,)/home.html", false));
+		service.currentRules.add(new Rule(6, DocumentStatus.NOT_APPLICABLE, now, 0, null, null, null, null, "(au,gov,nla,trove,)/home.html", false));
 		Document doc = new Document();
 		doc.setUrl("trove.nla.gov.au/home.html");
 		Rule r = service.filterDocument(doc);
-		assertEquals(DocumentStatus.REJECTED, r.getPolicy());
+		assertEquals(DocumentStatus.NOT_APPLICABLE, r.getPolicy());
 		
 		doc.setUrl("trove.nla.gov.au/home.xml");
 		r = service.filterDocument(doc);

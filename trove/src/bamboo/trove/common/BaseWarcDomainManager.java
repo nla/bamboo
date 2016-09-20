@@ -228,6 +228,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     try {
       String urlString = bambooBaseUrl + "warcs/" + warcId + "/text";
       if (warcToIndex.isRetryAttempt()) {
+        log.info("Forcing cache bypass for warc #{} because of error retry.", warcId);
         urlString += "?bypass=1";
       }
       URL url = new URL(urlString);

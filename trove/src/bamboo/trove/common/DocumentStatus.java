@@ -17,7 +17,7 @@ package bamboo.trove.common;
 
 public enum DocumentStatus {
   ACCEPTED,
-  REJECTED,
+  NOT_APPLICABLE,
   RESTRICTED_FOR_DELIVERY,
   RESTRICTED_FOR_DISCOVERY,
   RESTRICTED_FOR_BOTH
