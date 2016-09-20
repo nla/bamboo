@@ -31,6 +31,7 @@ import bamboo.trove.services.FilteringCoordinationService;
 import bamboo.trove.workers.FilterWorker;
 import bamboo.trove.workers.IndexerWorker;
 import bamboo.trove.workers.TransformWorker;
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
@@ -57,6 +58,12 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   // Reading data from Bamboo
   private static Timer bambooReadTimer; 
   private static Timer bambooParseTimer; 
+  private static Gauge<Long> bambooCacheNull;
+  private static long bambooCacheNullLong = 0;
+  private static Gauge<Long> bambooCacheHit;
+  private static long bambooCacheHitLong = 0;
+  private static Gauge<Long> bambooCacheMiss;
+  private static long bambooCacheMissLong = 0;
   private static Histogram warcDocCountHistogram;
   private static Histogram warcSizeHistogram;
   private static String bambooBaseUrl;
@@ -113,6 +120,12 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     metrics.register("bambooReadTimer", bambooReadTimer);
     bambooParseTimer = new Timer();
     metrics.register("bambooParseTimer", bambooParseTimer);
+    bambooCacheNull = () -> bambooCacheNullLong;
+    metrics.register("bambooCacheNull", bambooCacheNull);
+    bambooCacheHit = () -> bambooCacheHitLong;
+    metrics.register("bambooCacheHit", bambooCacheHit);
+    bambooCacheMiss = () -> bambooCacheMissLong;
+    metrics.register("bambooCacheMiss", bambooCacheMiss);
     warcDocCountHistogram = new Histogram(new UniformReservoir());
     metrics.register("warcDocCountHistogram", warcDocCountHistogram);
     warcSizeHistogram = new Histogram(new UniformReservoir());
@@ -233,6 +246,26 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
       }
       URL url = new URL(urlString);
       connection = (HttpURLConnection) url.openConnection();
+
+      String cacheStatus = connection.getHeaderField("X-Cache-Status");
+      // HIT is most likely when the cache is full and we are the bottleneck. test first
+      if ("HIT".equals(cacheStatus)) {
+        bambooCacheHitLong++;
+      } else {
+        // When the cache isn't full this will be normal. Bamboo will be the bottleneck
+        if ("MISS".equals(cacheStatus)) {
+          bambooCacheMissLong++;
+        } else {
+          // We don't really expect with of these.
+          if (cacheStatus == null) {
+            bambooCacheNullLong++;
+          } else {
+            log.error("Received unexpected cache header value: '{}'", cacheStatus);
+            throw new IllegalArgumentException("Unexpected response from Bamboo caching layer");
+          }
+        }
+      }
+
       InputStream in = new BufferedInputStream(connection.getInputStream());
       parseJson(warc, in);
       warc.setLoadComplete();
