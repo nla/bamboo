@@ -253,7 +253,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
         bambooCacheHitLong++;
       } else {
         // When the cache isn't full this will be normal. Bamboo will be the bottleneck
-        if ("MISS".equals(cacheStatus)) {
+        if ("MISS".equals(cacheStatus) || "BYPASS".equals(cacheStatus)) {
           bambooCacheMissLong++;
         } else {
           // We don't really expect with of these.
