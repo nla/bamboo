@@ -24,6 +24,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
+import com.codahale.metrics.Timer;
+
 import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
 import au.gov.nla.trove.indexer.api.BaseDomainManager;
 import au.gov.nla.trove.indexer.api.EndPointDomainManager;
@@ -88,6 +90,7 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 	public void run(){
 		// check if we have a changed rule set.
 		progress = "Checking for new Rules";
+		Timer timer = getTimer(getName() + ".processRule");
 		runStart = new Date();
 		changedRules = new ArrayList<>();
 		List<Rule> deletedRules = new ArrayList<>();
@@ -106,6 +109,7 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 		int changeCount = 1;
 		while(running){
 			for(Rule r : deletedRules){
+				Timer.Context context = timer.time();
 				progress = "Processing " + changeCount++ + " deleted Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocumentsDeleteRule(r);
@@ -114,8 +118,12 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 					setError("Error processing changed rule : " + r.getId(), e);
 					stopProcessing();
 				}
+				finally {
+					context.stop();
+				}
 			}
 			for(Rule r : changedRules){
+				Timer.Context context = timer.time();
 				Rule newRule = restrictionsService.getRule(r.getId());
 				progress = "Processing " + changeCount++ + " changed Rule : Rule<" + r.getId() + ">";
 				try{
@@ -125,8 +133,12 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 					setError("Error processing changed rule : " + r.getId(), e);
 					stopProcessing();
 				}
+				finally {
+					context.stop();
+				}
 			}
 			for(Rule r : newRules){
+				Timer.Context context = timer.time();
 				progress = "Processing " + changeCount++ + " New Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocuments(null, r);
@@ -135,8 +147,12 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 					setError("Error processing changed rule : " + r.getId(), e);
 					stopProcessing();
 				}
+				finally {
+					context.stop();
+				}
 			}
 			for(Rule r : dateRules){
+				Timer.Context context = timer.time();
 				progress = "Processing " + changeCount++ + " date Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocuments(r, null);
@@ -145,8 +161,11 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 					setError("Error processing changed rule : " + r.getId(), e);
 					stopProcessing();
 				}
+				finally {
+					context.stop();
+				}
 			}
-			if(!changedRules.isEmpty()){
+			if(!changedRules.isEmpty() || !newRules.isEmpty() || !deletedRules.isEmpty()){
 				// finished processing the changes so we will save the new rules
 				restrictionsService.changeToNewRules(runStart);
 			}
@@ -407,6 +426,8 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 	
 	private void processQuery(SolrQuery query) throws SolrServerException, IOException{
 		log.debug("Query for rule : " + query.toString());
+		Timer.Context context = getTimer(getName() + ".processQuery").time();
+
   	boolean more = true;
   	String cursor = CursorMarkParams.CURSOR_MARK_START;
   	while(more){
@@ -438,6 +459,7 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 		}
 		// need to commit here so that we can ignore documents just processed 
 		client.commit();
+		context.stop();
 	}
 	
 	private void distributeResponse(SolrDocumentList results){
@@ -458,16 +480,6 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 		  	}				
 			}
 		});
-		
-//  	for(SolrDocument doc : results){
-//  		String id = (String)doc.getFieldValue("id");
-//  		String url = (String)doc.getFieldValue("url");
-//  		Date capture = (Date)doc.getFieldValue("date");
-//  		log.debug("create worker URL:"+url+" id:"+id+" capture:"+ capture);
-//  		RuleRecheckWorker worker = new RuleRecheckWorker(id, url, capture, this, restrictionsService);
-//  		workProcessor.process(worker);
-//  	}
-
 	}
 	
 	@Override
@@ -482,8 +494,8 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 
 	@Override
 	public void start(){
-//		startProcessing();
-		throw new IllegalArgumentException();
+		startProcessing();
+//		throw new IllegalArgumentException();
 	}
 	private void startProcessing(){
     if (!running && !stopping)  {
