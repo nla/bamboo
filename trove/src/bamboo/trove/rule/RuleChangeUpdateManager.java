@@ -494,8 +494,8 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 
 	@Override
 	public void start(){
-		startProcessing();
-//		throw new IllegalArgumentException();
+//		startProcessing();
+		throw new IllegalArgumentException();
 	}
 	private void startProcessing(){
     if (!running && !stopping)  {
