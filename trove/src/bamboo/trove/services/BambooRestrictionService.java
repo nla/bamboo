@@ -289,33 +289,9 @@ public class BambooRestrictionService {
     currentRules = dao.getCurrentRules();
     newRules = dao.getNewRules(); // should now be empty
     lastRun = dao.getLastRun();
+    recovery = false;
   }
   
-public static void main(String[] args){
-	BambooRestrictionService service = new BambooRestrictionService();  
-	service.currentRules = new ArrayList<Rule>();
-	Date now = new Date();
-	service.currentRules.add(new Rule(1, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(", false));
-	service.currentRules.add(new Rule(2, DocumentStatus.ACCEPTED, now, 0, null, null, null, null, "(au,gov,", false));
-	service.currentRules.add(new Rule(3, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(au,gov,nla,", false));
-	service.currentRules.add(new Rule(4, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(au,gov,nla,trove,", false));
-	service.currentRules.add(new Rule(5, DocumentStatus.REJECTED, now, 0, null, null, null, null, "(au,gov,nla,trove,)/home.html", false));
-	Document doc = new Document();
-	doc.setUrl("trove.nla.gov.au/home.html");
-	Rule r = service.filterDocument(doc);
-System.out.println(r.getId() + " : " + r.getPolicy());
-doc.setUrl("trove.nla.gov.au/home.xml");
-r = service.filterDocument(doc);
-System.out.println(r.getId() + " : " + r.getPolicy());
-doc.setUrl("trove.nla.gov.au/index.html");
-r = service.filterDocument(doc);
-System.out.println(r.getId() + " : " + r.getPolicy());
-doc.setUrl("dlir.aec.gov.au/home.html");
-r = service.filterDocument(doc);
-System.out.println(r.getId() + " : " + r.getPolicy());
-
-service.checkForChangedRules();
-}
   // TODO: No consideration of embargo dates yet...
   // TODO: Polling background thread.
   // 1) Contact Bamboo and get current restriction list
@@ -404,6 +380,66 @@ service.checkForChangedRules();
   			+"    <publicComment></publicComment>"
   			+"    <exactMatch>false</exactMatch>"
   			+"    <lastModified class=\"sql-timestamp\">2014-09-11 18:14:54.0</lastModified>"
+  			+"  </rule>"
+  			+"  <rule>"
+  			+"    <id>4</id>"
+  			+"    <policy>RESTRICTED_FOR_BOTH</policy>"
+  			+"    <surt>http://(nz,gov,bom,</surt>"
+  			+"    <embargo/>"
+  			+"	<captureStart/>"
+  			+"	<captureEnd/>"
+  			+"	<retrievedStart/>"
+  			+"	<retrievedEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2016-04-01 13:52:39.0</lastModified>"
+  			+"  </rule>"
+  			+"  <rule>"
+  			+"    <id>5</id>"
+  			+"    <policy>ACCEPTED</policy>"
+  			+"    <surt>http://(nz,gov,bom,)/dir/images/image.jpg</surt>"
+  			+"    <embargo/>"
+  			+"	<captureStart/>"
+  			+"	<captureEnd/>"
+  			+"	<retrievedStart/>"
+  			+"	<retrievedEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2016-04-01 13:52:39.0</lastModified>"
+  			+"  </rule>"
+  			+"  <rule>"
+  			+"    <id>6</id>"
+  			+"    <policy>ACCEPTED</policy>"
+  			+"    <surt>http://(nz,gov,bom,)/dir/images</surt>"
+  			+"    <embargo/>"
+  			+"	<captureStart class=\"sql-timestamp\">2016-08-21 00:00:00.0</captureStart>"
+  			+"	<captureEnd class=\"sql-timestamp\">2016-08-21 23:59:59.0</captureEnd>"
+  			+"	<retrievedStart/>"
+  			+"	<retrievedEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2016-04-02 13:52:39.0</lastModified>"
+  			+"  </rule>"
+  			+"  <rule>"
+  			+"    <id>7</id>"
+  			+"    <policy>ACCEPTED</policy>"
+  			+"    <surt>http://(nz,gov,bom,)/dir/images/updateing.js</surt>"
+  			+"    <embargo/>"
+  			+"	<retrievedStart/>"
+  			+"	<retrievedEnd class=\"sql-timestamp\">2016-09-20 23:59:59.0</retrievedEnd>"
+  			+"	<captureStart/>"
+  			+"	<captureEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2016-04-01 13:52:39.0</lastModified>"
   			+"  </rule>"
   			+"  <rule>"
   			+"    <id>26</id>"

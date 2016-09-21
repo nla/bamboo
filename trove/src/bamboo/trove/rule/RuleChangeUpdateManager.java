@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.TimeZone;
 
@@ -58,7 +59,7 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
   private List<Rule> changedRules;
   private List<Rule> dateRules;
   private Date lastProcessed = null;
-	private String progress = "Rules last processed : ";
+	private String progress = null;
 	private long updateCount = 0;
 	private boolean running = false;
 	private boolean stopping = false;
@@ -76,6 +77,7 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 		format.setTimeZone(TimeZone.getTimeZone("UTC"));
 		workProcessor = new WorkProcessor(NUMBER_OF_WORKERS);
 		workDistributor = new WorkProcessor(NUMBER_OF_DISTRIBUTORS);
+		lastProcessed = restrictionsService.getLastProcessed();
 		if(restrictionsService.isRecovery()){
 			log.info("Restart into Rule recovery mode.");
 //			startProcessing();
@@ -97,15 +99,14 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 			newRules = restrictionsService.getNewRules();
 		}
 		dateRules = restrictionsService.getDateRules();
-		lastProcessed = restrictionsService.getLastProcessed();
 		// remove any rules that have changed from the date list as we don't need to process twice.
-		dateRules.removeAll(changedRules);
+		removeById(dateRules, changedRules);
 		log.debug("{} Rules have changed.", changedRules.size());
 
 		int changeCount = 1;
 		while(running){
 			for(Rule r : deletedRules){
-				progress = "Processing deleted Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
+				progress = "Processing " + changeCount++ + " deleted Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocumentsDeleteRule(r);
 				}
@@ -116,7 +117,7 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 			}
 			for(Rule r : changedRules){
 				Rule newRule = restrictionsService.getRule(r.getId());
-				progress = "Processing changed Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
+				progress = "Processing " + changeCount++ + " changed Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocuments(r, newRule);
 				}
@@ -126,7 +127,7 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 				}
 			}
 			for(Rule r : newRules){
-				progress = "Processing New Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
+				progress = "Processing " + changeCount++ + " New Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocuments(null, r);
 				}
@@ -136,7 +137,7 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 				}
 			}
 			for(Rule r : dateRules){
-				progress = "Processing date Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
+				progress = "Processing " + changeCount++ + " date Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocuments(r, null);
 				}
@@ -149,7 +150,8 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 				// finished processing the changes so we will save the new rules
 				restrictionsService.changeToNewRules(runStart);
 			}
-			progress = "Finished checking rules";
+			progress = null;
+			lastProcessed = restrictionsService.getLastProcessed();
 			stopProcessing();		
 			if(stopping){
 				running = false;
@@ -159,6 +161,20 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 		stopping = false;
 	}
 
+	private void removeById(List<Rule> dateRules, List<Rule> changed){
+		List<Integer> ids = new ArrayList<>();
+		for(Rule r:changed){
+			ids.add(r.getId());
+		}
+		Iterator<Rule> i = dateRules.iterator();
+		while(i.hasNext()){
+			Rule r = i.next();
+			if(ids.contains(r.getId())){
+				i.remove();
+			}
+		}
+	}
+	
 	private List<String> documents = new ArrayList<>();
 	@Override
 	public void errorProcessing(SolrInputDocument doc, Throwable error){
@@ -381,7 +397,8 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 	}
 	
 	private SolrQuery createQuery(String query){
-		SolrQuery q = new SolrQuery(query);
+		SolrQuery q = new SolrQuery("*:*");
+		q.setFilterQueries(query);
   	q.setFields(SOLR_FIELDS);
   	q.setSort(SortClause.asc("id"));
   	q.setRows(1000);
@@ -518,7 +535,10 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 
 	@Override
 	public String getLastIdProcessed(){
-		return progress + (lastProcessed == null?"":lastProcessed.toString());
+		if(progress != null){
+			return progress;
+		}
+		return "Rules last processed : " + (lastProcessed == null?"":lastProcessed.toString());
 	}
 
 	public List<Rule> getChangedRules(){
