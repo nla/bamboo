@@ -22,6 +22,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.ReentrantLock;
 
 import au.gov.nla.trove.indexer.api.BaseDomainManager;
 import au.gov.nla.trove.indexer.api.EndPointDomainManager;
@@ -92,6 +93,9 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     notAlreadyStarted();
     bambooBaseUrl = newBambooBaseUrl;
   }
+  protected static String getBambooApiBaseUrl() {
+    return bambooBaseUrl;
+  }
   protected static void setWorkerCounts(int filters, int transformers, int indexers) {
     notAlreadyStarted();
     filterPoolLimit = filters;
@@ -156,6 +160,16 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     }
 
     imStarted = true;
+  }
+
+  private static final ReentrantLock DOMAIN_START_LOCK = new ReentrantLock();
+  public static void acquireDomainStartLock() {
+    DOMAIN_START_LOCK.lock();
+  }
+  public static void releaseDomainStartLock() {
+    // Only the holding thread is allowed to call this,
+    // otherwise an IllegalMonitorStateException will be thrown
+    DOMAIN_START_LOCK.unlock();
   }
 
   @VisibleForTesting
@@ -328,6 +342,27 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
 
     } finally {
       ctx.stop();
+    }
+  }
+
+  public void restartForRestrictionsDomain() {
+    if (isRunning()) {
+      log.info("restartForRestrictionsDomain() : Restarting '{}'", getName());
+      stop();
+
+      // Spawn a new thread to restart the domain. The restrictions domain should be holding the lock so it won't
+      // do anything yet, but we do it in another thread to allow this thread to return after the stop() call. 
+      Thread thread = new Thread(() -> {
+        acquireDomainStartLock();
+        try {
+          start();
+        } finally {
+          releaseDomainStartLock();
+        }
+      });
+      thread.start();
+    } else {
+      log.info("restartForRestrictionsDomain() : Not running... '{}'", getName());
     }
   }
 

@@ -22,18 +22,26 @@ import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.IndexerDocument;
 import bamboo.trove.common.ToIndex;
 import bamboo.trove.common.WarcProgressManager;
+import bamboo.trove.rule.RuleChangeUpdateManager;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class OnDemandWarcManager extends BaseWarcDomainManager {
   private static final Logger log = LoggerFactory.getLogger(OnDemandWarcManager.class);
 
+	@Autowired(required = true)
+	private RuleChangeUpdateManager ruleChangeUpdateManager;
+
   private boolean running = false;
+  private boolean starting = false;
   private long warcsProcessed = 0;
   private long lastWarcId = 0;
+
+  private Integer outstandingBatches = 0;
 
   @PostConstruct
   public void init() throws InterruptedException {
@@ -51,6 +59,9 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
     if (!running) {
       return "<error>Offline</error>";
     }
+    synchronized (this) {
+      outstandingBatches++;
+    }
 
     log.info("Indexing on demand. Warc #{}", warcId);
     // Fake up the objects we normally build in communication with Bamboo
@@ -61,6 +72,11 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
     WarcProgressManager batch = getAndEnqueueWarc(toIndex);
     IndexerDocument responseDocument = batch.getTrackedDocument();
     log.info("Warc #{} has {} documents. Loading has completed.", warcId, batch.size());
+
+    // TODO: A fair bit more thinking needs to go into error handling here. The complexity was increased dramatically
+    // here when the Full Corpus domain was added, but this code remains pretty basic. Now we need to know the definite
+    // state of the batch in terms of managing the outstandingBatches counter to be sure that nothing is indexing
+    // when the restiction service runs nightly.
 
     while (!batch.isFilterComplete()) {
       Thread.sleep(100);
@@ -81,6 +97,9 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
     log.info("Warc #{} has finished indexing...", warcId);
 
     warcsProcessed++;
+    synchronized (this) {
+      outstandingBatches--;
+    }
     lastWarcId = warcId;
 
     return ClientUtils.toXML(responseDocument.getSolrDocument());
@@ -110,16 +129,43 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
 
   @Override
   public void start() {
-    if (!running)  {
-      log.info("Starting...");
-      running = true;
+    if (!running && !starting)  {
+      acquireDomainStartLock();
+      try {
+        if (!running && !starting)  {
+          // TODO... is there anything more complicated to do here?
+          log.info("Starting...");
+          running = true;
+        }
+      } finally {
+        releaseDomainStartLock();
+      }
     }
   }
 
   @Override
   public void stop() {
     if (running)  {
-      running = false;
+      log.info("Stopping domain");
+      while (running) {
+        // Check if all of the outstanding work is finished
+        synchronized (this) {
+          if (outstandingBatches > 0) {
+            log.info("There are {} batch(es) still processing. Waiting...", outstandingBatches);
+          } else {
+            running = false;
+          }
+        }
+
+        // If we are still running, sleep for a bit and try again
+        if (running) {
+          try {
+            Thread.sleep(1000);
+          } catch (InterruptedException e) {
+            log.error("Thread sleep interrupted. Resuming. Reason: ", e.getMessage());
+          }
+        }
+      }
     }
   }
 

@@ -44,7 +44,7 @@ import bamboo.trove.common.ToIndex;
 import bamboo.trove.common.WarcProgressManager;
 import bamboo.trove.common.WarcSummary;
 import bamboo.trove.db.FullPersistenceDAO;
-import bamboo.trove.services.FilteringCoordinationService;
+import bamboo.trove.rule.RuleChangeUpdateManager;
 import bamboo.trove.services.JdbiService;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -69,10 +69,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 	private EndPointDomainManager solrManager;
 
 	@Autowired
-	private FilteringCoordinationService filteringService;
-
-	@Autowired
 	private JdbiService database;
+
+	@Autowired(required = true)
+	private RuleChangeUpdateManager ruleChangeUpdateManager;
 
   // Trove's DB stores IDs on where we are up to
   private FullPersistenceDAO dao;
@@ -81,16 +81,14 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private long bambooCollectionId = 3;
   private int bambooBatchSize = 100;
   private int bambooReadThreads = 1;
-  private String bambooBaseUrl;
   private String bambooCollectionsUrl;
   private int queueLimit = 5;
 
-  private int maxFilterWorkers;
-  private int maxTransformWorkers;
-  private int maxIndexWorkers;
-
+  // Lifecycle states
   private boolean running = false;
+  private boolean starting = false;
   private boolean stopping = false;
+
   private boolean finishedFinding = false;
   private long warcsProcessed = 0;
   private long progressInBatchId = -1;
@@ -136,40 +134,15 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   }
 
   @Required
-  public void setBambooBaseUrl(String bambooBaseUrl) {
-    this.bambooBaseUrl = bambooBaseUrl;
-  }
-
-  @Required
   public void setBambooCollectionId(long bambooCollectionId) {
     this.bambooCollectionId = bambooCollectionId;
   }
 
-  @Required
-  public void setMaxFilterWorkers(int maxFilterWorkers) {
-    this.maxFilterWorkers = maxFilterWorkers;
-  }
-
-  @Required
-  public void setMaxTransformWorkers(int maxTransformWorkers) {
-    this.maxTransformWorkers = maxTransformWorkers;
-  }
-
-  @Required
-  public void setMaxIndexWorkers(int maxIndexWorkers) {
-    this.maxIndexWorkers = maxIndexWorkers;
-  }
-
   @PostConstruct
-  public void init() {
-		log.info("***** FullReindexWarcManager *****");
-    // The core Trove indexer doesn't really match the model we have here were all of the domains share worker pools,
-    // so this startup pattern will look a little odd to align with that view of the work. This domain will configure
-    // and init (via statics) the base class all of the other domains extend. They will wait until we are done.
-    BaseWarcDomainManager.setBambooApiBaseUrl(bambooBaseUrl);
-    BaseWarcDomainManager.setWorkerCounts(maxFilterWorkers, maxTransformWorkers, maxIndexWorkers);
-    BaseWarcDomainManager.startMe(solrManager, filteringService);
-    bambooCollectionsUrl = bambooBaseUrl + "collections/" + bambooCollectionId + "/warcs/json";
+  public void init() throws InterruptedException {
+    BaseWarcDomainManager.waitUntilStarted();
+    log.info("***** FullReindexWarcManager *****");
+    bambooCollectionsUrl = getBambooApiBaseUrl() + "collections/" + bambooCollectionId + "/warcs/json";
 
     log.info("Bamboo Collection : {}", bambooCollectionsUrl);
     log.info("Warc read threads : {}", bambooReadThreads);
@@ -193,8 +166,6 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     }
 
     readPool = new WorkProcessor(bambooReadThreads);
-
-    tick();
   }
 
   private void startWorkers() {
@@ -231,13 +202,28 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   @Override
   public void start() {
-    if (!running && !stopping)  {
-      log.info("Starting...");
-      running = true;
-      Thread me = new Thread(this);
-      me.setName(getName());
-      me.start();
+    if (!running && !starting && !stopping)  {
+      acquireDomainStartLock();
+      try {
+        if (!running && !starting && !stopping)  {
+          starting = true;
+          startInnner();
+          starting = false;
+        }
+      } finally {
+        releaseDomainStartLock();
+      }
     }
+  }
+
+  private void startInnner() {
+    log.info("Starting...");
+    running = true;
+    tick();
+
+    Thread me = new Thread(this);
+    me.setName(getName());
+    me.start();
   }
 
   public void run() {
@@ -248,15 +234,19 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   @Override
   public void stop() {
     if (running && !stopping)  {
-      log.info("Stopping domain... {} Bamboo read threads still need to stop", readWorkers.size());
       stopping = true;
+      log.info("Stopping domain... {} Bamboo read threads still need to stop", readWorkers.size());
       stopWorkers();
       log.info("All workers stopped!");
 
       if (timer != null) {
         log.info("Cancelling batch management timer");
         timer.cancel();
+        timer = null;
       }
+
+      running = false;
+      stopping = false;
     }
   }
 
@@ -277,7 +267,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
 
   private void loop() {
-    while (running && !stopping&& !finishedFinding) {
+    while (running && !stopping && !finishedFinding) {
       try {
         try {
           doWork();
