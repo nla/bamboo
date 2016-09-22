@@ -57,6 +57,7 @@ public class IndexerDocument implements AcknowledgeWorker {
     this.theshold = theshold;
   }
   public DocumentStatus getStatus() {
+    if (rule == null) return null; 
     return rule.getPolicy();
   }
   public ContentThreshold getTheshold() {

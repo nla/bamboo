@@ -16,7 +16,9 @@
 package bamboo.trove.services;
 
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.PostConstruct;
 
@@ -62,12 +64,15 @@ public class FilteringCoordinationService {
   }
 
   // Things we don't want to see in stat keys when lazy loading dirty data
-  private String[] excludedCharacters = {"\\", "/", ",", ".", ":", ";", "?", "\""};
+  private static final String[] EXCLUDED_CHARACTERS = {"\\", "/", ",", ".", ":", ";", "?", "\""};
+  private static final List<String> ALLOWED_TYPES = Arrays.asList(
+          "texthtml", "imagejpeg", "imagegif", "applicationpdf", "imagepng", "textplain", "textcss", "textxml");
   private String cleanKeyPattern = "";
+
   @PostConstruct
   public void init() {
     cleanKeyPattern += "[";
-    for (String c : excludedCharacters) {
+    for (String c : EXCLUDED_CHARACTERS) {
       cleanKeyPattern += "\\" + c;
     }
     cleanKeyPattern += "]*";
@@ -81,16 +86,18 @@ public class FilteringCoordinationService {
 
   public void filterDocument(IndexerDocument document) {
     ContentThreshold threshold = qualityControlService.filterDocument(document.getBambooDocument());
+    DocumentStatus status = DocumentStatus.NOT_APPLICABLE;
     Rule rule = null;
     if (!threshold.equals(ContentThreshold.NONE)) {
       rule = bambooRestrictionService.filterDocument(document.getBambooDocument());
+      status = rule.getPolicy();
     }
     document.applyFiltering(rule, threshold);
 
     if (collectMetrics) {
       // Never fail because of this secondary stuff
       try {
-        collectMetrics(document);
+        collectMetrics(document, status);
 
       } catch (Exception ex) {
         log.error("Metrics failed on document: {}", document.getDocId(), ex);
@@ -117,14 +124,14 @@ public class FilteringCoordinationService {
     return document.getText().length();
   }
 
-  private void collectMetrics(IndexerDocument document) {
-    lazyLoadChecks(document);
+  private void collectMetrics(IndexerDocument document, DocumentStatus status) {
+    lazyLoadChecks(document, status);
     recordSizeByKey(thresholdSizes, document.getTheshold(), document);
     // Cutout here if we aren't going to index it
     //if (document.getTheshold().equals(ContentThreshold.NONE)) return;
 
     recordSizeByDomain(document);
-    recordSizeByKey(statusSizes,    document.getStatus(),   document);
+    recordSizeByKey(statusSizes,    status,   document);
     recordSizeByKey(typeSizes,      cleanType(document), document);
     recordSizeByKey(codeSizes, "" + document.getBambooDocument().getStatusCode(), document);
     recordYear(document.getBambooDocument());
@@ -158,17 +165,19 @@ public class FilteringCoordinationService {
             .forEach(thisFilter -> domainSizes.get(thisFilter).update(contentLength(doc)));
   }
   private void recordSizeByKey(Map<?, Histogram> map, Object key, IndexerDocument document) {
+    if (key == null) return;
     map.get(key).update(contentLength(document.getBambooDocument()));
   }
 
-  private void lazyLoadChecks(IndexerDocument document) {
-    lazyLoadByKey(statusSizes,    document.getStatus(),   "size.status.");
+  private void lazyLoadChecks(IndexerDocument document, DocumentStatus status) {
+    lazyLoadByKey(statusSizes,    status,   "size.status.");
     lazyLoadByKey(thresholdSizes, document.getTheshold(), "size.threshold.");
     lazyLoadByKey(typeSizes,      cleanType(document),    "size.type.");
     lazyLoadByKey(codeSizes, "" + document.getBambooDocument().getStatusCode(), "size.code.");
   }
 
   private void lazyLoadByKey(Map map, Object key, String prefix) {
+    if (key == null) return;
     if (!map.containsKey(key)) {
       synchronized (map) {
         if (!map.containsKey(key)) {
@@ -217,6 +226,10 @@ public class FilteringCoordinationService {
   }
 
   private String cleanType(IndexerDocument document) {
-    return document.getBambooDocument().getContentType().replaceAll(cleanKeyPattern, "");
+    String type = document.getBambooDocument().getContentType().replaceAll(cleanKeyPattern, "");
+    if (ALLOWED_TYPES.contains(type)) {
+      return type;
+    }
+    return "other";
   }
 }

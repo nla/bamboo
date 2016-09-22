@@ -15,13 +15,8 @@
  */
 package bamboo.trove.services;
 
-import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
@@ -29,26 +24,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
 import javax.annotation.PostConstruct;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
-
-import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.SolrQuery.SortClause;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.CloudSolrClient;
-import org.apache.solr.client.solrj.response.QueryResponse;
-import org.apache.solr.common.SolrDocument;
-import org.apache.solr.common.SolrDocumentList;
-import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.params.CursorMarkParams;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Required;
-import org.springframework.stereotype.Service;
 
 import bamboo.task.Document;
 import bamboo.trove.common.DocumentStatus;
@@ -57,6 +36,11 @@ import bamboo.trove.common.xml.RulePojo;
 import bamboo.trove.common.xml.RulesPojo;
 import bamboo.trove.db.RestrictionsDAO;
 import bamboo.util.SurtFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Required;
+import org.springframework.stereotype.Service;
 
 /******
  * When requesting warc files from Bamboo there will be no awareness of restrictions carried with them.
@@ -149,7 +133,7 @@ public class BambooRestrictionService {
   	if(!newRules.isEmpty()){
   		rules = newRules;
   	}
-    final Comparator<Rule> comp = (o1, o2) -> o1.compareTo(o2);
+		final Comparator<Rule> comp = (o1, o2) -> o1.compareTo(o2);
     Optional<Rule> r = rules.stream()
     		.filter(i -> i.matches(url, capture))
     			.max(comp);
