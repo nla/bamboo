@@ -6,6 +6,8 @@ import java.util.Map;
 
 import org.apache.solr.common.SolrInputDocument;
 
+import com.codahale.metrics.Timer;
+
 import bamboo.trove.common.Rule;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.services.BambooRestrictionService;
@@ -27,8 +29,10 @@ public class RuleRecheckWorker implements Runnable{
 	}
 	@Override
 	public void run(){
+		Timer.Context context = manager.getTimer(manager.getName() + ".worker").time();
 		SolrInputDocument update = processResultsRecheckRule();
 		manager.update(update);
+		context.stop();
 	}
 
 	private SolrInputDocument processResultsRecheckRule(){ 

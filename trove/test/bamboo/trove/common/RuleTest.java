@@ -113,7 +113,7 @@ public class RuleTest{
 
 	@Test
 	public void testMatches(){
-		String url1 = "http://trove.nla.gov.au/index.html";
+		String url1 = "https://trove.nla.gov.au/index.html";
 		String url2 = "http://www.biz.com/index.html";
 		
 		Date capture = new Date(System.currentTimeMillis()- 50000);
@@ -129,6 +129,12 @@ public class RuleTest{
 		assertFalse(r.matches(url1, capture));
 		assertFalse(r.matches(url2, capture));
 		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "http://(au,gov,nla,trove,)/index.html", false);
+		assertTrue(r.matches(url1, capture));
+		assertFalse(r.matches(url2, capture));
+		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "https://(au,gov,nla,trove,)/index.html", false);
+		assertTrue(r.matches(url1, capture));
+		assertFalse(r.matches(url2, capture));
+		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "ftp://(au,gov,nla,trove,)/index.html", false);
 		assertTrue(r.matches(url1, capture));
 		assertFalse(r.matches(url2, capture));
 		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,gov,nla,trove,:80)/home.html", false);
@@ -181,6 +187,39 @@ public class RuleTest{
 		assertFalse(r.matches(url2, capture));
 	}
 
+	@Test
+	public void testMatchesCatchAll(){
+		Date capture = new Date(System.currentTimeMillis()- 50000);
+		Rule r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(", false);
+		assertTrue(r.matches("http://mailto:linda@losch.com.au/favicon.ico", capture));
+		assertTrue(r.matches("http://mailto:gary.court@gmail.com/robots.txt", capture));
+		assertTrue(r.matches("http://user:pass@example.com/robots.txt", capture));
+		assertTrue(r.matches("http://user:pass@example.com/", capture));
+		assertTrue(r.matches("http://chrstian+1@cluebeck.de/", capture));
+
+		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(com,", false);
+		assertFalse(r.matches("http://mailto:linda@losch.com.au/favicon.ico", capture));
+		assertTrue(r.matches("http://mailto:gary.court@gmail.com/robots.txt", capture));
+		assertTrue(r.matches("http://user:pass@example.com/robots.txt", capture));
+		assertTrue(r.matches("http://user:pass@example.com/", capture));
+		assertFalse(r.matches("http://chrstian+1@cluebeck.de/", capture));
+
+		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(com,gmail,)/robots.txt", false);
+		assertFalse(r.matches("http://mailto:linda@losch.com.au/favicon.ico", capture));
+		assertTrue(r.matches("http://mailto:gary.court@gmail.com/robots.txt", capture));
+		assertFalse(r.matches("http://user:pass@example.com/robots.txt", capture));
+		assertFalse(r.matches("http://user:pass@example.com/", capture));
+		assertFalse(r.matches("http://chrstian+1@cluebeck.de/", capture));
+	}
+	
+	@Test
+	public void testMatchesBadURL(){
+		Date capture = new Date(System.currentTimeMillis()- 50000);
+		Rule r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(", false);
+		assertTrue(r.matches("/losch.com.au/favicon.ico", capture));
+		assertTrue(r.matches("losch.com.au/favicon.ico", capture));
+	}
+	
 	@Test
 	public void testSort(){
 		// array of rules that when sorted should be in id order.

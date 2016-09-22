@@ -69,7 +69,6 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   	removePreviousRuleSet();
   	makeCurrentRuleSetPrevious();
   	makeNewRuleSetCurrent();
-  	Timestamp ts = new Timestamp(lastRun.getTime());
   	setLastRun(lastRun);
   }
   

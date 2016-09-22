@@ -36,27 +36,27 @@ public class BambooRestrictionServiceTest{
 		service.currentRules.add(new Rule(5, DocumentStatus.ACCEPTED, now, 0, null, null, null, null, "(au,gov,nla,trove,", false));
 		service.currentRules.add(new Rule(6, DocumentStatus.NOT_APPLICABLE, now, 0, null, null, null, null, "(au,gov,nla,trove,)/home.html", false));
 		Document doc = new Document();
-		doc.setUrl("trove.nla.gov.au/home.html");
+		doc.setUrl("http://trove.nla.gov.au/home.html");
 		Rule r = service.filterDocument(doc);
 		assertEquals(DocumentStatus.NOT_APPLICABLE, r.getPolicy());
 		
-		doc.setUrl("trove.nla.gov.au/home.xml");
+		doc.setUrl("http://trove.nla.gov.au/home.xml");
 		r = service.filterDocument(doc);
 		assertEquals(DocumentStatus.ACCEPTED, r.getPolicy());
 		
-		doc.setUrl("trove.nla.gov.au/index.html");
+		doc.setUrl("https://trove.nla.gov.au/index.html");
 		r = service.filterDocument(doc);
 		assertEquals(DocumentStatus.ACCEPTED, r.getPolicy());
 		
-		doc.setUrl("dlir.aec.gov.au/home.html");
+		doc.setUrl("ftp://dlir.aec.gov.au/home.html");
 		r = service.filterDocument(doc);
 		assertEquals(DocumentStatus.RESTRICTED_FOR_DELIVERY, r.getPolicy());
 
-		doc.setUrl("dlir.aec.com.au/home.html");
+		doc.setUrl("http://dlir.aec.com.au:8080/home.html");
 		r = service.filterDocument(doc);
 		assertEquals(DocumentStatus.RESTRICTED_FOR_BOTH, r.getPolicy());
 		
-		doc.setUrl("dlir.aec.com/home.html");
+		doc.setUrl("ftps://dlir.aec.com/home.html");
 		r = service.filterDocument(doc);
 		assertEquals(DocumentStatus.ACCEPTED, r.getPolicy());
 

@@ -1,15 +1,14 @@
 package bamboo.trove.common;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Date;
 
-import bamboo.util.Urls;
 import org.archive.url.SURT;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import bamboo.util.Urls;
 
 public class Rule implements Comparable<Rule>{
-  private static Logger log = LoggerFactory.getLogger(Rule.class);
-
 	private int id;
 	private DocumentStatus policy;
 	private Date lastUpdated;
@@ -61,7 +60,16 @@ public class Rule implements Comparable<Rule>{
 	 * @return
 	 */
 	public boolean matches(String url, Date captureDate){
-		String s = SURT.toSURT(Urls.removeScheme(url));
+		String s = "(";
+		try{
+			URL u = new URL(url);
+			s = u.getHost() + u.getPath();
+			s = SURT.toSURT(s);
+		}
+		catch (MalformedURLException e){
+			// should match to default catch all rule
+		}
+
 		if(embargo > 0){
 			Date d = new Date(System.currentTimeMillis() - embargo);
 			if(captureDate.after(d)){

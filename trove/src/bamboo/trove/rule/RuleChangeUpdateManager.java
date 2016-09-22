@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.TimeZone;
 import javax.annotation.PostConstruct;
@@ -18,6 +19,7 @@ import bamboo.trove.common.Rule;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.services.BambooRestrictionService;
 import bamboo.trove.services.FilteringCoordinationService;
+import com.codahale.metrics.Timer;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrQuery.SortClause;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -66,7 +68,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private List<Rule> changedRules;
   private List<Rule> dateRules;
   private Date lastProcessed = null;
-	private String progress = "Rules last processed : ";
+	private String progress = null;
 	private long updateCount = 0;
 	private boolean running = false;
 	private boolean stopping = false;
@@ -114,6 +116,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		format.setTimeZone(TimeZone.getTimeZone("UTC"));
 		workProcessor = new WorkProcessor(NUMBER_OF_WORKERS);
 		workDistributor = new WorkProcessor(NUMBER_OF_DISTRIBUTORS);
+		lastProcessed = restrictionsService.getLastProcessed();
 		if(restrictionsService.isRecovery()){
 			log.info("Restart into Rule recovery mode.");
 //			startProcessing();
@@ -128,6 +131,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	public void run(){
 		// check if we have a changed rule set.
 		progress = "Checking for new Rules";
+		Timer timer = getTimer(getName() + ".processRule");
 		runStart = new Date();
 		changedRules = new ArrayList<>();
 		List<Rule> deletedRules = new ArrayList<>();
@@ -139,15 +143,15 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			newRules = restrictionsService.getNewRules();
 		}
 		dateRules = restrictionsService.getDateRules();
-		lastProcessed = restrictionsService.getLastProcessed();
 		// remove any rules that have changed from the date list as we don't need to process twice.
-		dateRules.removeAll(changedRules);
+		removeById(dateRules, changedRules);
 		log.debug("{} Rules have changed.", changedRules.size());
 
 		int changeCount = 1;
 		while(running){
 			for(Rule r : deletedRules){
-				progress = "Processing deleted Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
+				Timer.Context context = timer.time();
+				progress = "Processing " + changeCount++ + " deleted Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocumentsDeleteRule(r);
 				}
@@ -155,10 +159,14 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 					setError("Error processing changed rule : " + r.getId(), e);
 					stopProcessing();
 				}
+				finally {
+					context.stop();
+				}
 			}
 			for(Rule r : changedRules){
+				Timer.Context context = timer.time();
 				Rule newRule = restrictionsService.getRule(r.getId());
-				progress = "Processing changed Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
+				progress = "Processing " + changeCount++ + " changed Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocuments(r, newRule);
 				}
@@ -166,9 +174,13 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 					setError("Error processing changed rule : " + r.getId(), e);
 					stopProcessing();
 				}
+				finally {
+					context.stop();
+				}
 			}
 			for(Rule r : newRules){
-				progress = "Processing New Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
+				Timer.Context context = timer.time();
+				progress = "Processing " + changeCount++ + " New Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocuments(null, r);
 				}
@@ -176,9 +188,13 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 					setError("Error processing changed rule : " + r.getId(), e);
 					stopProcessing();
 				}
+				finally {
+					context.stop();
+				}
 			}
 			for(Rule r : dateRules){
-				progress = "Processing date Rule " + changeCount++ + " : Rule<" + r.getId() + ">";
+				Timer.Context context = timer.time();
+				progress = "Processing " + changeCount++ + " date Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocuments(r, null);
 				}
@@ -186,12 +202,16 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 					setError("Error processing changed rule : " + r.getId(), e);
 					stopProcessing();
 				}
+				finally {
+					context.stop();
+				}
 			}
-			if(!changedRules.isEmpty()){
+			if(!changedRules.isEmpty() || !newRules.isEmpty() || !deletedRules.isEmpty()){
 				// finished processing the changes so we will save the new rules
 				restrictionsService.changeToNewRules(runStart);
 			}
-			progress = "Finished checking rules";
+			progress = null;
+			lastProcessed = restrictionsService.getLastProcessed();
 			stopProcessing();		
 			if(stopping){
 				running = false;
@@ -201,6 +221,20 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		stopping = false;
 	}
 
+	private void removeById(List<Rule> dateRules, List<Rule> changed){
+		List<Integer> ids = new ArrayList<>();
+		for(Rule r:changed){
+			ids.add(r.getId());
+		}
+		Iterator<Rule> i = dateRules.iterator();
+		while(i.hasNext()){
+			Rule r = i.next();
+			if(ids.contains(r.getId())){
+				i.remove();
+			}
+		}
+	}
+	
 	private List<String> documents = new ArrayList<>();
 	@Override
 	public void errorProcessing(SolrInputDocument doc, Throwable error){
@@ -423,7 +457,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	}
 	
 	private SolrQuery createQuery(String query){
-		SolrQuery q = new SolrQuery(query);
+		SolrQuery q = new SolrQuery("*:*");
+		q.setFilterQueries(query);
   	q.setFields(SOLR_FIELDS);
   	q.setSort(SortClause.asc("id"));
   	q.setRows(1000);
@@ -432,6 +467,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	
 	private void processQuery(SolrQuery query) throws SolrServerException, IOException{
 		log.debug("Query for rule : " + query.toString());
+		Timer.Context context = getTimer(getName() + ".processQuery").time();
+
   	boolean more = true;
   	String cursor = CursorMarkParams.CURSOR_MARK_START;
   	while(more){
@@ -463,6 +500,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		}
 		// need to commit here so that we can ignore documents just processed 
 		client.commit();
+		context.stop();
 	}
 	
 	private void distributeResponse(SolrDocumentList results){
@@ -483,16 +521,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		  	}				
 			}
 		});
-		
-//  	for(SolrDocument doc : results){
-//  		String id = (String)doc.getFieldValue("id");
-//  		String url = (String)doc.getFieldValue("url");
-//  		Date capture = (Date)doc.getFieldValue("date");
-//  		log.debug("create worker URL:"+url+" id:"+id+" capture:"+ capture);
-//  		RuleRecheckWorker worker = new RuleRecheckWorker(id, url, capture, this, restrictionsService);
-//  		workProcessor.process(worker);
-//  	}
-
 	}
 	
 	@Override
@@ -560,7 +588,10 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
 	@Override
 	public String getLastIdProcessed(){
-		return progress + (lastProcessed == null?"":lastProcessed.toString());
+		if(progress != null){
+			return progress;
+		}
+		return "Rules last processed : " + (lastProcessed == null?"":lastProcessed.toString());
 	}
 
 	public List<Rule> getChangedRules(){
