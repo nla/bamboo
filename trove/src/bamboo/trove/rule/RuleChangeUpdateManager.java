@@ -169,6 +169,9 @@ public class RuleChangeUpdateManager extends BaseDomainManager implements Runnab
 				// finished processing the changes so we will save the new rules
 				restrictionsService.changeToNewRules(runStart);
 			}
+			else{
+				restrictionsService.updateRunFinished(runStart);
+			}
 			progress = null;
 			lastProcessed = restrictionsService.getLastProcessed();
 			stopProcessing();		
