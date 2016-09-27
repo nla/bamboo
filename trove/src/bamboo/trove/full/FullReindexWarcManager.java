@@ -140,7 +140,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   @PostConstruct
   public void init() throws InterruptedException {
-    BaseWarcDomainManager.waitUntilStarted();
+    waitUntilStarted();
     log.info("***** FullReindexWarcManager *****");
     bambooCollectionsUrl = getBambooApiBaseUrl() + "collections/" + bambooCollectionId + "/warcs/json";
 

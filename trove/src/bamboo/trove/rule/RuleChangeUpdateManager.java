@@ -7,19 +7,9 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TimeZone;
+
 import javax.annotation.PostConstruct;
 
-import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
-import au.gov.nla.trove.indexer.api.EndPointDomainManager;
-import au.gov.nla.trove.indexer.api.WorkProcessor;
-import bamboo.trove.common.BaseWarcDomainManager;
-import bamboo.trove.common.DateRange;
-import bamboo.trove.common.DocumentStatus;
-import bamboo.trove.common.Rule;
-import bamboo.trove.common.SolrEnum;
-import bamboo.trove.services.BambooRestrictionService;
-import bamboo.trove.services.FilteringCoordinationService;
-import com.codahale.metrics.Timer;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrQuery.SortClause;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -34,7 +24,22 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Required;
+import org.springframework.stereotype.Service;
 
+import com.codahale.metrics.Timer;
+
+import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
+import au.gov.nla.trove.indexer.api.EndPointDomainManager;
+import au.gov.nla.trove.indexer.api.WorkProcessor;
+import bamboo.trove.common.BaseWarcDomainManager;
+import bamboo.trove.common.DateRange;
+import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.Rule;
+import bamboo.trove.common.SolrEnum;
+import bamboo.trove.services.BambooRestrictionService;
+import bamboo.trove.services.FilteringCoordinationService;
+
+@Service
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker{
   private static final Logger log = LoggerFactory.getLogger(RuleChangeUpdateManager.class);
   
@@ -52,7 +57,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
 	@Autowired
 	private FilteringCoordinationService filteringService;
-
+	
   private String bambooBaseUrl;
   private int maxFilterWorkers;
   private int maxTransformWorkers;
@@ -96,7 +101,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   }
 
   @PostConstruct
-  public void init() throws InterruptedException {
+  public void init() throws InterruptedException { 
 		log.info("***** RuleChangeUpdateManager *****");
     // The core Trove indexer doesn't really match the model we have here were all of the domains share worker pools,
     // so this startup pattern will look a little odd to align with that view of the work. This domain will configure
@@ -104,9 +109,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     BaseWarcDomainManager.setBambooApiBaseUrl(bambooBaseUrl);
     BaseWarcDomainManager.setWorkerCounts(maxFilterWorkers, maxTransformWorkers, maxIndexWorkers);
 		// We must acquire the start lock before letting the other domains complete their init() methods.
-		acquireDomainStartLock();
-		// After startMe() the other domains will be allowed to exit waitUntilStarted()
-    BaseWarcDomainManager.startMe(solrManager, filteringService);
+
 
 		log.info("Solr zk path          : {}", zookeeperConfig);
 		log.info("Collection            : {}", collection);
@@ -119,16 +122,26 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		lastProcessed = restrictionsService.getLastProcessed();
 		if(restrictionsService.isRecovery()){
 			log.info("Restart into Rule recovery mode.");
-//			startProcessing();
+			startProcessing();
 		}
-
-		// TODO: This SHOULD be wrapped in a 'finally' block straight after the acquire call...
-		// but maybe we want the whol app to stall if an error occurs?
-		releaseDomainStartLock();
+		startMe(solrManager, filteringService);
   }
 
 	@Override
 	public void run(){
+		acquireDomainStartLock();
+		try{
+			for(BaseWarcDomainManager m : BaseWarcDomainManager.getDomainList()){
+				m.restartForRestrictionsDomain();
+			}
+			runInsideLock();
+		}
+		finally {
+			releaseDomainStartLock();
+		}
+	}
+	
+	public void runInsideLock(){
 		// check if we have a changed rule set.
 		progress = "Checking for new Rules";
 		Timer timer = getTimer(getName() + ".processRule");
@@ -471,6 +484,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private void processQuery(SolrQuery query) throws SolrServerException, IOException{
 		log.debug("Query for rule : " + query.toString());
 		Timer.Context context = getTimer(getName() + ".processQuery").time();
+		// need to commit here so that we can ignore documents just processed 
+		client.commit();
 
   	boolean more = true;
   	String cursor = CursorMarkParams.CURSOR_MARK_START;
@@ -501,8 +516,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 				empty = documents.isEmpty();
 			}
 		}
-		// need to commit here so that we can ignore documents just processed 
-		client.commit();
 		context.stop();
 	}
 	

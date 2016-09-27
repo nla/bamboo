@@ -45,7 +45,7 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
 
   @PostConstruct
   public void init() throws InterruptedException {
-    BaseWarcDomainManager.waitUntilStarted();
+    waitUntilStarted();
 		log.info("***** OnDemandWarcManager *****");
 		log.info("Run at start       : {}", runAtStart);
   }
