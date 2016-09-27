@@ -77,6 +77,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private long updateCount = 0;
 	private boolean running = false;
 	private boolean stopping = false;
+	private boolean hasPassedLock = false;
 	private Date runStart = null;
 	private CloudSolrClient client = null;
 
@@ -101,7 +102,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   }
 
   @PostConstruct
-  public void init() throws InterruptedException { 
+  public void init() { 
 		log.info("***** RuleChangeUpdateManager *****");
     // The core Trove indexer doesn't really match the model we have here were all of the domains share worker pools,
     // so this startup pattern will look a little odd to align with that view of the work. This domain will configure
@@ -123,6 +124,15 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		if(restrictionsService.isRecovery()){
 			log.info("Restart into Rule recovery mode.");
 			startProcessing();
+			// wait until the recovery process has had a chance to get the lock
+			while(!hasPassedLock){
+				try{
+					Thread.sleep(1000);
+				}
+				catch (InterruptedException e){
+					// ignore
+				}
+			}
 		}
 		startMe(solrManager, filteringService);
   }
@@ -130,6 +140,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	@Override
 	public void run(){
 		acquireDomainStartLock();
+		hasPassedLock = true;
 		try{
 			for(BaseWarcDomainManager m : BaseWarcDomainManager.getDomainList()){
 				m.restartForRestrictionsDomain();
