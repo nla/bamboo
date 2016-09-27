@@ -203,16 +203,20 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   @Override
   public void start() {
     if (!running && !starting && !stopping)  {
-      acquireDomainStartLock();
-      try {
-        if (!running && !starting && !stopping)  {
-          starting = true;
-          startInnner();
-          starting = false;
+    	// use new thread to start so we don't block on the lock and leave the ui hanging.
+    	Thread thread = new Thread(()->{      
+    		acquireDomainStartLock();
+        try {
+          if (!running && !starting && !stopping)  {
+            starting = true;
+            startInnner();
+            starting = false;
+          }
+        } finally {
+          releaseDomainStartLock();
         }
-      } finally {
-        releaseDomainStartLock();
-      }
+      });
+    	thread.start();
     }
   }
 

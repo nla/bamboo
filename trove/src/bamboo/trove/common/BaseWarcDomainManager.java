@@ -378,19 +378,10 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   public void restartForRestrictionsDomain() {
     if (isRunning()) {
       log.info("restartForRestrictionsDomain() : Restarting '{}'", getName());
+      // By calling stop and then start we will 
+      // block behind the running restrictions domain that currently has the lock.
       stop();
-
-      // Spawn a new thread to restart the domain. The restrictions domain should be holding the lock so it won't
-      // do anything yet, but we do it in another thread to allow this thread to return after the stop() call. 
-      Thread thread = new Thread(() -> {
-        acquireDomainStartLock();
-        try {
-          start();
-        } finally {
-          releaseDomainStartLock();
-        }
-      });
-      thread.start();
+      start();
     } else {
       log.info("restartForRestrictionsDomain() : Not running... '{}'", getName());
     }
