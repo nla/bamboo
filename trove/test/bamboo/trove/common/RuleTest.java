@@ -141,11 +141,11 @@ public class RuleTest{
 		assertFalse(r.matches(url1, capture));
 		assertFalse(r.matches(url2, capture));
 
-		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 60000, null, null, null, null , "(au,gov,nla,trove,)/index.html", false);
-		assertFalse(r.matches(url1, capture));
-		assertFalse(r.matches(url2, capture));
-		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 20000, null, null, null, null , "(au,gov,nla,trove,)/index.html", false);
+		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 60, null, null, null, null , "(au,gov,nla,trove,)/index.html", false);
 		assertTrue(r.matches(url1, capture));
+		assertFalse(r.matches(url2, capture));
+		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 20, null, null, null, null , "(au,gov,nla,trove,)/index.html", false);
+		assertFalse(r.matches(url1, capture));
 		assertFalse(r.matches(url2, capture));
 
 		r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, start, null, null, null , "(au,gov,nla,trove,)/index.html", false);
@@ -236,8 +236,8 @@ public class RuleTest{
 				new Rule(6, DocumentStatus.ACCEPTED, new Date(), 0, now, now, before, before , "(com,aa,", false),
 				new Rule(7, DocumentStatus.ACCEPTED, new Date(), 0, before, now, before, before , "(com,aa,", false),			
 				new Rule(12, DocumentStatus.ACCEPTED, new Date(), 0, before, before, before, before , "(com,aa,", false),
-				new Rule(10, DocumentStatus.ACCEPTED, new Date(), 10000, before, before, before, before , "(com,aa,", false),
-				new Rule(11, DocumentStatus.ACCEPTED, new Date(), 1000, before, before, before, before , "(com,aa,", false),
+				new Rule(10, DocumentStatus.ACCEPTED, new Date(), 10, before, before, before, before , "(com,aa,", false),
+				new Rule(11, DocumentStatus.ACCEPTED, new Date(), 1, before, before, before, before , "(com,aa,", false),
 				new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,", false),
 				};
 		Arrays.sort(rules);
