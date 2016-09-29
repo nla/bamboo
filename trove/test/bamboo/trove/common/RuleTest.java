@@ -235,8 +235,8 @@ public class RuleTest{
 				new Rule(2, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,com,", true),
 				new Rule(6, DocumentStatus.ACCEPTED, new Date(), 0, now, now, before, before , "(com,aa,", false),
 				new Rule(7, DocumentStatus.ACCEPTED, new Date(), 0, before, now, before, before , "(com,aa,", false),			
-				new Rule(12, DocumentStatus.ACCEPTED, new Date(), 0, before, before, before, before , "(com,aa,", false),
-				new Rule(10, DocumentStatus.ACCEPTED, new Date(), 10, before, before, before, before , "(com,aa,", false),
+				new Rule(10, DocumentStatus.ACCEPTED, new Date(), 0, before, before, before, before , "(com,aa,", false),
+				new Rule(12, DocumentStatus.ACCEPTED, new Date(), 10, before, before, before, before , "(com,aa,", false),
 				new Rule(11, DocumentStatus.ACCEPTED, new Date(), 1, before, before, before, before , "(com,aa,", false),
 				new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(au,", false),
 				};

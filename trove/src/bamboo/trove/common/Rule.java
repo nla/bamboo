@@ -131,7 +131,7 @@ public class Rule implements Comparable<Rule>{
 			}
 		}
 		if(ret == 0){
-			ret = comp(this.getEmbargo(), o.getEmbargo());
+			ret = -comp(this.getEmbargo(), o.getEmbargo());
 		}
 		return ret;
 	}
