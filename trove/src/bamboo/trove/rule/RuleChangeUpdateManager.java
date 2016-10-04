@@ -30,6 +30,7 @@ import com.codahale.metrics.Timer;
 
 import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
 import au.gov.nla.trove.indexer.api.EndPointDomainManager;
+import au.gov.nla.trove.indexer.api.EndPointException;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.DateRange;
@@ -40,13 +41,14 @@ import bamboo.trove.services.BambooRestrictionService;
 import bamboo.trove.services.FilteringCoordinationService;
 
 @Service
-public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker{
+public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable{
   private static final Logger log = LoggerFactory.getLogger(RuleChangeUpdateManager.class);
   
   private static final String[] SOLR_FIELDS = new String[]{"id", "url", "date"};
+  private static final String[] SOLR_ALL_FIELDS = new String[]{"id", "url", "date", "site", "title", "contentType", "textError", "text"};
   private static final SimpleDateFormat format = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss'Z'");
 	private static int NUMBER_OF_WORKERS = 5;
-	private static int NUMBER_OF_DISTRIBUTORS = 3;
+//	private static int NUMBER_OF_DISTRIBUTORS = 3;
 
   @Autowired
   private BambooRestrictionService restrictionsService;
@@ -67,7 +69,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private String zookeeperConfig = null;
 
 	private WorkProcessor workProcessor;
-	private WorkProcessor workDistributor;
+//	private WorkProcessor workDistributor;
 
   
   private List<Rule> changedRules;
@@ -80,6 +82,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private boolean hasPassedLock = false;
 	private Date runStart = null;
 	private CloudSolrClient client = null;
+	private List<String> processingList = new ArrayList<>();
 
   @Required
   public void setBambooBaseUrl(String bambooBaseUrl) {
@@ -119,7 +122,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		client.setDefaultCollection(collection);
 		format.setTimeZone(TimeZone.getTimeZone("UTC"));
 		workProcessor = new WorkProcessor(NUMBER_OF_WORKERS);
-		workDistributor = new WorkProcessor(NUMBER_OF_DISTRIBUTORS);
+//		workDistributor = new WorkProcessor(NUMBER_OF_DISTRIBUTORS);
 		lastProcessed = restrictionsService.getLastProcessed();
 		if(restrictionsService.isRecovery()){
 			log.info("Restart into Rule recovery mode.");
@@ -262,29 +265,30 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		}
 	}
 	
-	private List<String> documents = new ArrayList<>();
-	@Override
-	public void errorProcessing(SolrInputDocument doc, Throwable error){
-//		documents.remove((Integer)doc.get("id").getValue());
-		String id = (String)doc.get("id").getValue();
-
-		this.setError("Error updateing document " + id, error);
+	public void acknowledge(String id){
+		synchronized(processingList){
+			processingList.remove(id);
+		}
+	}
+	
+	public void addProcessing(String id){
+		synchronized(processingList){
+			processingList.add(id);
+		}
+	}
+	protected void errorProcessing(Record record, Throwable error){
+		String id = record.getId();
+		this.setError("Error processing document " + id, error);
 		stopProcessing();
 	}
-	
-	@Override
-	public void acknowledge(SolrInputDocument doc){
-		synchronized(documents){
-			documents.remove((String)doc.get("id").getValue());
-		}
-		
+
+	protected void update(SolrInputDocument doc, AcknowledgeWorker ack){
+		String id = (String)doc.get("id").getValue();
+		solrManager.add(doc, ack);
 	}
 	
-	protected void update(SolrInputDocument doc){
-		synchronized(documents){
-			documents.add((String)doc.get("id").getValue());
-		}
-		solrManager.add(doc, this);
+	protected void delete(String id, AcknowledgeWorker ack) throws EndPointException{
+		solrManager.delete(id, ack);
 	}
 	
 	/**
@@ -516,38 +520,93 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		// wait until batch finished
   	boolean empty = false;
 		while(!empty){
-  		log.debug("wait for batch : {}", documents.size());
+  		log.debug("wait for batch : {}", processingList.size());
 			try{
 				Thread.sleep(1000);
 			}
 			catch (InterruptedException e){
 				// ignore
 			}
-	  	synchronized (documents){
-				empty = documents.isEmpty();
+	  	synchronized (processingList){
+				empty = processingList.isEmpty();
 			}
 		}
 		context.stop();
 	}
 	
+	/**
+	 * Get the full record from solr.
+	 * <p/>
+	 * If the record was split it will be joined back to one record.
+	 * 
+	 * @param id
+	 *          The id of the record to get.
+	 * @return the complete solr record.
+	 * @throws SolrServerException
+	 * @throws IOException
+	 */
+	protected Record getRecord(String id) throws SolrServerException, IOException{
+		Timer.Context context = getTimer(getName() + ".getRecord").time();
+		SolrQuery q = new SolrQuery("id:" + id+ " OR id:" + id + "_*");
+  	q.setFields(SOLR_ALL_FIELDS);
+  	q.setSort(SortClause.asc("id"));
+  	q.setRows(1000);
+  	boolean more = true;
+  	String cursor = CursorMarkParams.CURSOR_MARK_START;
+  	Record record = null;
+  	while(more){
+    	q.set(CursorMarkParams.CURSOR_MARK_PARAM, cursor);
+    	QueryResponse response = client.query(q);
+    	SolrDocumentList results = response.getResults();
+    	String nextCursor = response.getNextCursorMark();
+    	if(cursor.equals(nextCursor)){
+    		more = false;
+    	}
+    	for(SolrDocument d : results){
+      	if(record == null){
+      		record = new Record(id, (String)d.getFieldValue(SolrEnum.URL.toString()), 
+      				(String)d.getFieldValue(SolrEnum.SITE.toString()), (List<Date>)d.getFieldValue(SolrEnum.DATE.toString()), 
+      				(String)d.getFieldValue(SolrEnum.CONTENT_TYPE.toString()), (String)d.getFieldValue(SolrEnum.TITLE.toString()), 
+      				(List<String>)d.getFieldValue(SolrEnum.TEXT.toString()), (Boolean)d.getFieldValue(SolrEnum.TEXT_ERROR.toString()));
+      	}
+      	else{
+      		record.getDate().addAll((List<Date>)d.getFieldValue(SolrEnum.DATE.toString()));
+      	}
+      	record.addOtherId((String)d.getFieldValue(SolrEnum.ID.toString()));
+    	}
+  		cursor = nextCursor;
+  	}		
+  	context.stop();
+  	return record;
+	}
+	
 	private void distributeResponse(SolrDocumentList results){
 		updateCount += results.size();
 		RuleChangeUpdateManager manager = this;
-		workDistributor.process(new Runnable(){
-			
-			@Override
-			public void run(){
-				// TODO Auto-generated method stub
+//		workDistributor.process(new Runnable(){
+//			
+//			@Override
+//			public void run(){
 		  	for(SolrDocument doc : results){
 		  		String id = (String)doc.getFieldValue("id");
+		  		addProcessing(id);
 		  		String url = (String)doc.getFieldValue("url");
-		  		Date capture = (Date)doc.getFieldValue("date");
+		  		List<Date> capture = (List<Date>)doc.getFieldValue("date");
 //		  		log.debug("create worker URL:"+url+" id:"+id+" capture:"+ capture);
-		  		RuleRecheckWorker worker = new RuleRecheckWorker(id, url, capture, manager, restrictionsService);
+		  		Record r = new Record(id, url, null, capture, null, null, null, false);
+		  		RuleRecheckWorker worker = new RuleRecheckWorker(r, manager, restrictionsService);
 		  		workProcessor.process(worker);
 		  	}				
+//			}
+//		});
+		while(workProcessor.processingWaiting() > 100){
+			try{
+				Thread.sleep(100);
 			}
-		});
+			catch (InterruptedException e){
+				// ignore
+			}
+		}
 	}
 	
 	@Override
@@ -562,8 +621,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
 	@Override
 	public void start(){
-//		startProcessing();
-		throw new IllegalArgumentException();
+		startProcessing();
+//		throw new IllegalArgumentException();
 	}
 	private void startProcessing(){
     if (!running && !stopping)  {

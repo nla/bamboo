@@ -24,6 +24,7 @@ public enum SolrEnum {
   SITE("site"),
   DELIVERABLE("deliverable"),
   DISCOVERABLE("discoverable"),
+  TEXT("text"),
   TEXT_ERROR("textError"),
   RULE("ruleId"),
   LAST_INDEXED("lastIndexed");
