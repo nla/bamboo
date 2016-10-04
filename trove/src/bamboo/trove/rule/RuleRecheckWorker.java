@@ -101,18 +101,8 @@ public class RuleRecheckWorker implements Runnable{
 			wasSplit = true;
 		}
 		
-		Map<Rule, List<Date>> rules = new HashMap<>();
-		for(Date c : record.getDate()){
-			Rule r = service.filterDocument(record.getUrl(), c);
-			if(rules.containsKey(r)){
-				rules.get(r).add(c);
-			}
-			else{
-				List<Date> dates = new ArrayList<>();
-				dates.add(c);
-				rules.put(r, dates);
-			}
-		}
+		Map<Rule, List<Date>> rules = service.filterDocument(record.getUrl(), record.getDate());
+
 		if(rules.size() == 1){
 			if(record.isFullRecord()){
 				return creatcNewSingleDoc(rules.keySet().iterator().next());

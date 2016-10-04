@@ -4,6 +4,8 @@ import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -37,27 +39,33 @@ public class BambooRestrictionServiceTest{
 		service.currentRules.add(new Rule(6, DocumentStatus.NOT_APPLICABLE, now, 0, null, null, null, null, "(au,gov,nla,trove,)/home.html", false));
 		Document doc = new Document();
 		doc.setUrl("http://trove.nla.gov.au/home.html");
-		Rule r = service.filterDocument(doc);
+		Map<Rule, List<Date>> m = service.filterDocument(doc);
+		Rule r = m.keySet().iterator().next();
 		assertEquals(DocumentStatus.NOT_APPLICABLE, r.getPolicy());
 		
 		doc.setUrl("http://trove.nla.gov.au/home.xml");
-		r = service.filterDocument(doc);
+		m = service.filterDocument(doc);
+		r = m.keySet().iterator().next();
 		assertEquals(DocumentStatus.ACCEPTED, r.getPolicy());
 		
 		doc.setUrl("https://trove.nla.gov.au/index.html");
-		r = service.filterDocument(doc);
+		m = service.filterDocument(doc);
+		r = m.keySet().iterator().next();
 		assertEquals(DocumentStatus.ACCEPTED, r.getPolicy());
 		
 		doc.setUrl("ftp://dlir.aec.gov.au/home.html");
-		r = service.filterDocument(doc);
+		m = service.filterDocument(doc);
+		r = m.keySet().iterator().next();
 		assertEquals(DocumentStatus.RESTRICTED_FOR_DELIVERY, r.getPolicy());
 
 		doc.setUrl("http://dlir.aec.com.au:8080/home.html");
-		r = service.filterDocument(doc);
+		m = service.filterDocument(doc);
+		r = m.keySet().iterator().next();
 		assertEquals(DocumentStatus.RESTRICTED_FOR_BOTH, r.getPolicy());
 		
 		doc.setUrl("ftps://dlir.aec.com/home.html");
-		r = service.filterDocument(doc);
+		m = service.filterDocument(doc);
+		r = m.keySet().iterator().next();
 		assertEquals(DocumentStatus.ACCEPTED, r.getPolicy());
 
 	}
