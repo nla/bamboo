@@ -11,6 +11,10 @@ import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.pdfbox.io.MemoryUsageSetting;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.tika.Tika;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.xml.sax.InputSource;
@@ -37,6 +41,7 @@ public class TextExtractor {
 
     private boolean boilingEnabled = false;
     private boolean usePdfBox = false;
+    private boolean useTika = false;
 
     public Document extract(ArchiveRecord record) throws TextExtractionException {
         Document doc = new Document();
@@ -100,6 +105,24 @@ public class TextExtractor {
                         extractPdf(record, doc);
                     }
                     break;
+                case "application/vnd.ms-excel":
+                case "text/csv":
+                case "application/csv":
+                case "application/vnd.ms-powerpoint":
+                case "application/msword":
+                case "application/vnd.ms-word.document.macroEnabled.12":
+                case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+                case "application/vnd.oasis.opendocument.presentation":
+                case "application/vnd.oasis.opendocument.text":
+                case "application/vnd.oasis.opendocument.spreadsheet":
+                    if (useTika) {
+                        extractTika(record, doc);
+                    } else {
+                        doc.setTextError("not implemented for content-type");
+                    }
+                    break;
                 default:
                     doc.setTextError("not implemented for content-type");
                     break;
@@ -109,6 +132,18 @@ public class TextExtractor {
         }
 
         return doc;
+    }
+
+    public static void extractTika(InputStream record, Document doc) throws TextExtractionException {
+        Tika tika = new Tika();
+        Metadata metadata = new Metadata();
+        try {
+            String text = tika.parseToString(record, metadata, maxDocSize);
+            doc.setText(text);
+            doc.setTitle(metadata.get(TikaCoreProperties.TITLE));
+        } catch (IOException | TikaException e) {
+            throw new TextExtractionException("Tika failed", e);
+        }
     }
 
     private void extractHtml(ArchiveRecord record, Document doc) throws TextExtractionException {
@@ -205,6 +240,10 @@ public class TextExtractor {
 
     public void setUsePdfBox(boolean usePdfBox) {
         this.usePdfBox = usePdfBox;
+    }
+
+    public void setUseTika(boolean useTika) {
+        this.useTika = useTika;
     }
 
     static class TruncatingWriter extends FilterWriter {
