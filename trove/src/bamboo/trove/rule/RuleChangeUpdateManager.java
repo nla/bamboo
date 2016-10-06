@@ -44,8 +44,8 @@ import bamboo.trove.services.FilteringCoordinationService;
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable{
   private static final Logger log = LoggerFactory.getLogger(RuleChangeUpdateManager.class);
   
-  private static final String[] SOLR_FIELDS = new String[]{"id", "url", "date"};
-  private static final String[] SOLR_ALL_FIELDS = new String[]{"id", "url", "date", "site", "title", "contentType", "textError", "text"};
+  private static final String[] SOLR_FIELDS = new String[]{SolrEnum.ID.toString(), SolrEnum.URL.toString(), SolrEnum.DATE.toString(), SolrEnum.RULE.toString()};
+  private static final String[] SOLR_ALL_FIELDS = new String[]{SolrEnum.ID.toString(), SolrEnum.URL.toString(), SolrEnum.DATE.toString(), SolrEnum.SITE.toString(), SolrEnum.TITLE.toString(), SolrEnum.CONTENT_TYPE.toString(), SolrEnum.TEXT_ERROR.toString(), SolrEnum.RULE.toString(), SolrEnum.TEXT.toString()};
   private static final SimpleDateFormat format = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss'Z'");
 	private static int NUMBER_OF_WORKERS = 5;
 //	private static int NUMBER_OF_DISTRIBUTORS = 3;
@@ -490,6 +490,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private SolrQuery createQuery(String query){
 		SolrQuery q = new SolrQuery("*:*");
 		q.setFilterQueries(query);
+		q.addFilterQuery("-byRuleId:*");
   	q.setFields(SOLR_FIELDS);
   	q.setSort(SortClause.asc("id"));
   	q.setRows(1000);
@@ -547,7 +548,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	 */
 	protected Record getRecord(String id) throws SolrServerException, IOException{
 		Timer.Context context = getTimer(getName() + ".getRecord").time();
-		SolrQuery q = new SolrQuery("id:" + id+ " OR id:" + id + "_*");
+		SolrQuery q = new SolrQuery("id:" + id);
   	q.setFields(SOLR_ALL_FIELDS);
   	q.setSort(SortClause.asc("id"));
   	q.setRows(1000);
@@ -566,13 +567,13 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       	if(record == null){
       		record = new Record(id, (String)d.getFieldValue(SolrEnum.URL.toString()), 
       				(String)d.getFieldValue(SolrEnum.SITE.toString()), (List<Date>)d.getFieldValue(SolrEnum.DATE.toString()), 
-      				(String)d.getFieldValue(SolrEnum.CONTENT_TYPE.toString()), (String)d.getFieldValue(SolrEnum.TITLE.toString()), 
+      				(String)d.getFieldValue(SolrEnum.CONTENT_TYPE.toString()), (String)d.getFieldValue(SolrEnum.TITLE.toString()),
+      				(List<Integer>)d.getFieldValue(SolrEnum.RULE.toString()),
       				(List<String>)d.getFieldValue(SolrEnum.TEXT.toString()), (Boolean)d.getFieldValue(SolrEnum.TEXT_ERROR.toString()));
       	}
       	else{
       		record.getDate().addAll((List<Date>)d.getFieldValue(SolrEnum.DATE.toString()));
       	}
-      	record.addOtherId((String)d.getFieldValue(SolrEnum.ID.toString()));
     	}
   		cursor = nextCursor;
   	}		
@@ -588,12 +589,13 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 //			@Override
 //			public void run(){
 		  	for(SolrDocument doc : results){
-		  		String id = (String)doc.getFieldValue("id");
+		  		String id = (String)doc.getFieldValue(SolrEnum.ID.toString());
 		  		addProcessing(id);
-		  		String url = (String)doc.getFieldValue("url");
-		  		List<Date> capture = (List<Date>)doc.getFieldValue("date");
+		  		String url = (String)doc.getFieldValue(SolrEnum.URL.toString());
+		  		List<Date> capture = (List<Date>)doc.getFieldValue(SolrEnum.DATE.toString());
+		  		List<Integer> rules = (List<Integer>)doc.getFieldValue(SolrEnum.RULE.toString());
 //		  		log.debug("create worker URL:"+url+" id:"+id+" capture:"+ capture);
-		  		Record r = new Record(id, url, null, capture, null, null, null, false);
+		  		Record r = new Record(id, url, null, capture, null, null, rules, null, false);
 		  		RuleRecheckWorker worker = new RuleRecheckWorker(r, manager, restrictionsService);
 		  		workProcessor.process(worker);
 		  	}				

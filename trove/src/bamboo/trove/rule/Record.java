@@ -5,24 +5,26 @@ import java.util.Date;
 import java.util.List;
 
 public class Record{
-	List<String> otherIds;
 	String id;
 	String url;
 	String site;
 	List<Date> date;
 	String contentType;
 	String title;
+	List<Integer> ruleIds;
 	List<String> text;
 	boolean textError;
+	int deleteCount = 0;
 	
 	public Record(String id, String url, String site, List<Date> date, 
-			String contentType, String title, List<String> text, boolean textError){
+			String contentType, String title, List<Integer> ruleIds, List<String> text, boolean textError){
 		this.id = id;
 		this.url = url;
 		this.site = site;
 		this.date = date;
 		this.contentType = contentType;
 		this.title = title;
+		this.ruleIds = ruleIds;
 		this.text = text;
 		this.textError = textError;
 	}
@@ -45,31 +47,32 @@ public class Record{
 	public String getTitle(){
 		return title;
 	}
+	public List<Integer> getRuleIds(){
+		return ruleIds;
+	}
 	public List<String> getText(){
 		return text;
 	}
 	public boolean getTextError(){
 		return textError;
 	}
-
-	public List<String> getOtherIds(){
-		return otherIds;
+	public int getDeleteCount(){
+		return deleteCount;
 	}
-	public void addOtherId(String otherId){
-		if(otherIds == null){
-			otherIds = new ArrayList<>();
-		}
-		otherIds.add(otherId);
+	public void setDeleteCount(int deleteCount){
+		this.deleteCount = deleteCount;
+	}
+	public boolean isDeleteNeeded(){
+		return (deleteCount > 0);
 	}
 	/**
-	 * Is this the complete record.
+	 * Was the record split.
 	 * <p/>
-	 * Or is it only part(when searching for rules to change only minimum data
-	 * read).
+	 * The record was matched to more than one rule so was split(for each rule it matched).
 	 * 
 	 * @return
 	 */
-	public boolean isFullRecord(){
-		return site != null;
+	public boolean wasSplit(){
+		return ruleIds.size() != 1;
 	}
 }

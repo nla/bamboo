@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
@@ -14,9 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Timer;
 
-import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
 import au.gov.nla.trove.indexer.api.EndPointException;
-import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.Rule;
 import bamboo.trove.common.SolrEnum;
@@ -37,7 +36,6 @@ public class RuleRecheckWorker implements Runnable{
 	private RuleChangeUpdateManager manager;
 	private BambooRestrictionService service;
 	private Record record;
-	private boolean wasSplit = false;
 	private int retryCount = 0;
 	
 	public RuleRecheckWorker(Record record, RuleChangeUpdateManager manager, BambooRestrictionService service){
@@ -52,11 +50,12 @@ public class RuleRecheckWorker implements Runnable{
   		try{
   			RuleAcknowledgeWorker ack = new RuleAcknowledgeWorker(record.getId(), manager);
     		List<SolrInputDocument> updates = processResultsRecheckRule();
-  			if(record.isFullRecord()){
-  				//full record used so need to delete an reinsert
-  				for(String id : record.otherIds){
+  			if(record.isDeleteNeeded()){
+  				//remove records not needed
+  				String id = record.getId();
+  				for(int i=1;i<=record.getDeleteCount();i++){
   					ack.addSendCount();
-  					manager.delete(id, ack);
+  					manager.delete(id+"_"+i, ack);
   				}
   			}
     		for(SolrInputDocument update: updates){
@@ -93,34 +92,26 @@ public class RuleRecheckWorker implements Runnable{
 	}
 
 	private List<SolrInputDocument> processResultsRecheckRule() throws SolrServerException, IOException{
-		if(record.getId().contains("_")){
-			// this record has been split so we need to get the full record and check
-			String id = record.getId();
-			id = id.substring(0, id.indexOf("_"));
-			record = manager.getRecord(id);
-			wasSplit = true;
-		}
-		
 		Map<Rule, List<Date>> rules = service.filterDocument(record.getUrl(), record.getDate());
 
+		if(rules.size() < record.getRuleIds().size()){
+			record.setDeleteCount(record.getRuleIds().size());
+		}
+		
 		if(rules.size() == 1){
-			if(record.isFullRecord()){
-				return creatcNewSingleDoc(rules.keySet().iterator().next());
-			}
-			else{
-				return createSingleUpdateDoc(rules.keySet().iterator().next());				
-			}
+				return createUpdateMainDoc(rules.keySet());				
 		}
 		return createSplitUpdateDoc(rules);
 	}
 	
 	private List<SolrInputDocument> createSplitUpdateDoc(Map<Rule,List<Date>> rules) throws SolrServerException, IOException{
-		// we have to have the full solr record as we can't do an update
-		if(!record.isFullRecord()){
-			record = manager.getRecord(record.getId());
-		}
+		// we have to have the full solr record as we have to split
+		record = manager.getRecord(record.getId());
 
-		List<SolrInputDocument> docs = new ArrayList<>();
+		// update main record with all matched rules and disable for searching and viewing
+		List<SolrInputDocument> docs = createUpdateMainDoc(rules.keySet());
+
+		// add new documents for each rule
 		int docCount = 1;
 		for(Rule r : rules.keySet()){
       docs.add(createSolrDoc(record.getId() + "_"+ docCount++, r, rules.get(r)));
@@ -128,12 +119,6 @@ public class RuleRecheckWorker implements Runnable{
 		return docs;
 	}
 
-	private List<SolrInputDocument> creatcNewSingleDoc(Rule r) throws SolrServerException, IOException{
-		List<SolrInputDocument> docs = new ArrayList<>();
-    docs.add(createSolrDoc(record.getId(), r, record.getDate()));
-		return docs;
-	}
-	
 	private SolrInputDocument createSolrDoc(String id, Rule r, List<Date> dates){
     SolrInputDocument doc = new SolrInputDocument();
     doc.addField(SolrEnum.ID.toString(), id);
@@ -142,7 +127,7 @@ public class RuleRecheckWorker implements Runnable{
     doc.addField(SolrEnum.TITLE.toString(), record.getTitle());
     doc.addField(SolrEnum.CONTENT_TYPE.toString(), record.getContentType());
     doc.addField(SolrEnum.SITE.toString(), record.getSite());
-    doc.addField(SolrEnum.RULE.toString(), r.getId());
+    doc.addField("byRuleId", r.getId());
     doc.addField(SolrEnum.TEXT.toString(), record.getText());
     doc.addField(SolrEnum.TEXT_ERROR.toString(), record.getTextError());
 		doc.addField(SolrEnum.LAST_INDEXED.toString(), new Date());
@@ -169,13 +154,30 @@ public class RuleRecheckWorker implements Runnable{
 		return doc;
 	}
 	
-	private List<SolrInputDocument> createSingleUpdateDoc(Rule r){
+	private List<SolrInputDocument> createUpdateMainDoc(Set<Rule> rules){
 		SolrInputDocument update = new SolrInputDocument();
 		update.addField(SolrEnum.ID.toString(), record.getId());
 		Map<String, Object> partialUpdate = new HashMap<>();
-		partialUpdate.put("set", r.getId());
+//		String ruleIds = ""; 
+		int  ruleIdCount = 0;
+		List<Integer>  ruleIds = new ArrayList<>();
+		for(Rule r : rules){
+//			if(ruleIdCount++ > 0){
+//				ruleIds += ", ";
+//			}
+//			ruleIds += r.getId();
+			ruleIds.add(r.getId());
+		}
+//		if(ruleIdCount > 1){
+//			ruleIds = "[" + ruleIds + "]";
+//		}
+		partialUpdate.put("set", ruleIds);
 		update.addField(SolrEnum.RULE.toString(), partialUpdate);
-		switch (r.getPolicy()) {
+		DocumentStatus policy = DocumentStatus.RESTRICTED_FOR_BOTH;
+		if(rules.size() == 1){
+			policy = rules.iterator().next().getPolicy();
+		}
+		switch (policy) {
 			case RESTRICTED_FOR_BOTH:
 				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdateFalse);				
 				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdateFalse);				
