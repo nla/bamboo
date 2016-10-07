@@ -22,19 +22,9 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TimeZone;
+
 import javax.annotation.PostConstruct;
 
-import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
-import au.gov.nla.trove.indexer.api.EndPointDomainManager;
-import au.gov.nla.trove.indexer.api.WorkProcessor;
-import bamboo.trove.common.BaseWarcDomainManager;
-import bamboo.trove.common.DateRange;
-import bamboo.trove.common.DocumentStatus;
-import bamboo.trove.common.Rule;
-import bamboo.trove.common.SolrEnum;
-import bamboo.trove.services.BambooRestrictionService;
-import bamboo.trove.services.FilteringCoordinationService;
-import com.codahale.metrics.Timer;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrQuery.SortClause;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -49,11 +39,26 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Required;
+import org.springframework.stereotype.Service;
 
+import com.codahale.metrics.Timer;
+
+import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
+import au.gov.nla.trove.indexer.api.EndPointDomainManager;
+import au.gov.nla.trove.indexer.api.WorkProcessor;
+import bamboo.trove.common.BaseWarcDomainManager;
+import bamboo.trove.common.DateRange;
+import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.Rule;
+import bamboo.trove.common.SolrEnum;
+import bamboo.trove.services.BambooRestrictionService;
+import bamboo.trove.services.FilteringCoordinationService;
+
+@Service
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker{
   private static final Logger log = LoggerFactory.getLogger(RuleChangeUpdateManager.class);
   
-  private static final String[] SOLR_FIELDS = new String[]{"id", "url", "date"};
+  private static final String[] SOLR_FIELDS = new String[]{SolrEnum.ID.toString(), SolrEnum.URL.toString(), SolrEnum.DATE.toString()};
   private static final SimpleDateFormat format = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss'Z'");
 	private static int NUMBER_OF_WORKERS = 5;
 	private static int NUMBER_OF_DISTRIBUTORS = 3;
@@ -67,7 +72,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
 	@Autowired
 	private FilteringCoordinationService filteringService;
-
+	
   private String bambooBaseUrl;
   private int maxFilterWorkers;
   private int maxTransformWorkers;
@@ -87,6 +92,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private long updateCount = 0;
 	private boolean running = false;
 	private boolean stopping = false;
+	private boolean hasPassedLock = false;
 	private Date runStart = null;
 	private CloudSolrClient client = null;
 
@@ -111,7 +117,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   }
 
   @PostConstruct
-  public void init() throws InterruptedException {
+  public void init() { 
 		log.info("***** RuleChangeUpdateManager *****");
     // The core Trove indexer doesn't really match the model we have here were all of the domains share worker pools,
     // so this startup pattern will look a little odd to align with that view of the work. This domain will configure
@@ -119,9 +125,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     BaseWarcDomainManager.setBambooApiBaseUrl(bambooBaseUrl);
     BaseWarcDomainManager.setWorkerCounts(maxFilterWorkers, maxTransformWorkers, maxIndexWorkers);
 		// We must acquire the start lock before letting the other domains complete their init() methods.
-		acquireDomainStartLock();
-		// After startMe() the other domains will be allowed to exit waitUntilStarted()
-    BaseWarcDomainManager.startMe(solrManager, filteringService);
+
 
 		log.info("Solr zk path          : {}", zookeeperConfig);
 		log.info("Collection            : {}", collection);
@@ -134,16 +138,36 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		lastProcessed = restrictionsService.getLastProcessed();
 		if(restrictionsService.isRecovery()){
 			log.info("Restart into Rule recovery mode.");
-//			startProcessing();
+			startProcessing();
+			// wait until the recovery process has had a chance to get the lock
+			while(!hasPassedLock){
+				try{
+					Thread.sleep(1000);
+				}
+				catch (InterruptedException e){
+					// ignore
+				}
+			}
 		}
-
-		// TODO: This SHOULD be wrapped in a 'finally' block straight after the acquire call...
-		// but maybe we want the whol app to stall if an error occurs?
-		releaseDomainStartLock();
+		startMe(solrManager, filteringService);
   }
 
 	@Override
 	public void run(){
+		acquireDomainStartLock();
+		hasPassedLock = true;
+		try{
+			for(BaseWarcDomainManager m : BaseWarcDomainManager.getDomainList()){
+				m.restartForRestrictionsDomain();
+			}
+			runInsideLock();
+		}
+		finally {
+			releaseDomainStartLock();
+		}
+	}
+	
+	public void runInsideLock(){
 		// check if we have a changed rule set.
 		progress = "Checking for new Rules";
 		Timer timer = getTimer(getName() + ".processRule");
@@ -225,6 +249,9 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 				// finished processing the changes so we will save the new rules
 				restrictionsService.changeToNewRules(runStart);
 			}
+			else{
+				restrictionsService.updateRunFinished(runStart);
+			}
 			progress = null;
 			lastProcessed = restrictionsService.getLastProcessed();
 			stopProcessing();		
@@ -255,23 +282,20 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	public void errorProcessing(SolrInputDocument doc, Throwable error){
 //		documents.remove((Integer)doc.get("id").getValue());
 		String id = (String)doc.get("id").getValue();
-
+	
 		this.setError("Error updateing document " + id, error);
 		stopProcessing();
 	}
-	
+
 	@Override
 	public void acknowledge(SolrInputDocument doc){
 		synchronized(documents){
 			documents.remove((String)doc.get("id").getValue());
-		}
-		
+	}
+	
 	}
 	
 	protected void update(SolrInputDocument doc){
-		synchronized(documents){
-			documents.add((String)doc.get("id").getValue());
-		}
 		solrManager.add(doc, this);
 	}
 	
@@ -483,6 +507,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private void processQuery(SolrQuery query) throws SolrServerException, IOException{
 		log.debug("Query for rule : " + query.toString());
 		Timer.Context context = getTimer(getName() + ".processQuery").time();
+		// need to commit here so that we can ignore documents just processed 
+		client.commit();
 
   	boolean more = true;
   	String cursor = CursorMarkParams.CURSOR_MARK_START;
@@ -511,31 +537,31 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			}
 	  	synchronized (documents){
 				empty = documents.isEmpty();
-			}
-		}
-		// need to commit here so that we can ignore documents just processed 
-		client.commit();
-		context.stop();
+    	}
+  	}		
+  	context.stop();
 	}
 	
 	private void distributeResponse(SolrDocumentList results){
 		updateCount += results.size();
 		RuleChangeUpdateManager manager = this;
-		workDistributor.process(new Runnable(){
-			
-			@Override
-			public void run(){
-				// TODO Auto-generated method stub
+//		workDistributor.process(new Runnable(){
+//			
+//			@Override
+//			public void run(){
 		  	for(SolrDocument doc : results){
-		  		String id = (String)doc.getFieldValue("id");
-		  		String url = (String)doc.getFieldValue("url");
-		  		Date capture = (Date)doc.getFieldValue("date");
+		  		String id = (String)doc.getFieldValue(SolrEnum.ID.toString());
+		  		synchronized(documents){
+		  			documents.add(id);
+		  		}
+		  		String url = (String)doc.getFieldValue(SolrEnum.URL.toString());
+		  		Date capture = (Date)doc.getFieldValue(SolrEnum.DATE.toString());
 //		  		log.debug("create worker URL:"+url+" id:"+id+" capture:"+ capture);
 		  		RuleRecheckWorker worker = new RuleRecheckWorker(id, url, capture, manager, restrictionsService);
 		  		workProcessor.process(worker);
 		  	}				
-			}
-		});
+//		}
+//		});
 	}
 	
 	@Override
@@ -550,8 +576,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
 	@Override
 	public void start(){
-//		startProcessing();
-		throw new IllegalArgumentException();
+		startProcessing();
+//		throw new IllegalArgumentException();
 	}
 	private void startProcessing(){
     if (!running && !stopping)  {

@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantLock;
@@ -70,6 +72,9 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   private static String bambooBaseUrl;
   private ObjectMapper objectMapper = new ObjectMapper();
   private JsonFactory jsonFactory = new JsonFactory();
+
+  // self registering list of domains
+  private static final List<BaseWarcDomainManager> domainsList = new ArrayList<>(); 
 
   // Managing pool tasks
   private static Queue<IndexerDocument> filterQueue = new ConcurrentLinkedQueue<>();
@@ -196,7 +201,32 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     BaseWarcDomainManager.bambooBaseUrl = bambooBaseUrl;
   }
 
-  protected static void waitUntilStarted() throws InterruptedException {
+  public static List<BaseWarcDomainManager> getDomainList(){
+  	// wait for domains to register
+  	// this code is needed to allow the domains to start but hide the circular dependency
+  	// and spring not able to control the start order.
+  	long timeoutSec = 20;
+  	long timeout = System.currentTimeMillis() + (timeoutSec*1000);
+  	while(domainsList.size()<2){
+      try{
+      	if(System.currentTimeMillis() > timeout){
+      		throw new IllegalStateException("Failed to register domains after "+timeoutSec+" secs.");
+      	}
+				Thread.sleep(1000);
+			}
+			catch (InterruptedException e){
+				// ignore
+			}
+      catch(IllegalStateException e){
+      	log.error("Error getting list of domains. Stop processing", e);
+      	System.exit(1);
+      }
+  	}
+  	return domainsList;
+  }
+
+  protected void waitUntilStarted() throws InterruptedException {
+  	domainsList.add(this);
     while (!imStarted) {
       Thread.sleep(1000);
     }
@@ -348,19 +378,10 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   public void restartForRestrictionsDomain() {
     if (isRunning()) {
       log.info("restartForRestrictionsDomain() : Restarting '{}'", getName());
+      // By calling stop and then start we will 
+      // block behind the running restrictions domain that currently has the lock.
       stop();
-
-      // Spawn a new thread to restart the domain. The restrictions domain should be holding the lock so it won't
-      // do anything yet, but we do it in another thread to allow this thread to return after the stop() call. 
-      Thread thread = new Thread(() -> {
-        acquireDomainStartLock();
-        try {
-          start();
-        } finally {
-          releaseDomainStartLock();
-        }
-      });
-      thread.start();
+      start();
     } else {
       log.info("restartForRestrictionsDomain() : Not running... '{}'", getName());
     }

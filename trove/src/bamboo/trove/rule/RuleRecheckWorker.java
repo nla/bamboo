@@ -28,6 +28,14 @@ import bamboo.trove.common.SolrEnum;
 import bamboo.trove.services.BambooRestrictionService;
 
 public class RuleRecheckWorker implements Runnable{
+//  private static final Logger log = LoggerFactory.getLogger(RuleRecheckWorker.class);
+
+	private static final Map<String, Object> partialUpdateTrue = new HashMap<>();
+	private static final Map<String, Object> partialUpdateFalse = new HashMap<>();
+	static{
+		partialUpdateTrue.put("set", true);
+		partialUpdateFalse.put("set", false);
+	}
 
 	private RuleChangeUpdateManager manager;
 	private BambooRestrictionService service;
@@ -47,45 +55,33 @@ public class RuleRecheckWorker implements Runnable{
 		Timer.Context context = manager.getTimer(manager.getName() + ".worker").time();
 		SolrInputDocument update = processResultsRecheckRule();
 		manager.update(update);
-		context.stop();
+		context.stop();			
 	}
-
+	
 	private SolrInputDocument processResultsRecheckRule(){ 
 		Rule r = service.filterDocument(url, capture);
 		SolrInputDocument update = new SolrInputDocument();
 		update.addField(SolrEnum.ID.toString(), id);
 		Map<String, Object> partialUpdate = new HashMap<>();
 		partialUpdate.put("set", r.getId());
-		update.addField("ruleId", partialUpdate);
+		update.addField(SolrEnum.RULE.toString(), partialUpdate);
 		switch (r.getPolicy()) {
 			case RESTRICTED_FOR_BOTH:
-				partialUpdate = new HashMap<>();
-				partialUpdate.put("set", false);
-				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdate);				
-				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdate);				
+				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdateFalse);				
+				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdateFalse);				
 				break;
 			case RESTRICTED_FOR_DELIVERY:
-				partialUpdate = new HashMap<>();
-				partialUpdate.put("set", true);
-				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdate);				
-				partialUpdate = new HashMap<>();
-				partialUpdate.put("set", false);
-				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdate);				
+				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdateTrue);				
+				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdateFalse);				
 				break;
 			case RESTRICTED_FOR_DISCOVERY:
-				partialUpdate = new HashMap<>();
-				partialUpdate.put("set", false);
-				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdate);				
-				partialUpdate = new HashMap<>();
-				partialUpdate.put("set", true);
-				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdate);				
+				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdateFalse);				
+				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdateTrue);				
 				break;
 
 			default:
-				partialUpdate = new HashMap<>();
-				partialUpdate.put("set", true);
-				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdate);				
-				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdate);				
+				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdateTrue);				
+				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdateTrue);				
 				break;
 		}
 		partialUpdate = new HashMap<>();

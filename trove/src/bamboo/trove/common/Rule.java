@@ -84,8 +84,8 @@ public class Rule implements Comparable<Rule>{
 		}
 
 		if(embargo > 0){
-			Date d = new Date(System.currentTimeMillis() - embargo);
-			if(captureDate.after(d)){
+			Date d = new Date(System.currentTimeMillis() - (embargo*1000));
+			if(!captureDate.after(d)){
 				return false;
 			}
 		}
@@ -146,7 +146,7 @@ public class Rule implements Comparable<Rule>{
 			}
 		}
 		if(ret == 0){
-			ret = comp(this.getEmbargo(), o.getEmbargo());
+			ret = -comp(this.getEmbargo(), o.getEmbargo());
 		}
 		return ret;
 	}
@@ -188,6 +188,51 @@ public class Rule implements Comparable<Rule>{
 		url += path;
 	}
 	
+	
+	@Override
+	public int hashCode(){
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((capturedRange == null) ? 0 : capturedRange.hashCode());
+		result = prime * result + (int) (embargo ^ (embargo >>> 32));
+		result = prime * result + id;
+		result = prime * result + ((lastUpdated == null) ? 0 : lastUpdated.hashCode());
+		result = prime * result + (matchExact ? 1231 : 1237);
+		result = prime * result + ((policy == null) ? 0 : policy.hashCode());
+		result = prime * result + ((retrievedRange == null) ? 0 : retrievedRange.hashCode());
+		result = prime * result + ((surt == null) ? 0 : surt.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj){
+		if (this == obj) return true;
+		if (obj == null) return false;
+		if (getClass() != obj.getClass()) return false;
+		Rule other = (Rule) obj;
+		if (capturedRange == null){
+			if (other.capturedRange != null) return false;
+		}
+		else if (!capturedRange.equals(other.capturedRange)) return false;
+		if (embargo != other.embargo) return false;
+		if (id != other.id) return false;
+		if (lastUpdated == null){
+			if (other.lastUpdated != null) return false;
+		}
+		else if (!lastUpdated.equals(other.lastUpdated)) return false;
+		if (matchExact != other.matchExact) return false;
+		if (policy != other.policy) return false;
+		if (retrievedRange == null){
+			if (other.retrievedRange != null) return false;
+		}
+		else if (!retrievedRange.equals(other.retrievedRange)) return false;
+		if (surt == null){
+			if (other.surt != null) return false;
+		}
+		else if (!surt.equals(other.surt)) return false;
+		return true;
+	}
+
 	public int getId(){
 		return id;
 	}

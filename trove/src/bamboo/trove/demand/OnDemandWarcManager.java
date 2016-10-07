@@ -45,7 +45,7 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
 
   @PostConstruct
   public void init() throws InterruptedException {
-    BaseWarcDomainManager.waitUntilStarted();
+    waitUntilStarted();
 		log.info("***** OnDemandWarcManager *****");
 		log.info("Run at start       : {}", runAtStart);
   }
@@ -113,8 +113,18 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
   }
 
   public void run() {
-    // Doesn't really do anything
-    start();
+    if (!running && !starting)  {
+      acquireDomainStartLock();
+      try {
+        if (!running && !starting)  {
+          // TODO... is there anything more complicated to do here?
+          log.info("Starting...");
+          running = true;
+        }
+      } finally {
+        releaseDomainStartLock();
+      }
+    }
   }
 
   @Override
@@ -129,18 +139,11 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
 
   @Override
   public void start() {
-    if (!running && !starting)  {
-      acquireDomainStartLock();
-      try {
-        if (!running && !starting)  {
-          // TODO... is there anything more complicated to do here?
-          log.info("Starting...");
-          running = true;
-        }
-      } finally {
-        releaseDomainStartLock();
-      }
-    }
+    // Spawn a new thread to start/restart the domain. The restrictions domain should/may be holding the lock so it won't
+    // do anything yet, but we do it in another thread to allow this thread to return after the stop() call.
+    Thread thread = new Thread(this);
+    thread.setName(getName());
+    thread.start();
   }
 
   @Override
