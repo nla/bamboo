@@ -76,12 +76,14 @@ public class FilteringCoordinationService {
     cleanKeyPattern += "]*";
 
     // Baseline. Collect data on common things we ignore
-    ALLOWED_TYPES = Arrays.asList("imagejpeg", "imagegif", "imagepng", "textplain", "textcss", "textxml");
+    List<String> allowedTypes = new ArrayList<>();
+    allowedTypes.addAll(Arrays.asList("imagejpeg", "imagegif", "imagepng", "textplain", "textcss", "textxml"));
     // Then add all the things we index
-    ALLOWED_TYPES.addAll(cleanTypesDuringStartup(QualityControlService.TEXT_CONTENT_TYPES));
-    ALLOWED_TYPES.addAll(cleanTypesDuringStartup(QualityControlService.DOCUMENT_CONTENT_TYPES));
-    ALLOWED_TYPES.addAll(cleanTypesDuringStartup(QualityControlService.PRESENTATION_CONTENT_TYPES));
-    ALLOWED_TYPES.addAll(cleanTypesDuringStartup(QualityControlService.SPREADSHEET_CONTENT_TYPES));
+    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.TEXT_CONTENT_TYPES));
+    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.DOCUMENT_CONTENT_TYPES));
+    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.PRESENTATION_CONTENT_TYPES));
+    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.SPREADSHEET_CONTENT_TYPES));
+    ALLOWED_TYPES = allowedTypes;
   }
   private static String cleanType(String type) {
     return type.replaceAll(cleanKeyPattern, "");

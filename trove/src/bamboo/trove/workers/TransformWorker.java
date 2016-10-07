@@ -106,8 +106,8 @@ public class TransformWorker implements Runnable {
     solr.addField(SolrEnum.DATE.toString(), document.getBambooDocument().getDate());
     solr.addField(SolrEnum.TITLE.toString(), document.getBambooDocument().getTitle());
     solr.addField(SolrEnum.CONTENT_TYPE.toString(), document.getBambooDocument().getContentType());
-    solr.addField(SolrEnum.STATUS_CODE.toString(), document.getBambooDocument().getContentType());
-    solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getStatusCode());
+    solr.addField(SolrEnum.STATUS_CODE.toString(), document.getBambooDocument().getStatusCode());
+    solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
   }
 
   private void restrictions(SolrInputDocument solr, IndexerDocument document) {
