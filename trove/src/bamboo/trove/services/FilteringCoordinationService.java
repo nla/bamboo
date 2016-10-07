@@ -17,7 +17,6 @@ package bamboo.trove.services;
 
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -90,10 +89,7 @@ public class FilteringCoordinationService {
     DocumentStatus status = DocumentStatus.NOT_APPLICABLE;
     Rule rule = null;
     if (!threshold.equals(ContentThreshold.NONE)) {
-    	//TODO document needs to hold a list of dates
-    	// so that date rule can be applied to each date and the record split if needed
-      Map<Rule, List<Date>> rules = bambooRestrictionService.filterDocument(document.getBambooDocument());
-      rule = rules.keySet().iterator().next();
+      rule = bambooRestrictionService.filterDocument(document.getBambooDocument());
       status = rule.getPolicy();
     }
     document.applyFiltering(rule, threshold);

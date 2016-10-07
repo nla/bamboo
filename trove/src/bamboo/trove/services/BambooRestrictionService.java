@@ -124,33 +124,11 @@ public class BambooRestrictionService {
   }
 
 
-  public Map<Rule, List<Date>> filterDocument(Document doc) {
-  	// TODO this needs to work with Document.getDate that returns a list of dates(ie merged records)
-  	Rule r = filterDocument(doc.getUrl(), doc.getDate());
-  	Map<Rule, List<Date>> m = new HashMap<>();
-  	List<Date> l = new ArrayList<>();
-  	l.add(doc.getDate());
-  	m.put(r, l);
-  	return m;
+  public Rule filterDocument(Document doc) {
+  	return filterDocument(doc.getUrl(), doc.getDate());
   }
   
-  public Map<Rule, List<Date>> filterDocument(String url, List<Date> capture) {
-		Map<Rule, List<Date>> rules = new HashMap<>();
-		for(Date c : capture){
-			Rule r = filterDocument(url, c);
-			if(rules.containsKey(r)){
-				rules.get(r).add(c);
-			}
-			else{
-				List<Date> dates = new ArrayList<>();
-				dates.add(c);
-				rules.put(r, dates);
-			}
-		}
-		return rules;
-  }
-  
-  private Rule filterDocument(String url, Date capture) {
+  public Rule filterDocument(String url, Date capture) {
   	List<Rule> rules = currentRules;
   	if(!newRules.isEmpty()){
   		rules = newRules;
