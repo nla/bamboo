@@ -16,6 +16,7 @@
 package bamboo.trove.services;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -65,17 +66,36 @@ public class FilteringCoordinationService {
 
   // Things we don't want to see in stat keys when lazy loading dirty data
   private static final String[] EXCLUDED_CHARACTERS = {"\\", "/", ",", ".", ":", ";", "?", "\""};
-  private static final List<String> ALLOWED_TYPES = Arrays.asList(
-          "texthtml", "imagejpeg", "imagegif", "applicationpdf", "imagepng", "textplain", "textcss", "textxml");
-  private String cleanKeyPattern = "";
-
-  @PostConstruct
-  public void init() {
+  private static final List<String> ALLOWED_TYPES;
+  private static String cleanKeyPattern = "";
+  static {
     cleanKeyPattern += "[";
     for (String c : EXCLUDED_CHARACTERS) {
       cleanKeyPattern += "\\" + c;
     }
     cleanKeyPattern += "]*";
+
+    // Baseline. Collect data on common things we ignore
+    ALLOWED_TYPES = Arrays.asList("imagejpeg", "imagegif", "imagepng", "textplain", "textcss", "textxml");
+    // Then add all the things we index
+    ALLOWED_TYPES.addAll(cleanTypesDuringStartup(QualityControlService.TEXT_CONTENT_TYPES));
+    ALLOWED_TYPES.addAll(cleanTypesDuringStartup(QualityControlService.DOCUMENT_CONTENT_TYPES));
+    ALLOWED_TYPES.addAll(cleanTypesDuringStartup(QualityControlService.PRESENTATION_CONTENT_TYPES));
+    ALLOWED_TYPES.addAll(cleanTypesDuringStartup(QualityControlService.SPREADSHEET_CONTENT_TYPES));
+  }
+  private static String cleanType(String type) {
+    return type.replaceAll(cleanKeyPattern, "");
+  }
+  private static List<String> cleanTypesDuringStartup(List<String> input) {
+    List<String> output = new ArrayList<>();
+    for (String in : input) {
+      output.add(cleanType(in));
+    }
+    return output;
+  }
+
+  @PostConstruct
+  public void init() {
     metrics = SharedMetricRegistries.getOrCreate(metricsRegistryName);
     loadDomainMetrics();
   }
@@ -226,7 +246,7 @@ public class FilteringCoordinationService {
   }
 
   private String cleanType(IndexerDocument document) {
-    String type = document.getBambooDocument().getContentType().replaceAll(cleanKeyPattern, "");
+    String type = cleanType(document.getBambooDocument().getContentType());
     if (ALLOWED_TYPES.contains(type)) {
       return type;
     }
