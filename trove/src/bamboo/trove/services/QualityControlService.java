@@ -25,19 +25,35 @@ import org.springframework.stereotype.Service;
 @Service
 public class QualityControlService {
   public static final List<String> TEXT_CONTENT_TYPES = Arrays.asList("text/html", "application/pdf");
+  public static final List<String> DOCUMENT_CONTENT_TYPES = Arrays.asList("application/rtf", "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.oasis.opendocument.text");
+  public static final List<String> PRESENTATION_CONTENT_TYPES = Arrays.asList("application/vnd.ms-powerpoint",
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          "application/vnd.oasis.opendocument.presentation");
+  public static final List<String> SPREADSHEET_CONTENT_TYPES = Arrays.asList("application/vnd.ms-excel",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/csv", "application/csv",
+          "application/vnd.oasis.opendocument.spreadsheet");
 
   public ContentThreshold filterDocument(Document document) {
     // Status code - Unless we actually harvested the content, don't index it
     if (document.getStatusCode() != 200) {
-      return ContentThreshold.NONE;
-    }
-
-    // Content Type
-    if (!TEXT_CONTENT_TYPES.contains(document.getContentType())) {
       return ContentThreshold.METADATA_ONLY;
     }
 
+    // Content Type
+    if (isSearchableContentType(document)) {
+      return ContentThreshold.FULL_TEXT;
+    }
+
     // More rules will likely be added here
-    return ContentThreshold.FULL_TEXT;
+    return ContentThreshold.METADATA_ONLY;
+  }
+
+  private boolean isSearchableContentType(Document document) {
+    return TEXT_CONTENT_TYPES.contains(document.getContentType())
+            || PRESENTATION_CONTENT_TYPES.contains(document.getContentType())
+            || SPREADSHEET_CONTENT_TYPES.contains(document.getContentType())
+            || DOCUMENT_CONTENT_TYPES.contains(document.getContentType());
   }
 }

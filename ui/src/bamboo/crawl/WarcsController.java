@@ -218,6 +218,10 @@ public class WarcsController {
             extractor.setBoilingEnabled(true);
         }
 
+        if (Parsing.parseLongOrDefault(request.queryParam("tika"), 0) != 0) {
+            extractor.setUseTika(true);
+        }
+
         Warc warc = findWarc(request);
         return response(200, (Streamable) (OutputStream outStream) -> {
             try (ArchiveReader reader = WarcUtils.open(warc.getPath())) {

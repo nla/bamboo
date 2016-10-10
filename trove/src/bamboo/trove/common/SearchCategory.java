@@ -15,26 +15,15 @@
  */
 package bamboo.trove.common;
 
-public enum SolrEnum {
-  // Keeping them in alphabetical order just
-  // to help readability as the schema grows
-  CONTENT_TYPE("contentType"),
-  DATE("date"),
-  DELIVERABLE("deliverable"),
-  DISCOVERABLE("discoverable"),
-  FULL_TEXT("fulltext"),
-  ID("id"),
-  LAST_INDEXED("lastIndexed"),
-  RULE("ruleId"),
-  SEARCH_CATEGORY("searchCategory"),
-  SITE("site"),
-  STATUS_CODE("statusCode"),
-  TEXT_ERROR("textError"),
-  TITLE("title"),
-  URL("url");
+public enum SearchCategory {
+  NONE("none"),
+  TEXT("text"),
+  PRESENTATION("presentation"),
+  SPREADSHEET("spreadsheet"),
+  DOCUMENT("document");
 
   private String value;
-  SolrEnum(String value) {
+  SearchCategory(String value) {
     this.value = value;
   }
   public String toString() {

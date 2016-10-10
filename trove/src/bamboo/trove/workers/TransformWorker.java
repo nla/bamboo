@@ -15,10 +15,16 @@
  */
 package bamboo.trove.workers;
 
+import static bamboo.trove.services.QualityControlService.DOCUMENT_CONTENT_TYPES;
+import static bamboo.trove.services.QualityControlService.PRESENTATION_CONTENT_TYPES;
+import static bamboo.trove.services.QualityControlService.SPREADSHEET_CONTENT_TYPES;
+import static bamboo.trove.services.QualityControlService.TEXT_CONTENT_TYPES;
+
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.IndexerDocument;
+import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
 import com.codahale.metrics.Timer;
 import org.apache.solr.common.SolrInputDocument;
@@ -85,12 +91,26 @@ public class TransformWorker implements Runnable {
     }
 
     SolrInputDocument solr = new SolrInputDocument();
+
+    basicMetadata(solr, document);
+    restrictions(solr, document);
+    errorHandling(solr, document);
+    fullText(solr, document);
+
+    document.converted(solr);
+  }
+
+  private void basicMetadata(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.ID.toString(), document.getDocId());
     solr.addField(SolrEnum.URL.toString(), document.getBambooDocument().getUrl());
     solr.addField(SolrEnum.DATE.toString(), document.getBambooDocument().getDate());
     solr.addField(SolrEnum.TITLE.toString(), document.getBambooDocument().getTitle());
     solr.addField(SolrEnum.CONTENT_TYPE.toString(), document.getBambooDocument().getContentType());
+    solr.addField(SolrEnum.STATUS_CODE.toString(), document.getBambooDocument().getStatusCode());
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
+  }
+
+  private void restrictions(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.RULE.toString(), document.getRuleId());
     if (DocumentStatus.RESTRICTED_FOR_BOTH.equals(document.getStatus())) {
       solr.addField(SolrEnum.DELIVERABLE.toString(), false);
@@ -104,15 +124,21 @@ public class TransformWorker implements Runnable {
       solr.addField(SolrEnum.DELIVERABLE.toString(), true);
       solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
     }
+  }
 
+  private void errorHandling(SolrInputDocument solr, IndexerDocument document) {
     if (document.getBambooDocument().getTextError() != null) {
       solr.addField(SolrEnum.TEXT_ERROR.toString(), true);
     }
+  }
 
+  private void fullText(SolrInputDocument solr, IndexerDocument document) {
     if (ContentThreshold.METADATA_ONLY.equals(document.getTheshold())) {
-      document.converted(solr);
+      solr.addField(SolrEnum.SEARCH_CATEGORY.toString(), SearchCategory.NONE.toString());
       return;
     }
+
+    searchCategory(solr, document);
 
     if (ContentThreshold.DOCUMENT_START_ONLY.equals(document.getTheshold())) {
       // TODO: Full text == First X words
@@ -121,9 +147,33 @@ public class TransformWorker implements Runnable {
       // TODO: Full text == Only unique terms
     }
     if (ContentThreshold.FULL_TEXT.equals(document.getTheshold())) {
-      // TODO: Full text == Everything
+      String text = document.getBambooDocument().getText();
+      if (text == null) return;
+      text = text.trim();
+
+      if (!"".equals(text)) {
+        solr.addField(SolrEnum.FULL_TEXT.toString(), text);
+      }
+    }
+  }
+
+  private void searchCategory(SolrInputDocument solr, IndexerDocument document) {
+    SearchCategory category = SearchCategory.NONE;
+    String type = document.getBambooDocument().getContentType();
+
+    if (TEXT_CONTENT_TYPES.contains(type)) {
+      category = SearchCategory.TEXT;
+    }
+    if (DOCUMENT_CONTENT_TYPES.contains(type)) {
+      category = SearchCategory.DOCUMENT;
+    }
+    if (PRESENTATION_CONTENT_TYPES.contains(type)) {
+      category = SearchCategory.PRESENTATION;
+    }
+    if (SPREADSHEET_CONTENT_TYPES.contains(type)) {
+      category = SearchCategory.SPREADSHEET;
     }
 
-    document.converted(solr);
+    solr.addField(SolrEnum.SEARCH_CATEGORY.toString(), category.toString());
   }
 }

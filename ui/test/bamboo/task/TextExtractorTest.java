@@ -29,4 +29,15 @@ public class TextExtractorTest {
                 "This is a test PDF file. It was created by LibreOffice." + System.lineSeparator(), doc.getText());
         assertEquals("The title field in the metadata", doc.getTitle());
     }
+
+    @Test
+    public void textExtractTika() throws IOException, TextExtractionException {
+        Document doc = new Document();
+        try (InputStream stream = getClass().getResourceAsStream("example.odt")) {
+            TextExtractor.extractTika(stream, doc);
+        }
+        assertEquals("Visible title\n" +
+                "This is an example.\n", doc.getText());
+        assertEquals("Metadata title", doc.getTitle());
+    }
 }
