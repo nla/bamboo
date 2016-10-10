@@ -18,6 +18,7 @@ package bamboo.trove.rule;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -78,6 +79,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private int maxFilterWorkers;
   private int maxTransformWorkers;
   private int maxIndexWorkers;
+  private int scheduleTimeHour;
+  private int scheduleTimeMinute;
 
 	private String collection;
 	private String zookeeperConfig = null;
@@ -137,8 +140,23 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		workProcessor = new WorkProcessor(NUMBER_OF_WORKERS);
 //		workDistributor = new WorkProcessor(NUMBER_OF_DISTRIBUTORS);
 		lastProcessed = restrictionsService.getLastProcessed();
+		boolean runNow = false;
 		if(restrictionsService.isRecovery()){
 			log.info("Restart into Rule recovery mode.");
+			runNow = true;
+		}
+		else{
+			long oneDayAgo = System.currentTimeMillis()-(24*60*60*1000);
+			if(lastProcessed.getDate().getTime()<oneDayAgo){
+				log.info("Restart into Rule processing mode as last check was more that a day ago.");
+				runNow = true;
+			}
+			else{
+				Date nextRun = nextRunDate();
+//				Schedule.nextRun(this, nextRun);
+			}
+		}
+		if(runNow){
 //			startProcessing();
 			// wait until the recovery process has had a chance to get the lock
 			while(!hasPassedLock){
@@ -148,7 +166,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 				catch (InterruptedException e){
 					// ignore
 				}
-			}
+			}			
 		}
 		startMe(solrManager, filteringService);
   }
@@ -255,6 +273,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			}
 			progress = null;
 			lastProcessed = restrictionsService.getLastProcessed();
+			Date nextRun = nextRunDate();
+			Schedule.nextRun(this, nextRun);
 			stopProcessing();		
 			if(stopping){
 				running = false;
@@ -601,14 +621,25 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       log.info("Stopping domain... ");
 //      stopWorkers();
       log.info("All workers stopped!");
-
-//      if (timer != null) {
-//        log.info("Cancelling batch management timer");
-//        timer.cancel();
-//      }
     }
 	}
 
+	/**
+	 * Calculate the date time of the next run.
+	 * 
+	 * @return The time of the next run.
+	 */
+  private Date nextRunDate(){
+		Calendar now = Calendar.getInstance();
+		Calendar next = Calendar.getInstance();
+		next.set(Calendar.HOUR_OF_DAY, scheduleTimeHour);
+		next.set(Calendar.MINUTE, scheduleTimeMinute);
+		if(next.before(now)){
+			next.add(Calendar.DATE, 1);
+		}
+		return next.getTime();
+  }
+  
 	private static String format(Date d){
 		if(d == null){
 			return "*";
@@ -655,10 +686,65 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	public void setZookeeperConfig(String zookeeperConfig){
 		this.zookeeperConfig = zookeeperConfig;
 	}
+	public int getScheduleTimeHour(){
+		return scheduleTimeHour;
+	}
+	public void setScheduleTimeHour(int scheduleTimeHour){
+		if(scheduleTimeHour < 0 || scheduleTimeHour > 23){
+			throw new IllegalArgumentException("Hour must be between 0 and 23");
+		}
+		this.scheduleTimeHour = scheduleTimeHour;
+	}
+	public int getScheduleTimeMinute(){
+		return scheduleTimeMinute;
+	}
+	public void setScheduleTimeMinute(int scheduleTimeMinute){
+		if(scheduleTimeMinute < 0 || scheduleTimeMinute > 59){
+			throw new IllegalArgumentException("Minute must be between 0 and 59");
+		}
+		this.scheduleTimeMinute = scheduleTimeMinute;
+	}
 	public static int getNumberOfWorkers(){
 		return NUMBER_OF_WORKERS;
 	}
 	public static void setNumberOfWorkers(int numberOfWorkers){
 		NUMBER_OF_WORKERS = numberOfWorkers;
+	}
+
+	static class Schedule implements Runnable{
+		private RuleChangeUpdateManager manager;
+		long nextRun;
+
+		public static void nextRun(RuleChangeUpdateManager manager, Date nextRun){
+			new Schedule(manager, nextRun);
+		}
+		/**
+		 * Set a timer for the next run to check for new rules and re-check date rules.
+		 */
+		public Schedule(RuleChangeUpdateManager manager, Date nextRun){
+			this.manager = manager;
+			this.nextRun = nextRun.getTime();
+			Thread t = new Thread(this);
+			t.setName("Recheck Rules.");
+			t.start();
+		}
+		
+		@Override
+		public void run(){
+			while(nextRun > System.currentTimeMillis()){
+				long sleepTime = nextRun - System.currentTimeMillis();
+				if(sleepTime < 100){
+					sleepTime = 100;
+				}
+				try{
+					Thread.sleep(sleepTime);
+				}
+				catch (InterruptedException e){
+					// ignore
+				}
+			}
+			log.info("Scheduler start Rule Check.");
+			manager.startProcessing();
+		}
 	}
 }
