@@ -34,6 +34,7 @@ import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.DateRange;
 import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.LastRun;
 import bamboo.trove.common.Rule;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.services.BambooRestrictionService;
@@ -67,18 +68,18 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private String zookeeperConfig = null;
 
 	private WorkProcessor workProcessor;
-	private WorkProcessor workDistributor;
+//	private WorkProcessor workDistributor;
 
   
   private List<Rule> changedRules;
   private List<Rule> dateRules;
-  private Date lastProcessed = null;
+  private LastRun lastProcessed = null;
 	private String progress = null;
 	private long updateCount = 0;
 	private boolean running = false;
 	private boolean stopping = false;
 	private boolean hasPassedLock = false;
-	private Date runStart = null;
+	private LastRun runStart = null;
 	private CloudSolrClient client = null;
 
   @Required
@@ -119,11 +120,11 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		client.setDefaultCollection(collection);
 		format.setTimeZone(TimeZone.getTimeZone("UTC"));
 		workProcessor = new WorkProcessor(NUMBER_OF_WORKERS);
-		workDistributor = new WorkProcessor(NUMBER_OF_DISTRIBUTORS);
+//		workDistributor = new WorkProcessor(NUMBER_OF_DISTRIBUTORS);
 		lastProcessed = restrictionsService.getLastProcessed();
 		if(restrictionsService.isRecovery()){
 			log.info("Restart into Rule recovery mode.");
-			startProcessing();
+//			startProcessing();
 			// wait until the recovery process has had a chance to get the lock
 			while(!hasPassedLock){
 				try{
@@ -156,7 +157,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		// check if we have a changed rule set.
 		progress = "Checking for new Rules";
 		Timer timer = getTimer(getName() + ".processRule");
-		runStart = new Date();
+		runStart = restrictionsService.startProcess();
 		changedRules = new ArrayList<>();
 		List<Rule> deletedRules = new ArrayList<>();
 		List<Rule> newRules = new ArrayList<>();
@@ -310,7 +311,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 //		if(rule.getUrl().isEmpty())continue; // TODO this could be a full re-index ?
 
 		// query part to stop records being processed more that once
-		String notLastIndexed = " AND lastIndexed:[* TO " + format(runStart) + "]";
+		String notLastIndexed = " AND lastIndexed:[* TO " + format(runStart.getDate()) + "]";
 		
 		if(currentRule == null){
 			// this is a new rule search by url and possibly date
@@ -396,7 +397,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			SolrQuery query = createQuery(SolrEnum.RULE+":"+currentRule.getId() + notLastIndexed);
 			processQuery(query);
 			if(embargo > 0){
-				Date embargoDate = new Date(runStart.getTime() - (embargo * 1000)); // change seconds to milli
+				Date embargoDate = new Date(runStart.getDate().getTime() - (embargo * 1000)); // change seconds to milli
 				query = createQuery(SolrEnum.URL + ":"+url
 					+ " AND " + SolrEnum.DATE + ":[" + format(embargoDate) + " TO *]" 
 					+ notLastIndexed);
@@ -424,7 +425,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			processQuery(query);
 		}
 		if(retrieved != null){
-			if (retrieved.isDateInRange(runStart)){
+			if (retrieved.isDateInRange(runStart.getDate())){
 				// now is in range so we need to search by url
 				searchNeeded = true;
 			}
@@ -457,7 +458,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		}
 		String queryText = SolrEnum.URL + ":" + url;
 		if(retrieved != null){
-			if (!retrieved.isDateInRange(runStart)){
+			if (!retrieved.isDateInRange(runStart.getDate())){
 				// now is not in range so rule does not apply
 				return;
 			}
@@ -561,8 +562,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
 	@Override
 	public void start(){
-		startProcessing();
-//		throw new IllegalArgumentException();
+//		startProcessing();
+		throw new IllegalArgumentException();
 	}
 	private void startProcessing(){
     if (!running && !stopping)  {

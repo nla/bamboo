@@ -31,6 +31,7 @@ import javax.xml.bind.Unmarshaller;
 
 import bamboo.task.Document;
 import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.LastRun;
 import bamboo.trove.common.Rule;
 import bamboo.trove.common.xml.RulePojo;
 import bamboo.trove.common.xml.RulesPojo;
@@ -61,7 +62,7 @@ public class BambooRestrictionService {
   private boolean recovery = false;
   protected List<Rule> currentRules;
   protected List<Rule> newRules;
-  private Date lastRun;
+  private LastRun lastRun;
   private List<String> rawFilters; // <== this might need to become more complicated that a base string if a rule id is to be retained
   private FilterSegments segmentedFilters; // TODO: Allow vs deny?
   private List<SurtFilter> parsedFilters; // TODO: Time based embargoes. Can be time of content capture (ie. takedown) or time of indexing run (ie. embargo)
@@ -85,10 +86,10 @@ public class BambooRestrictionService {
     lastRun = dao.getLastRun();
     log.debug("Found {} current rules", currentRules.size());
     log.debug("Found {} new rules", newRules.size());
-    log.debug("Rules last run on {}.", lastRun);
-    if(!newRules.isEmpty()){
+    log.debug("Rules last run on {}. complete:{}", lastRun.getDate(), lastRun.isFinished());
+    if(!newRules.isEmpty() || !lastRun.isFinished()){
     	recovery = true;
-    	log.warn("Server start up with new Rule set not finished. Recovery Reprocess new rule set.");
+    	log.warn("Server start up with new Rule set not finished or last run not finished. Recovery Reprocess.");
     }
     rawFilters = new ArrayList<>();
     segmentedFilters = new FilterSegments();
@@ -101,7 +102,13 @@ public class BambooRestrictionService {
 
   public boolean checkForChangedRules() {
   	if(recovery){
-  		return true;
+  		// in recovery only changed if we have new rules to process. 
+  		if(!newRules.isEmpty()){
+  			return true;
+  		}
+  		else{
+  			return false;
+  		}
   	}
   	List<Rule> rules = getRulesFromServer();
   	for(Rule r : rules){
@@ -144,7 +151,23 @@ public class BambooRestrictionService {
   	return r.get();
   }
   
-  public Date getLastProcessed(){
+  public LastRun getLastProcessed(){
+  	return lastRun;
+  }
+  
+	/**
+	 * Start a rule update process.
+	 * <p/>
+	 * This will check that the last run was finished and store a new run date in
+	 * the database or return the date of the last run.
+	 * 
+	 * @return
+	 */
+  public LastRun startProcess(){
+  	if(lastRun.isFinished()){
+  		lastRun = new LastRun(new Date(), false);
+  		dao.setLastRun(lastRun);
+  	}
   	return lastRun;
   }
   
@@ -226,6 +249,7 @@ public class BambooRestrictionService {
   	}
   	return false;
   }
+  
   public List<Rule> getDeletedRules(){
   	List<Rule> list = new ArrayList<>();
   	Map<Integer, Rule> map = new HashMap<>();
@@ -238,6 +262,7 @@ public class BambooRestrictionService {
   	list.addAll(map.values());
   	return list;
   }
+  
 	/**
 	 * Get the list of rules that have date dependence.
 	 * <p/>
@@ -268,12 +293,15 @@ public class BambooRestrictionService {
   	return list;
   }
   
-  public void updateRunFinished(Date lastRun){
-  	dao.setLastRun(lastRun);
+  public void updateRunFinished(LastRun lastRun){
+  	lastRun.setFinished(true);
+  	dao.setLastRun(lastRun);  //also have to set last run at start of new run and use this date in queries
     this.lastRun = dao.getLastRun();
+    recovery = false;
   }
   
-  public void changeToNewRules(Date lastRun){
+  public void changeToNewRules(LastRun lastRun){
+  	lastRun.setFinished(true);
   	dao.makeNewRulesCurrent(lastRun);
     currentRules = dao.getCurrentRules();
     newRules = dao.getNewRules(); // should now be empty
@@ -373,7 +401,7 @@ public class BambooRestrictionService {
   			+"  <rule>"
   			+"    <id>14</id>"
   			+"    <policy>ACCEPTED</policy>"
-  			+"    <surt>http://(uk,net,canberratimes</surt>"
+  			+"    <surt>http://(uk,net,canberratimes,</surt>"
   			+"    <embargo/>"
   			+"	<captureStart/>"
   			+"	<captureEnd/>"

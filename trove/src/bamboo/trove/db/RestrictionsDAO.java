@@ -26,9 +26,10 @@ import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.LastRun;
 import bamboo.trove.common.Rule;
 
-@RegisterMapper({RestrictionsDAO.CollectionRuleMapper.class})
+@RegisterMapper({RestrictionsDAO.CollectionRuleMapper.class, RestrictionsDAO.CollectionLastRunMapper.class})
 public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> {
   public static final String TABLE     = "restriction_rule_web_archives";
   public static final String TABLE_RUN = "restriction_rule_last_run_web_archives";
@@ -42,11 +43,11 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   	return getRules("n");
   }
   
-  @SqlQuery("select last_run from " + TABLE_RUN + " where id = 1")
-  public abstract Timestamp getLastRun();
+  @SqlQuery("select last_run, finished from " + TABLE_RUN + " where id = 1")
+  public abstract LastRun getLastRun();
   
-  @SqlUpdate("update " + TABLE_RUN + " set last_run = :d where id = 1")
-  public abstract void setLastRun(@Bind("d") Date date);
+  @SqlUpdate("update " + TABLE_RUN + " set last_run = :lastRun, finished = :finished where id = 1")
+  public abstract void setLastRun(@LastRunBinder() LastRun lastRun);
   
   @SqlBatch("insert into " + TABLE
   		+ "(id, status, last_updated, surt, policy, embargo, captured_start, "
@@ -65,7 +66,7 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   protected abstract void makeNewRuleSetCurrent();
 
   @Transaction
-  public void makeNewRulesCurrent(Date lastRun){
+  public void makeNewRulesCurrent(LastRun lastRun){
   	removePreviousRuleSet();
   	makeCurrentRuleSetPrevious();
   	makeNewRuleSetCurrent();
@@ -87,6 +88,13 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
     		return null;
     	}
     	return new Date(t.getTime());
+    }
+  }
+
+  public static class CollectionLastRunMapper implements ResultSetMapper<LastRun> {
+    @Override
+    public LastRun map(int index, ResultSet rs, StatementContext ctx) throws SQLException {
+    	return new LastRun(new Date(rs.getTimestamp("last_run").getTime()), "t".equals(rs.getString("finished")));
     }
   }
 
@@ -139,6 +147,23 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   						q.bind("retrievedRangeStart", r.getRetrievedRange().getStart());
   						q.bind("retrievedRangeEnd", r.getRetrievedRange().getEnd());
   					}
+  				}
+  			};
+  		}
+  	}
+  }
+  
+  @BindingAnnotation(RestrictionsDAO.LastRunBinder.LastRunBinderFactory.class)
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.PARAMETER})
+  public @interface LastRunBinder{
+  	public static class LastRunBinderFactory implements BinderFactory{
+  		public Binder<LastRunBinder, LastRun> build(Annotation annotation){
+  			return new Binder<LastRunBinder, LastRun>(){
+					@Override
+  				public void bind(SQLStatement<?> q, LastRunBinder bind, LastRun r){
+  					q.bind("lastRun", r.getDate());
+  					q.bind("finished", r.isFinished()?"t":"f");
   				}
   			};
   		}
