@@ -17,6 +17,8 @@ package bamboo.trove.services;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
@@ -37,6 +39,8 @@ import bamboo.trove.common.xml.RulePojo;
 import bamboo.trove.common.xml.RulesPojo;
 import bamboo.trove.db.RestrictionsDAO;
 import bamboo.util.SurtFilter;
+
+import org.archive.url.SURT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,10 +66,9 @@ public class BambooRestrictionService {
   private boolean recovery = false;
   protected List<Rule> currentRules;
   protected List<Rule> newRules;
+  // map to find rules for a site so that we don't have to check against all rules
+  private Map<String, List<Rule>> rulesBySite;
   private LastRun lastRun;
-  private List<String> rawFilters; // <== this might need to become more complicated that a base string if a rule id is to be retained
-  private FilterSegments segmentedFilters; // TODO: Allow vs deny?
-  private List<SurtFilter> parsedFilters; // TODO: Time based embargoes. Can be time of content capture (ie. takedown) or time of indexing run (ie. embargo)
 
   private String bambooApiBaseUrl;
   private RestrictionsDAO dao;
@@ -91,10 +94,13 @@ public class BambooRestrictionService {
     	recovery = true;
     	log.warn("Server start up with new Rule set not finished or last run not finished. Recovery Reprocess.");
     }
-    rawFilters = new ArrayList<>();
-    segmentedFilters = new FilterSegments();
-    parsedFilters = new ArrayList<>();
 
+    if(!newRules.isEmpty()){
+    	updateRulesBySiteList(newRules);
+    }
+    else{
+    	updateRulesBySiteList(currentRules);
+    }
     if (bambooApiBaseUrl == null) {
       throw new IllegalStateException("bambooApiBaseUrl has not been configured");
     }
@@ -111,20 +117,21 @@ public class BambooRestrictionService {
   		}
   	}
   	List<Rule> rules = getRulesFromServer();
-  	for(Rule r : rules){
-  		String rest = "";
-  		if(r.getEmbargo() > 0) rest += "embargo " + r.getEmbargo() +" ";
-  		if(r.getCapturedRange() != null) rest += "capturt " + r.getCapturedRange().getStart() + " TO "+ r.getCapturedRange().getEnd() + " ";
-  		if(r.getRetrievedRange() != null) rest += "retrieved "+ r.getRetrievedRange().getStart() + " TO "+ r.getRetrievedRange().getEnd()+ " ";
-  		System.out.println(r.getId() + " : " + r.getPolicy() + " : " + r.getLastUpdated()
-  			+ " : " + r.getSurt() + " : " + rest);
-  	}
+//  	for(Rule r : rules){
+//  		String rest = "";
+//  		if(r.getEmbargo() > 0) rest += "embargo " + r.getEmbargo() +" ";
+//  		if(r.getCapturedRange() != null) rest += "capturt " + r.getCapturedRange().getStart() + " TO "+ r.getCapturedRange().getEnd() + " ";
+//  		if(r.getRetrievedRange() != null) rest += "retrieved "+ r.getRetrievedRange().getStart() + " TO "+ r.getRetrievedRange().getEnd()+ " ";
+//  		System.out.println(r.getId() + " : " + r.getPolicy() + " : " + r.getLastUpdated()
+//  			+ " : " + r.getSurt() + " : " + rest);
+//  	}
 
   	if(haveRulesChanged(currentRules, rules)){
   		// some rules have changed so we will save to the DB.
   		log.info("Changed rules received.");
   		dao.addNewRuleSet(rules);
   		newRules = rules;
+  		updateRulesBySiteList(newRules);
   		return true;
   	}
   	return false;
@@ -136,13 +143,24 @@ public class BambooRestrictionService {
   }
   
   public Rule filterDocument(String url, Date capture) {
-  	List<Rule> rules = currentRules;
-  	if(!newRules.isEmpty()){
-  		rules = newRules;
-  	}
+		String s = "(";
+		try{
+			URL u = new URL(url);
+			s = u.getHost() + u.getPath();
+			s = SURT.toSURT(s);
+		}
+		catch (MalformedURLException e){
+			// should match to default catch all rule
+		}
+		final String surt = s;
+		if(s.contains(")")){
+			s = s.substring(0, s.indexOf(")"));
+		}
+  	List<Rule> rules = getRulesFor(s);
+
 		final Comparator<Rule> comp = (o1, o2) -> o1.compareTo(o2);
     Optional<Rule> r = rules.stream()
-    		.filter(i -> i.matches(url, capture))
+    		.filter(i -> i.matches(surt, capture))
     			.max(comp);
 
     if(!r.isPresent()){
@@ -309,19 +327,6 @@ public class BambooRestrictionService {
     recovery = false;
   }
   
-  // TODO: No consideration of embargo dates yet...
-  // TODO: Polling background thread.
-  // 1) Contact Bamboo and get current restriction list
-  // 2) Diff current data against rawFilters.
-  // 3) Rebuild parsedFilters from rawFilters
-  // TODO: The rawFilters data should not be just in memory, it must be persisted somewhere to preserve state in the DB
-  // TODO: Quartz scheduler job to run searches against the index after the updates completes
-  // 1) Search for restricted content (??matching rules which were just removed) <= Requires indexing the rules used to restrict
-  //       Maybe restrictedBy:{ruleId}
-  // 2) Search for content in the index that matches (facet by segment?) a filter that was just added
-  // TODO: Reindexing of content from above searches. Or atom update? We want to flip restricted flag, maybe ruleId and segments
-  // TODO: If a search flags a large amount og content to be actioned it should halt and ask a staff member to intervene?
-
   public class FilterSegments extends HashMap<String, FilterSegments> {
     public void merge(FilterSegments newData) {
       if (newData == null || newData.isEmpty()) {
@@ -336,8 +341,71 @@ public class BambooRestrictionService {
       }
     }
   }
+
+  protected void updateRulesBySiteList(List<Rule> rules){
+  	Map<String, List<Rule>> map = new HashMap<>();
+  	for(Rule r : rules){
+  		String surt = r.getSurt();
+  		// remove the path from the end
+  		if(surt.contains(")")){
+  			surt = surt.substring(0, surt.indexOf(")"));
+  		}
+			if(surt.endsWith(",")){
+				surt = surt.substring(0, surt.lastIndexOf(","));
+			}
+			// add/update entry for site
+			if(map.containsKey(surt)){
+				map.get(surt).add(r);
+			}
+			else{
+				List<Rule> l = new ArrayList<>();
+				l.add(r);
+				map.put(surt, l);
+			}
+  	}
+  	for(Rule r : rules){
+			// now check for other possible prefix matches
+  		String surt = r.getSurt();
+  		// remove the path from the end
+  		if(surt.contains(")")){
+  			surt = surt.substring(0, surt.indexOf(")"));
+  		}
+			if(surt.endsWith(",")){
+				surt = surt.substring(0, surt.lastIndexOf(","));
+			}
+			log.debug("Build rule set for : " + surt);
+  		for(Map.Entry<String, List<Rule>> e : map.entrySet()){
+  			// ignore the exact match as added/updated above
+  			if(!surt.equals(e.getKey())){
+  				if(e.getKey().startsWith(surt)){
+  					e.getValue().add(r);
+  					log.debug("add Rule : {} surt : {}",r.getId(), r.getSurt());
+  				}
+  			}
+  		}
+  	}
+  	rulesBySite = map;
+  	// log the new rule set.
+		for(Map.Entry<String, List<Rule>> e : map.entrySet()){
+			// ignore the exact match as added/updated above
+			log.info("Rules for SURT {}", e.getKey());
+			for(Rule r : e.getValue()){
+				log.info("      RULE : {} : {}", r.getId(), r.getSurt());
+			}
+		}
+  }
+
+  private List<Rule> getRulesFor(String site){
+  	if(rulesBySite.containsKey(site)){
+  		return rulesBySite.get(site);
+  	}
+  	if(site.contains(",")){
+  		return getRulesFor(site.substring(0, site.lastIndexOf(",")));
+  	}
+  	return getRulesFor("(");
+  }
   
-  private List<Rule> getRulesFromServer(){
+  private static List<Rule> getRulesFromServer(){
   	List<Rule> rules;
   	
 //		try{
@@ -509,7 +577,7 @@ public class BambooRestrictionService {
   			+"    <surt>http://(nz,gov,bom,)/dir/images</surt>"
   			+"    <embargo/>"
   			+"	<captureStart class=\"sql-timestamp\">2016-08-21 00:00:00.0</captureStart>"
-  			+"	<captureEnd class=\"sql-timestamp\">2016-08-21 23:59:59.0</captureEnd>"
+  			+"	<captureEnd class=\"sql-timestamp\">2016-08-22 23:59:59.0</captureEnd>"
   			+"	<retrievedStart/>"
   			+"	<retrievedEnd/>"
   			+"    <who></who>"
@@ -522,6 +590,36 @@ public class BambooRestrictionService {
   			+"    <id>7</id>"
   			+"    <policy>ACCEPTED</policy>"
   			+"    <surt>http://(nz,gov,bom,)/dir/images/updateing.js</surt>"
+  			+"    <embargo/>"
+  			+"	<retrievedStart class=\"sql-timestamp\">2016-09-20 23:59:59.0</retrievedStart>"
+  			+"	<retrievedEnd/>"
+  			+"	<captureStart/>"
+  			+"	<captureEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2016-04-01 13:52:39.0</lastModified>"
+  			+"  </rule>"
+  			+"  <rule>"
+  			+"    <id>37</id>"
+  			+"    <policy>ACCEPTED</policy>"
+  			+"    <surt>http://(nz,gov,</surt>"
+  			+"    <embargo/>"
+  			+"	<retrievedStart/>"
+  			+"	<retrievedEnd class=\"sql-timestamp\">2016-09-20 23:59:59.0</retrievedEnd>"
+  			+"	<captureStart/>"
+  			+"	<captureEnd/>"
+  			+"    <who></who>"
+  			+"    <privateComment></privateComment>"
+  			+"    <publicComment></publicComment>"
+  			+"    <exactMatch>false</exactMatch>"
+  			+"    <lastModified class=\"sql-timestamp\">2016-04-01 13:52:39.0</lastModified>"
+  			+"  </rule>"
+  			+"  <rule>"
+  			+"    <id>47</id>"
+  			+"    <policy>ACCEPTED</policy>"
+  			+"    <surt>http://(nz,gov,)/dir/images/updateing.js</surt>"
   			+"    <embargo/>"
   			+"	<retrievedStart/>"
   			+"	<retrievedEnd class=\"sql-timestamp\">2016-09-20 23:59:59.0</retrievedEnd>"
@@ -604,7 +702,7 @@ public class BambooRestrictionService {
   	return parseXML(is);
   }
   
-  private List<Rule> parseXML(InputStream is){
+  private static List<Rule> parseXML(InputStream is){
   	List<Rule> rules = new ArrayList<Rule>();
   	JAXBContext context;
   	RulesPojo rs;

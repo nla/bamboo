@@ -35,6 +35,7 @@ public class BambooRestrictionServiceTest{
 		service.currentRules.add(new Rule(4, DocumentStatus.NOT_APPLICABLE, now, 0, null, null, null, null, "(au,gov,nla,", false));
 		service.currentRules.add(new Rule(5, DocumentStatus.ACCEPTED, now, 0, null, null, null, null, "(au,gov,nla,trove,", false));
 		service.currentRules.add(new Rule(6, DocumentStatus.NOT_APPLICABLE, now, 0, null, null, null, null, "(au,gov,nla,trove,)/home.html", false));
+		service.updateRulesBySiteList(service.currentRules);
 		Document doc = new Document();
 		doc.setUrl("http://trove.nla.gov.au/home.html");
 		Rule r = service.filterDocument(doc);
@@ -61,5 +62,94 @@ public class BambooRestrictionServiceTest{
 		assertEquals(DocumentStatus.ACCEPTED, r.getPolicy());
 
 	}
+	
+	@Test
+	public void testMatchesBadURL(){
+		BambooRestrictionService service = new BambooRestrictionService();  
+		service.currentRules = new ArrayList<Rule>();
+		service.newRules = new ArrayList<Rule>();
+		Rule r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(", false);
+		service.currentRules.add(r);
+		service.updateRulesBySiteList(service.currentRules);
+		
+		Date capture = new Date(System.currentTimeMillis()- 50000);
+		Document doc = new Document();
+		doc.setUrl("/losch.com.au/favicon.ico");
+		doc.setDate(capture);
+		r = service.filterDocument(doc);
+		assertEquals(1, r.getId());
 
+		doc.setUrl("losch.com.au/favicon.ico");
+		r = service.filterDocument(doc);
+		assertEquals(1, r.getId());
+	}
+
+	@Test
+	public void testMatchesCatchAll(){
+		BambooRestrictionService service = new BambooRestrictionService();  
+		service.currentRules = new ArrayList<Rule>();
+		service.newRules = new ArrayList<Rule>();
+		Rule r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(", false);
+		service.currentRules.add(r);
+		service.updateRulesBySiteList(service.currentRules);
+		Date capture = new Date(System.currentTimeMillis()- 50000);
+		Document doc = new Document();
+		doc.setDate(capture);
+
+		doc.setUrl("http://mailto:linda@losch.com.au/favicon.ico");
+		r = service.filterDocument(doc);
+		assertEquals(1, r.getId());
+		doc.setUrl("http://mailto:gary.court@gmail.com/robots.txt");
+		r = service.filterDocument(doc);
+		assertEquals(1, r.getId());
+		doc.setUrl("http://user:pass@example.com/robots.txt");
+		r = service.filterDocument(doc);
+		assertEquals(1, r.getId());
+		doc.setUrl("http://user:pass@example.com/");
+		r = service.filterDocument(doc);
+		assertEquals(1, r.getId());
+		doc.setUrl("http://chrstian+1@cluebeck.de/");
+		r = service.filterDocument(doc);
+		assertEquals(1, r.getId());
+
+		r = new Rule(2, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(com,", false);
+		service.currentRules.add(r);
+		service.updateRulesBySiteList(service.currentRules);
+
+		doc.setUrl("http://mailto:linda@losch.com.au/favicon.ico");
+		r = service.filterDocument(doc);
+		assertEquals(1, r.getId());
+		doc.setUrl("http://mailto:gary.court@gmail.com/robots.txt");
+		r = service.filterDocument(doc);
+		assertEquals(2, r.getId());
+		doc.setUrl("http://user:pass@example.com/robots.txt");
+		r = service.filterDocument(doc);
+		assertEquals(2, r.getId());
+		doc.setUrl("http://user:pass@example.com/");
+		r = service.filterDocument(doc);
+		assertEquals(2, r.getId());
+		doc.setUrl("http://chrstian+1@cluebeck.de/");
+		r = service.filterDocument(doc);
+		assertEquals(1, r.getId());
+		
+		r = new Rule(3, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(com,gmail,)/robots.txt", false);
+		service.currentRules.add(r);
+		service.updateRulesBySiteList(service.currentRules);
+		
+		doc.setUrl("http://mailto:linda@losch.com.au/favicon.ico");
+		r = service.filterDocument(doc);
+		assertEquals(1, r.getId());
+		doc.setUrl("http://mailto:gary.court@gmail.com/robots.txt");
+		r = service.filterDocument(doc);
+		assertEquals(3, r.getId());
+		doc.setUrl("http://user:pass@example.com/robots.txt");
+		r = service.filterDocument(doc);
+		assertEquals(2, r.getId());
+		doc.setUrl("http://user:pass@example.com/");
+		r = service.filterDocument(doc);
+		assertEquals(2, r.getId());
+		doc.setUrl("http://chrstian+1@cluebeck.de/");
+		r = service.filterDocument(doc);
+		assertEquals(1, r.getId());
+	}
 }

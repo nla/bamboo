@@ -153,11 +153,11 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			}
 			else{
 				Date nextRun = nextRunDate();
-//				Schedule.nextRun(this, nextRun);
+				Schedule.nextRun(this, nextRun);
 			}
 		}
 		if(runNow){
-//			startProcessing();
+			startProcessing();
 			// wait until the recovery process has had a chance to get the lock
 			while(!hasPassedLock){
 				try{
@@ -597,8 +597,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
 	@Override
 	public void start(){
-//		startProcessing();
-		throw new IllegalArgumentException();
+		startProcessing();
+//		throw new IllegalArgumentException();
 	}
 	private void startProcessing(){
     if (!running && !stopping)  {
@@ -727,6 +727,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			Thread t = new Thread(this);
 			t.setName("Recheck Rules.");
 			t.start();
+			log.info("Set Scheduler to start Rule Check at " + nextRun);
 		}
 		
 		@Override

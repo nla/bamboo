@@ -15,11 +15,7 @@
  */
 package bamboo.trove.common;
 
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.Date;
-
-import org.archive.url.SURT;
 
 public class Rule implements Comparable<Rule>{
 	private int id;
@@ -68,20 +64,11 @@ public class Rule implements Comparable<Rule>{
 	/** 
 	 * Check if this URL and capture date meets this rule.
 	 * 
-	 * @param url
+	 * @param surtTxt
 	 * @param captureDate
 	 * @return
 	 */
-	public boolean matches(String url, Date captureDate){
-		String s = "(";
-		try{
-			URL u = new URL(url);
-			s = u.getHost() + u.getPath();
-			s = SURT.toSURT(s);
-		}
-		catch (MalformedURLException e){
-			// should match to default catch all rule
-		}
+	public boolean matches(String surtTxt, Date captureDate){
 
 		if(embargo > 0){
 			Date d = new Date(System.currentTimeMillis() - (embargo*1000));
@@ -100,12 +87,12 @@ public class Rule implements Comparable<Rule>{
 			}
 		}
 		if(matchExact){
-			if(!s.equals(surt)){
+			if(!surtTxt.equals(surt)){
 				return false;
 			}
 		}
 		else{
-  		if(!s.startsWith(surt)){
+  		if(!surtTxt.startsWith(surt)){
   			return false;
   		}
 		}
