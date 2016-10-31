@@ -1,5 +1,6 @@
 package bamboo.task;
 
+import bamboo.core.LockManager;
 import bamboo.crawl.Collection;
 import bamboo.crawl.*;
 import bamboo.crawl.Collections;
@@ -15,7 +16,6 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -37,12 +37,14 @@ public class CdxIndexer implements Runnable {
     private final Serieses serieses;
     private final Collections collections;
     private final List<Consumer<Long>> warcIndexedListeners = new ArrayList<>();
+    private final LockManager lockManager;
 
-    public CdxIndexer(Warcs warcs, Crawls crawls, Serieses serieses, Collections collections) {
+    public CdxIndexer(Warcs warcs, Crawls crawls, Serieses serieses, Collections collections, LockManager lockManager) {
         this.warcs = warcs;
         this.crawls = crawls;
         this.serieses = serieses;
         this.collections = collections;
+        this.lockManager = lockManager;
     }
 
     public void onWarcIndexed(Consumer<Long> callback) {
@@ -68,7 +70,16 @@ public class CdxIndexer implements Runnable {
             for (Warc warc : candidates) {
                 threadPool.submit(() -> {
                     try {
-                        indexWarc(warc);
+                        String lockName = "warc-" + warc.getId();
+                        if (lockManager.takeLock(lockName)) {
+                            try {
+                                indexWarc(warc);
+                            } finally {
+                                lockManager.releaseLock(lockName);
+                            }
+                        } else {
+                            // warc is locked by someone else, skip it for now.
+                        }
                     } catch (Throwable t) {
                         t.printStackTrace();
                     }

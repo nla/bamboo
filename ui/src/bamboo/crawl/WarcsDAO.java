@@ -14,6 +14,7 @@ import java.util.List;
 
 @RegisterMapper({WarcsDAO.WarcMapper.class, WarcsDAO.CollectionWarcMapper.class})
 public interface WarcsDAO extends Transactional<WarcsDAO> {
+
     class WarcMapper implements ResultSetMapper<Warc> {
         @Override
         public Warc map(int i, ResultSet rs, StatementContext statementContext) throws SQLException {

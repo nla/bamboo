@@ -18,4 +18,7 @@ public interface DAO {
 
 	// seedlists package
 	@CreateSqlObject SeedlistsDAO seedlists();
+
+	@CreateSqlObject
+    LockManagerDAO lockManager();
 }
