@@ -45,7 +45,11 @@ import bamboo.trove.common.WarcProgressManager;
 import bamboo.trove.common.WarcSummary;
 import bamboo.trove.db.FullPersistenceDAO;
 import bamboo.trove.rule.RuleChangeUpdateManager;
+import bamboo.trove.services.FilteringCoordinationService;
 import bamboo.trove.services.JdbiService;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -68,6 +72,9 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 	@Qualifier("solrDomainManager")
 	private EndPointDomainManager solrManager;
 
+	@Autowired(required = true)
+	private FilteringCoordinationService filteringCoordinationService;
+
 	@Autowired
 	private JdbiService database;
 
@@ -83,6 +90,9 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private int bambooReadThreads = 1;
   private String bambooCollectionsUrl;
   private int queueLimit = 5;
+  // If not configured... will try stop seeking work
+  // if there is less than 256mb of free heap  
+  private long freeHeapLimit = 1024 * 1024 * 256;
 
   // Lifecycle states
   private boolean running = false;
@@ -125,6 +135,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     this.queueLimit = queueLimit;
   }
 
+  public void setFreeHeapLimit(long freeHeapLimit) {
+    this.freeHeapLimit = freeHeapLimit;
+  }
+
   public Map<Long, WarcSummary> getBatchMap() {
     return warcSummaries;
   }
@@ -152,6 +166,17 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     dao = database.getDao().fullPersistence();
     persistedWarcId = dao.getLastId();
     endOfBatchId = persistedWarcId;
+
+    MetricRegistry metrics = SharedMetricRegistries.getOrCreate(filteringCoordinationService.getMetricsRegistryName());
+    Gauge<Long> gaugeQueue = () -> (long) (warcTracking.size() + warcIdQueue.size());
+    metrics.register("queueLength", gaugeQueue);
+    Gauge<Long> gaugeHeap = () -> Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory();
+    metrics.register("freeHeap", gaugeHeap);
+    // These don't change at runtime, but we'll use the same plumbing to get them to the UI
+    Gauge<Long> gaugeQueueLimit = () -> (long) queueLimit;
+    metrics.register("queueLengthLimit", gaugeQueueLimit);
+    Gauge<Long> gaugeHeapLimit = () -> freeHeapLimit;
+    metrics.register("freeHeapLimit", gaugeHeapLimit);
 
     List<FullPersistenceDAO.OldError> oldErrors = dao.oldErrors();
     for (FullPersistenceDAO.OldError e : oldErrors) {
@@ -358,8 +383,16 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
       return;
     }
 
-    // Saturated queue
-    if ((warcTracking.size() + warcIdQueue.size()) >= queueLimit) {
+    // Saturated queue?
+    int queueSize = (warcTracking.size() + warcIdQueue.size());
+    if (queueSize >= queueLimit) {
+      Thread.sleep(1000);
+      return;
+    }
+
+    // Saturated heap? But only if the queue is large as well
+    long unusedHeap = Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory();
+    if (queueSize >= 10 && unusedHeap < freeHeapLimit) {
       Thread.sleep(1000);
       return;
     }
