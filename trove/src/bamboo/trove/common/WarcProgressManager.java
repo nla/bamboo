@@ -174,6 +174,14 @@ public class WarcProgressManager {
       }
     }
 
+    // Except for the first time...
+    if (timer != null) {
+      // Force the timer to de-reference its own thread
+      // and don't hold on to a reference to the timer
+      timer.cancel();
+      timer = null;
+    }
+
     if (!mothballed && !(filterComplete && transformComplete && indexComplete)) {
       setTick();
     }
