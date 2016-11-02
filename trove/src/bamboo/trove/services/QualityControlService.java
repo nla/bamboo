@@ -24,7 +24,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class QualityControlService {
-  public static final List<String> TEXT_CONTENT_TYPES = Arrays.asList("text/html", "application/pdf");
+  public static final List<String> HTML_CONTENT_TYPES = Arrays.asList("text/html");
+  public static final List<String> PDF_CONTENT_TYPES = Arrays.asList("application/pdf");
   public static final List<String> DOCUMENT_CONTENT_TYPES = Arrays.asList("application/rtf", "application/msword",
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
           "application/vnd.oasis.opendocument.text");
@@ -51,7 +52,8 @@ public class QualityControlService {
   }
 
   private boolean isSearchableContentType(Document document) {
-    return TEXT_CONTENT_TYPES.contains(document.getContentType())
+    return HTML_CONTENT_TYPES.contains(document.getContentType())
+            || PDF_CONTENT_TYPES.contains(document.getContentType())
             || PRESENTATION_CONTENT_TYPES.contains(document.getContentType())
             || SPREADSHEET_CONTENT_TYPES.contains(document.getContentType())
             || DOCUMENT_CONTENT_TYPES.contains(document.getContentType());

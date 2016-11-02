@@ -16,9 +16,10 @@
 package bamboo.trove.workers;
 
 import static bamboo.trove.services.QualityControlService.DOCUMENT_CONTENT_TYPES;
+import static bamboo.trove.services.QualityControlService.HTML_CONTENT_TYPES;
+import static bamboo.trove.services.QualityControlService.PDF_CONTENT_TYPES;
 import static bamboo.trove.services.QualityControlService.PRESENTATION_CONTENT_TYPES;
 import static bamboo.trove.services.QualityControlService.SPREADSHEET_CONTENT_TYPES;
-import static bamboo.trove.services.QualityControlService.TEXT_CONTENT_TYPES;
 
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.ContentThreshold;
@@ -161,11 +162,14 @@ public class TransformWorker implements Runnable {
     SearchCategory category = SearchCategory.NONE;
     String type = document.getBambooDocument().getContentType();
 
-    if (TEXT_CONTENT_TYPES.contains(type)) {
-      category = SearchCategory.TEXT;
-    }
     if (DOCUMENT_CONTENT_TYPES.contains(type)) {
       category = SearchCategory.DOCUMENT;
+    }
+    if (HTML_CONTENT_TYPES.contains(type)) {
+      category = SearchCategory.HTML;
+    }
+    if (PDF_CONTENT_TYPES.contains(type)) {
+      category = SearchCategory.PDF;
     }
     if (PRESENTATION_CONTENT_TYPES.contains(type)) {
       category = SearchCategory.PRESENTATION;
