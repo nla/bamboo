@@ -22,6 +22,7 @@ public enum SolrEnum {
   DATE("date"),
   DELIVERABLE("deliverable"),
   DISCOVERABLE("discoverable"),
+  FILENAME("filename"),
   FULL_TEXT("fulltext"),
   ID("id"),
   LAST_INDEXED("lastIndexed"),

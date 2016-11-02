@@ -24,6 +24,7 @@ import static bamboo.trove.services.QualityControlService.SPREADSHEET_CONTENT_TY
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.FilenameFinder;
 import bamboo.trove.common.IndexerDocument;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
@@ -106,6 +107,10 @@ public class TransformWorker implements Runnable {
     solr.addField(SolrEnum.ID.toString(), document.getDocId());
     // Remove the protocol for Solr. Search clients get fuzzy matches
     solr.addField(Urls.removeScheme(SolrEnum.URL.toString()), document.getBambooDocument().getUrl());
+    String filename = FilenameFinder.getFilename(document.getBambooDocument().getUrl());
+    if (filename != null) {
+      solr.addField(SolrEnum.FILENAME.toString(), filename);
+    }
     solr.addField(SolrEnum.DATE.toString(), document.getBambooDocument().getDate());
     solr.addField(SolrEnum.TITLE.toString(), document.getBambooDocument().getTitle());
     solr.addField(SolrEnum.CONTENT_TYPE.toString(), document.getBambooDocument().getContentType());
@@ -158,7 +163,8 @@ public class TransformWorker implements Runnable {
       text = text.trim();
 
       if (!"".equals(text)) {
-        solr.addField(SolrEnum.FULL_TEXT.toString(), text);
+        // Disabled for the next 'metadata only' run
+        //solr.addField(SolrEnum.FULL_TEXT.toString(), text);
       }
     }
   }
