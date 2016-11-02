@@ -28,6 +28,7 @@ public enum SolrEnum {
   RULE("ruleId"),
   SEARCH_CATEGORY("searchCategory"),
   SITE("site"),
+  SITE_REVERSED("siteReversed"),
   STATUS_CODE("statusCode"),
   TEXT_ERROR("textError"),
   TITLE("title"),

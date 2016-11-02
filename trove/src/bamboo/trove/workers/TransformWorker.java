@@ -109,6 +109,9 @@ public class TransformWorker implements Runnable {
     solr.addField(SolrEnum.CONTENT_TYPE.toString(), document.getBambooDocument().getContentType());
     solr.addField(SolrEnum.STATUS_CODE.toString(), document.getBambooDocument().getStatusCode());
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
+    // We reverse the site for efficient sub-domain wildcarding in Solr
+    solr.addField(SolrEnum.SITE_REVERSED.toString(),
+            (new StringBuffer(document.getBambooDocument().getSite())).reverse().toString());
   }
 
   private void restrictions(SolrInputDocument solr, IndexerDocument document) {
