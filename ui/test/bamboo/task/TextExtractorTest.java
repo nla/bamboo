@@ -40,4 +40,14 @@ public class TextExtractorTest {
                 "This is an example.\n", doc.getText());
         assertEquals("Metadata title", doc.getTitle());
     }
+
+    @Test
+    public void textExtractBadTitle() throws IOException, TextExtractionException {
+        Document doc = new Document();
+        try (InputStream stream = getClass().getResourceAsStream("badtitle.html")) {
+            TextExtractor.extractTika(stream, doc);
+        }
+        assertEquals("Ministerial Decision and Recommendations: New South Wales Ocean Trawl Fishery", doc.getTitle());
+        assertEquals("Test", doc.getText().trim());
+    }
 }

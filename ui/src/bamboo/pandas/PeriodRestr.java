@@ -4,6 +4,7 @@ public class PeriodRestr {
     private int periodMultiplier;
     private int periodTypeId;
     private long titleId;
+    private int agencyAreaId;
 
     public PeriodRestr() {}
 
@@ -46,5 +47,13 @@ public class PeriodRestr {
             default:
                 throw new IllegalArgumentException("unknown period_type_id " + periodTypeId);
         }
+    }
+
+    public int getAgencyAreaId() {
+        return agencyAreaId;
+    }
+
+    public void setAgencyAreaId(int agencyAreaId) {
+        this.agencyAreaId = agencyAreaId;
     }
 }
