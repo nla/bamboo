@@ -27,6 +27,7 @@ import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.IndexerDocument;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
+import bamboo.util.Urls;
 import com.codahale.metrics.Timer;
 import org.apache.solr.common.SolrInputDocument;
 import org.slf4j.Logger;
@@ -103,7 +104,8 @@ public class TransformWorker implements Runnable {
 
   private void basicMetadata(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.ID.toString(), document.getDocId());
-    solr.addField(SolrEnum.URL.toString(), document.getBambooDocument().getUrl());
+    // Remove the protocol for Solr. Search clients get fuzzy matches
+    solr.addField(Urls.removeScheme(SolrEnum.URL.toString()), document.getBambooDocument().getUrl());
     solr.addField(SolrEnum.DATE.toString(), document.getBambooDocument().getDate());
     solr.addField(SolrEnum.TITLE.toString(), document.getBambooDocument().getTitle());
     solr.addField(SolrEnum.CONTENT_TYPE.toString(), document.getBambooDocument().getContentType());
