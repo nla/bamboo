@@ -170,7 +170,8 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     MetricRegistry metrics = SharedMetricRegistries.getOrCreate(filteringCoordinationService.getMetricsRegistryName());
     Gauge<Long> gaugeQueue = () -> (long) (warcTracking.size() + warcIdQueue.size());
     metrics.register("queueLength", gaugeQueue);
-    Gauge<Long> gaugeHeap = () -> Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory();
+    Gauge<Long> gaugeHeap = () -> (Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory())
+            + Runtime.getRuntime().freeMemory();
     metrics.register("freeHeap", gaugeHeap);
     // These don't change at runtime, but we'll use the same plumbing to get them to the UI
     Gauge<Long> gaugeQueueLimit = () -> (long) queueLimit;
@@ -391,7 +392,8 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     }
 
     // Saturated heap? But only if the queue is large as well
-    long unusedHeap = Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory();
+    long unusedHeap = (Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory())
+            + Runtime.getRuntime().freeMemory();
     if (queueSize >= 10 && unusedHeap < freeHeapLimit) {
       Thread.sleep(1000);
       return;
