@@ -106,7 +106,13 @@ public class TransformWorker implements Runnable {
   private void basicMetadata(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.ID.toString(), document.getDocId());
     // Remove the protocol for Solr. Search clients get fuzzy matches
-    solr.addField(SolrEnum.URL.toString(), Urls.removeScheme(document.getBambooDocument().getUrl()));
+    String url = document.getBambooDocument().getUrl();
+    String strippedUrl = Urls.removeScheme(url);
+    // But we need to store the protocol (if there was one) to render an accurate delivery URL.
+    if (!url.equals(strippedUrl)) {
+      solr.addField(SolrEnum.PROTOCOL.toString(), url.substring(0, url.indexOf(":")));
+    }
+    solr.addField(SolrEnum.URL.toString(), strippedUrl);
     String filename = FilenameFinder.getFilename(document.getBambooDocument().getUrl());
     if (filename != null) {
       solr.addField(SolrEnum.FILENAME.toString(), filename);

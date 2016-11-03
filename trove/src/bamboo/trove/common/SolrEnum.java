@@ -26,6 +26,7 @@ public enum SolrEnum {
   FULL_TEXT("fulltext"),
   ID("id"),
   LAST_INDEXED("lastIndexed"),
+  PROTOCOL("protocol"),
   RULE("ruleId"),
   SEARCH_CATEGORY("searchCategory"),
   SITE("site"),
