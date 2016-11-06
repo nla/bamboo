@@ -469,18 +469,29 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
       if (warc == null) {
         throw new IllegalStateException("Warc ID " + key + " is null in the tracking map. This is a logic bug");
       }
-      // State = Healthy
-      if (warc.finishedWithoutError()) {
-        completedWarcs.add(key);
-        dao.removeError(key);
-        warcsProcessed++;
-        if (key > progressInBatchId) {
-          progressInBatchId = key;
+
+      // Branch 1 ... the work is 'finished'
+      if (warc.finished()) {
+        // State = Healthy
+        if (warc.finishedWithoutError()) {
+          completedWarcs.add(key);
+          dao.removeError(key);
+          warcsProcessed++;
+          if (key > progressInBatchId) {
+            progressInBatchId = key;
+          }
+
+        // State = Error
+        } else {
+          if (trackError(warc)) {
+            completedWarcs.add(key);
+          }
         }
 
+      // Branch 2 ... why has it not finished?
       } else {
         // State = Error
-        if (warc.finished() || warc.isLoadingFailed()) {
+        if (warc.isLoadingFailed()) {
           if (trackError(warc)) {
             completedWarcs.add(key);
           }
