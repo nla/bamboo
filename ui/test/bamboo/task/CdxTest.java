@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -17,8 +18,9 @@ public class CdxTest {
     @Test
     public void test() throws IOException {
         List<Cdx.CdxRecord> records;
-        try (ArchiveReader warc = ArchiveReaderFactory.get(getClass().getResource("example.warc.gz"))) {
-            records = Cdx.records(warc, "example.warc.gz").collect(Collectors.toList());
+        URL resource = getClass().getResource("example.warc.gz");
+        try (ArchiveReader warc = ArchiveReaderFactory.get(resource)) {
+            records = Cdx.records(warc, "example.warc.gz", resource.openConnection().getContentLength()).collect(Collectors.toList());
         }
 
         assertEquals(2, records.size());
@@ -28,7 +30,7 @@ public class CdxTest {
         assertEquals(200, record.status);
         assertEquals("20161116220655", record.date);
         assertEquals("http://www-test.nla.gov.au/xinq/presentations/abstract.html", record.url);
-        assertEquals(5654, record.contentLength);
+        assertEquals(2756, record.compressedLength);
         assertEquals(339, record.offset);
         assertEquals("387f5ef1511fe47bf91ca9fdcf6c41511fc3e480", record.digest);
     }
