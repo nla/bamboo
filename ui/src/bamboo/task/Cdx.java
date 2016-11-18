@@ -2,6 +2,8 @@ package bamboo.task;
 
 import bamboo.util.Urls;
 import com.codepoetics.protonpack.StreamUtils;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.PeekingIterator;
 import org.apache.commons.lang.StringUtils;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
@@ -11,6 +13,7 @@ import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -19,13 +22,13 @@ import java.util.stream.Stream;
 
 public class Cdx {
 
-    public static Stream<CdxRecord> records(ArchiveReader warcReader, String filename) {
-        Stream<CdxRecord> stream = Stream.generate(new CdxRecordProducer(warcReader, filename)::next);
+    public static Stream<CdxRecord> records(ArchiveReader warcReader, String filename, long warcLength) {
+        Stream<CdxRecord> stream = Stream.generate(new CdxRecordProducer(warcReader, filename, warcLength)::next);
         return StreamUtils.takeWhile(stream, (record) -> record != null);
     }
 
     public static void writeCdx(Path warc, String filename, Writer out) throws IOException {
-        records(WarcUtils.open(warc), filename).forEach(record -> {
+        records(WarcUtils.open(warc), filename, Files.size(warc)).forEach(record -> {
             try {
                 out.write(record.toCdxLine() + "\n");
             } catch (IOException e) {
@@ -38,14 +41,16 @@ public class Cdx {
         final static Pattern PANDORA_URL_MAP = Pattern.compile("^http://pandora.nla.gov.au/pan/([0-9]+/[0-9-]+)/url.map$");
 
         private final ArchiveReader warc;
-        private final Iterator<ArchiveRecord> iterator;
+        private final PeekingIterator<ArchiveRecord> iterator;
         private final String filename;
+        private final long warcLength;
         private Iterator<Alias> urlMapIterator = null;
 
-        CdxRecordProducer(ArchiveReader warc, String filename) {
+        CdxRecordProducer(ArchiveReader warc, String filename, long warcLength) {
             this.warc = warc;
-            iterator = warc.iterator();
+            iterator = Iterators.peekingIterator(warc.iterator());
             this.filename = filename;
+            this.warcLength = warcLength;
         }
 
         public CdxRecord next() {
@@ -67,6 +72,8 @@ public class Cdx {
 
                     Capture capture = Capture.parseWarcRecord(filename, record);
                     if (capture != null) {
+                        long endOfRecord = iterator.hasNext() ? iterator.peek().getHeader().getOffset() : warcLength;
+                        capture.compressedLength = endOfRecord - capture.offset;
                         return capture;
                     }
                 }
@@ -186,7 +193,7 @@ public class Cdx {
         public String location;
         public String date;
         public String url;
-        public long contentLength;
+        public long compressedLength;
         public long offset;
         public String filename;
         public String digest;
@@ -194,7 +201,7 @@ public class Cdx {
         public String toCdxLine() {
             return String.join(" ", "-", date, url, optional(contentType),
                     status == -1 ? "-" : Integer.toString(status), optional(digest),
-                    optional(location), "-", Long.toString(contentLength),
+                    optional(location), "-", Long.toString(compressedLength),
                     Long.toString(offset), filename);
         }
 
@@ -228,10 +235,10 @@ public class Cdx {
 
             capture.url = WarcUtils.getCleanUrl(header);
             capture.date = WarcUtils.getArcDate(header);
-            capture.contentLength = header.getContentLength();
             capture.offset = header.getOffset();
             capture.filename = filename;
             capture.digest = WarcUtils.getOrCalcDigest(record);
+
             return capture;
         }
     }

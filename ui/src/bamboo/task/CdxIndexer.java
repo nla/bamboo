@@ -293,7 +293,7 @@ public class CdxIndexer implements Runnable {
     private static RecordStats writeCdx(Path warc, String filename, List<CdxBuffer> buffers) throws IOException {
         RecordStats stats = new RecordStats();
         try (ArchiveReader reader = WarcUtils.open(warc)) {
-            Cdx.records(reader, filename).forEach(record -> {
+            Cdx.records(reader, filename, Files.size(warc)).forEach(record -> {
                 if (record instanceof Cdx.Alias) {
                     Cdx.Alias alias = (Cdx.Alias) record;
                     for (CdxBuffer buffer : buffers) {
@@ -307,10 +307,10 @@ public class CdxIndexer implements Runnable {
                     } catch (DateTimeParseException e) {
                         return; // skip record if we can't get a sane time
                     }
-                    stats.update(capture.contentLength, time);
+                    stats.update(capture.compressedLength, time);
                     String surt = toSchemalessSURT(capture.url);
                     for (CdxBuffer buffer : buffers) {
-                        buffer.append(surt, capture.contentLength, capture.toCdxLine(), time);
+                        buffer.append(surt, capture.compressedLength, capture.toCdxLine(), time);
                     }
                 }
             });
