@@ -76,6 +76,7 @@ public class TextExtractor {
         doc.setWarcOffset(warcHeader.getOffset());
 
         try {
+            doc.setHost(new URL(url).getHost());
             doc.setSite(topPrivateDomain(url));
         } catch (MalformedURLException e) {
             throw new TextExtractionException(e);

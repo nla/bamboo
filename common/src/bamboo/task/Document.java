@@ -23,6 +23,7 @@ public class Document {
     private String contentSha1;
     private String site;
     private long warcOffset;
+    private String host;
 
     public String getUrl() {
         return url;
@@ -118,5 +119,13 @@ public class Document {
 
     public void setTextError(String textError) {
         this.textError = textError;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
     }
 }
