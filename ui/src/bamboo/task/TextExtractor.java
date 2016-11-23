@@ -142,9 +142,25 @@ public class TextExtractor {
             String text = tika.parseToString(record, metadata, maxDocSize);
             doc.setText(text);
             doc.setTitle(metadata.get(TikaCoreProperties.TITLE));
+            doc.setDescription(getAny(metadata, "description", "DC.description", "DC.Description"));
+            doc.setKeywords(getAny(metadata, "keywords", "DC.keywords", "DC.Keywords"));
+            doc.setPublisher(getAny(metadata, "publisher", "DC.publisher", "DC.Publisher"));
+            doc.setCreator(getAny(metadata, "creator", "DC.creator", "DC.Creator"));
+            doc.setContributor(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor"));
+            doc.setCoverage(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage"));
         } catch (IOException | TikaException e) {
             throw new TextExtractionException("Tika failed", e);
         }
+    }
+
+    public static String getAny(Metadata metadata, String... keys) {
+        for (String key : keys) {
+            String value = metadata.get(key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private void extractHtml(ArchiveRecord record, Document doc) throws TextExtractionException {
@@ -228,6 +244,10 @@ public class TextExtractor {
             if (title != null) {
                 doc.setTitle(title);
             }
+
+            doc.setKeywords(pdf.getDocumentInformation().getKeywords());
+            doc.setPublisher(pdf.getDocumentInformation().getAuthor());
+            doc.setCoverage(pdf.getDocumentInformation().getSubject());
 
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.writeText(pdf, new TruncatingWriter(sw, maxDocSize, System.currentTimeMillis() + timeLimitMillis));
