@@ -142,12 +142,12 @@ public class TextExtractor {
             String text = tika.parseToString(record, metadata, maxDocSize);
             doc.setText(text);
             doc.setTitle(metadata.get(TikaCoreProperties.TITLE));
-            doc.setDescription(getAny(metadata, "description", "DC.description", "DC.Description"));
-            doc.setKeywords(getAny(metadata, "keywords", "DC.keywords", "DC.Keywords"));
-            doc.setPublisher(getAny(metadata, "publisher", "DC.publisher", "DC.Publisher"));
-            doc.setCreator(getAny(metadata, "creator", "DC.creator", "DC.Creator"));
-            doc.setContributor(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor"));
-            doc.setCoverage(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage"));
+            doc.setDescription(getAny(metadata, "description", "DC.description", "DC.Description", "dcterms.description"));
+            doc.setKeywords(getAny(metadata, "keywords", "DC.keywords", "DC.Keywords", "dcterms.keywords"));
+            doc.setPublisher(getAny(metadata, "publisher", "DC.publisher", "DC.Publisher", "dcterms.publisher"));
+            doc.setCreator(getAny(metadata, "creator", "DC.creator", "DC.Creator", "dcterms.creator"));
+            doc.setContributor(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor", "dcterms.contributor"));
+            doc.setCoverage(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage"));
         } catch (IOException | TikaException e) {
             throw new TextExtractionException("Tika failed", e);
         }
