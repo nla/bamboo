@@ -97,7 +97,11 @@ public class TextExtractor {
         try {
             switch (doc.getContentType()) {
                 case "text/html":
-                    extractHtml(record, doc);
+                    if (useTika) {
+                        extractTika(record, doc);
+                    } else {
+                        extractHtml(record, doc);
+                    }
                     break;
                 case "application/pdf":
                     if (usePdfBox) {
