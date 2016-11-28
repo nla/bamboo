@@ -218,6 +218,7 @@ public class Cdx {
             Capture capture = new Capture();
 
             if (WarcUtils.isResponseRecord(header)) {
+                capture.url = WarcUtils.getCleanUrl(header);
                 HttpHeader http = HttpHeader.parse(record, capture.url);
                 if (http == null) {
                     return null;
@@ -226,6 +227,7 @@ public class Cdx {
                 capture.status = http.status;
                 capture.location = http.location;
             } else if (WarcUtils.isResourceRecord(header)) {
+                capture.url = WarcUtils.getCleanUrl(header);
                 capture.contentType = header.getMimetype();
                 capture.status = 200;
                 capture.location = null;
@@ -233,7 +235,6 @@ public class Cdx {
                 return null;
             }
 
-            capture.url = WarcUtils.getCleanUrl(header);
             capture.date = WarcUtils.getArcDate(header);
             capture.offset = header.getOffset();
             capture.filename = filename;

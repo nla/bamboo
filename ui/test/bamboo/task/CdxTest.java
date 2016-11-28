@@ -36,6 +36,28 @@ public class CdxTest {
     }
 
     @Test
+    public void test2() throws IOException {
+        List<Cdx.CdxRecord> records;
+        URL resource = getClass().getResource("notfound.warc.gz");
+        try (ArchiveReader warc = ArchiveReaderFactory.get(resource)) {
+            records = Cdx.records(warc, "notfound.warc.gz", resource.openConnection().getContentLength()).collect(Collectors.toList());
+        }
+
+        assertEquals(3, records.size());
+
+        Cdx.Capture record = (Cdx.Capture)records.get(0);
+        assertEquals("text/html", record.contentType);
+        assertEquals(302, record.status);
+        assertEquals("20161128015313", record.date);
+        assertEquals("http://nla.gov.au/foobar", record.url);
+        assertEquals(665, record.compressedLength);
+        assertEquals(830, record.offset);
+        assertEquals("WNT4SKWUNA5F4Q3HYKF5AMY2M5ZIPBYW", record.digest);
+        assertEquals("http://www.nla.gov.au/foobar", record.location);
+    }
+
+
+    @Test
     public void testParseUrlMapLinePandas2() throws IOException {
         List<Cdx.Alias> aliases = Cdx.parseUrlMap(new ByteArrayInputStream("www.example.com/newsletters/2003/Jun/27%20Jun03-Newsletter16.pdf^^/14137/20050225/www.example.com/newsletters/2003/Jun/27".getBytes(StandardCharsets.US_ASCII)), "14137/20050225-0000");
         assertEquals("http://www.example.com/newsletters/2003/Jun/27%20Jun03-Newsletter16.pdf", aliases.get(0).target);
