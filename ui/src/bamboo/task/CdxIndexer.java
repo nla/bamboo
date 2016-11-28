@@ -65,6 +65,9 @@ public class CdxIndexer implements Runnable {
 
     public void indexWarcs(List<Warc> candidates) {
         int threads = Runtime.getRuntime().availableProcessors();
+        if (System.getenv("CDX_INDEXER_THREADS") != null) {
+            threads = Integer.parseInt(System.getenv("CDX_INDEXER_THREADS"));
+        }
         ExecutorService threadPool = Executors.newFixedThreadPool(threads);
         try {
             for (Warc warc : candidates) {
