@@ -28,6 +28,8 @@ public class TextExtractorTest {
         assertEquals("The title of a test PDF" + System.lineSeparator()  +
                 "This is a test PDF file. It was created by LibreOffice." + System.lineSeparator(), doc.getText());
         assertEquals("The title field in the metadata", doc.getTitle());
+        assertEquals("The keywords field in the metadata", doc.getKeywords());
+        assertEquals("The subject field in the metadata", doc.getCoverage());
     }
 
     @Test
@@ -49,5 +51,7 @@ public class TextExtractorTest {
         }
         assertEquals("Ministerial Decision and Recommendations: New South Wales Ocean Trawl Fishery", doc.getTitle());
         assertEquals("Test", doc.getText().trim());
+        assertEquals("this is a description", doc.getDescription());
+        assertEquals("this is keywords", doc.getKeywords());
     }
 }

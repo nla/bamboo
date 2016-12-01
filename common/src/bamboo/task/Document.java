@@ -23,6 +23,13 @@ public class Document {
     private String contentSha1;
     private String site;
     private long warcOffset;
+    private String host;
+    private String description;
+    private String keywords;
+    private String publisher;
+    private String creator;
+    private String contributor;
+    private String coverage;
 
     public String getUrl() {
         return url;
@@ -118,5 +125,61 @@ public class Document {
 
     public void setTextError(String textError) {
         this.textError = textError;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setKeywords(String keywords) {
+        this.keywords = keywords;
+    }
+
+    public String getKeywords() {
+        return keywords;
+    }
+
+    public void setPublisher(String publisher) {
+        this.publisher = publisher;
+    }
+
+    public String getPublisher() {
+        return publisher;
+    }
+
+    public void setCreator(String creator) {
+        this.creator = creator;
+    }
+
+    public String getCreator() {
+        return creator;
+    }
+
+    public void setContributor(String contributor) {
+        this.contributor = contributor;
+    }
+
+    public String getContributor() {
+        return contributor;
+    }
+
+    public void setCoverage(String coverage) {
+        this.coverage = coverage;
+    }
+
+    public String getCoverage() {
+        return coverage;
     }
 }

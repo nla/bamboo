@@ -49,3 +49,7 @@ For example:
 
 Bamboo will watch for newly created *.warc.gz.open files, index them as new records are added and then move the WARC
 into crawl 42's archive directory when the file is renamed to *.warc.gz.
+
+### Tuning
+
+    CDX_INDEXER_THREADS=4

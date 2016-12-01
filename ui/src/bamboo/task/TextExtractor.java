@@ -76,6 +76,7 @@ public class TextExtractor {
         doc.setWarcOffset(warcHeader.getOffset());
 
         try {
+            doc.setHost(new URL(url).getHost());
             doc.setSite(topPrivateDomain(url));
         } catch (MalformedURLException e) {
             throw new TextExtractionException(e);
@@ -96,7 +97,11 @@ public class TextExtractor {
         try {
             switch (doc.getContentType()) {
                 case "text/html":
-                    extractHtml(record, doc);
+                    if (useTika) {
+                        extractTika(record, doc);
+                    } else {
+                        extractHtml(record, doc);
+                    }
                     break;
                 case "application/pdf":
                     if (usePdfBox) {
@@ -141,9 +146,25 @@ public class TextExtractor {
             String text = tika.parseToString(record, metadata, maxDocSize);
             doc.setText(text);
             doc.setTitle(metadata.get(TikaCoreProperties.TITLE));
+            doc.setDescription(getAny(metadata, "description", "DC.description", "DC.Description", "dcterms.description"));
+            doc.setKeywords(getAny(metadata, "keywords", "DC.keywords", "DC.Keywords", "dcterms.keywords"));
+            doc.setPublisher(getAny(metadata, "publisher", "DC.publisher", "DC.Publisher", "dcterms.publisher"));
+            doc.setCreator(getAny(metadata, "creator", "DC.creator", "DC.Creator", "dcterms.creator"));
+            doc.setContributor(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor", "dcterms.contributor"));
+            doc.setCoverage(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage"));
         } catch (IOException | TikaException e) {
             throw new TextExtractionException("Tika failed", e);
         }
+    }
+
+    public static String getAny(Metadata metadata, String... keys) {
+        for (String key : keys) {
+            String value = metadata.get(key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private void extractHtml(ArchiveRecord record, Document doc) throws TextExtractionException {
@@ -227,6 +248,10 @@ public class TextExtractor {
             if (title != null) {
                 doc.setTitle(title);
             }
+
+            doc.setKeywords(pdf.getDocumentInformation().getKeywords());
+            doc.setPublisher(pdf.getDocumentInformation().getAuthor());
+            doc.setCoverage(pdf.getDocumentInformation().getSubject());
 
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.writeText(pdf, new TruncatingWriter(sw, maxDocSize, System.currentTimeMillis() + timeLimitMillis));
