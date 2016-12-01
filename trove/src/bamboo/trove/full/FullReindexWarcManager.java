@@ -15,27 +15,6 @@
  */
 package bamboo.trove.full;
 
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentSkipListMap;
-import javax.annotation.PostConstruct;
-
 import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.task.WarcToIndex;
@@ -61,11 +40,24 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.sql.Timestamp;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentSkipListMap;
+
 @Service
 public class FullReindexWarcManager extends BaseWarcDomainManager {
   private static final Logger log = LoggerFactory.getLogger(FullReindexWarcManager.class);
   private static final int POLL_INTERVAL_SECONDS = 1;
-  private static final long TIMEOUT_ERROR_RETRY_MS = 15 * 60 * 1000; // 15 mins
+  private static final int ERROR_LIMIT = 0; // 5 is normal in prod. 0 is fastest but discards errors very aggressively
+  private static final long TIMEOUT_ERROR_RETRY_MS = 5 * 60 * 1000; // 5 mins
   private static final long TIMEOUT_STALE_WARC_MS = 10 * 60 * 1000; // 10 mins
 
 	@Autowired
@@ -448,7 +440,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     Pair<Timestamp, Integer> errorData = dao.checkError(warc.getWarcId());
     warc.trackedError(errorData);
 
-    if (errorData.getSecond() < 5) {
+    if (errorData.getSecond() < ERROR_LIMIT) {
       // Schedule for a retry
       retryErrors.put(warc.getWarcId(), errorData);
       return false;
