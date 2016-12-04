@@ -15,12 +15,6 @@
  */
 package bamboo.trove.workers;
 
-import static bamboo.trove.services.QualityControlService.DOCUMENT_CONTENT_TYPES;
-import static bamboo.trove.services.QualityControlService.HTML_CONTENT_TYPES;
-import static bamboo.trove.services.QualityControlService.PDF_CONTENT_TYPES;
-import static bamboo.trove.services.QualityControlService.PRESENTATION_CONTENT_TYPES;
-import static bamboo.trove.services.QualityControlService.SPREADSHEET_CONTENT_TYPES;
-
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
@@ -33,6 +27,8 @@ import com.codahale.metrics.Timer;
 import org.apache.solr.common.SolrInputDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static bamboo.trove.services.QualityControlService.*;
 
 public class TransformWorker implements Runnable {
   private static Logger log = LoggerFactory.getLogger(TransformWorker.class);
@@ -50,7 +46,7 @@ public class TransformWorker implements Runnable {
     while (loop()) {}
   }
 
-  public boolean loop() {
+  private boolean loop() {
     try {
       findJob();
       doJob();
@@ -122,9 +118,15 @@ public class TransformWorker implements Runnable {
     solr.addField(SolrEnum.CONTENT_TYPE.toString(), document.getBambooDocument().getContentType());
     solr.addField(SolrEnum.STATUS_CODE.toString(), document.getBambooDocument().getStatusCode());
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
-    // We reverse the site for efficient sub-domain wildcarding in Solr
-    solr.addField(SolrEnum.SITE_REVERSED.toString(),
-            (new StringBuffer(document.getBambooDocument().getSite())).reverse().toString());
+    // We reverse the hostname (which is site + sub-domain) for efficient sub-domain wildcarding in Solr
+    solr.addField(SolrEnum.HOST_REVERSED.toString(),
+            (new StringBuffer(document.getBambooDocument().getHost())).reverse().toString());
+
+    // Optional metadata we _might_ get from html
+    String description = document.getBambooDocument().getDescription();
+    if (description != null && !"".equals(description)) {
+      solr.addField(SolrEnum.DESCRIPTION.toString(), description);
+    }
   }
 
   private void restrictions(SolrInputDocument solr, IndexerDocument document) {
@@ -157,20 +159,19 @@ public class TransformWorker implements Runnable {
 
     searchCategory(solr, document);
 
-    if (ContentThreshold.DOCUMENT_START_ONLY.equals(document.getTheshold())) {
+    //if (ContentThreshold.DOCUMENT_START_ONLY.equals(document.getTheshold())) {
       // TODO: Full text == First X words
-    }
-    if (ContentThreshold.UNIQUE_TERMS_ONLY.equals(document.getTheshold())) {
+    //}
+    //if (ContentThreshold.UNIQUE_TERMS_ONLY.equals(document.getTheshold())) {
       // TODO: Full text == Only unique terms
-    }
+    //}
     if (ContentThreshold.FULL_TEXT.equals(document.getTheshold())) {
       String text = document.getBambooDocument().getText();
       if (text == null) return;
       text = text.trim();
 
       if (!"".equals(text)) {
-        // Disabled for the next 'metadata only' run
-        //solr.addField(SolrEnum.FULL_TEXT.toString(), text);
+        solr.addField(SolrEnum.FULL_TEXT.toString(), text);
       }
     }
   }

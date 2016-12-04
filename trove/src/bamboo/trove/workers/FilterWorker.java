@@ -40,7 +40,7 @@ public class FilterWorker implements Runnable {
     while (loop()) {}
   }
 
-  public boolean loop() {
+  private boolean loop() {
     try {
       findJob();
       doJob();

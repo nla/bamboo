@@ -51,7 +51,7 @@ public class IndexerWorker implements Runnable {
     while (loop()) {}
   }
 
-  public boolean loop() {
+  private boolean loop() {
     try {
       findJob();
       doJob();
