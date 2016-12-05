@@ -15,17 +15,18 @@
  */
 package bamboo.trove.rule;
 
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.TimeZone;
-
-import javax.annotation.PostConstruct;
-
+import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
+import au.gov.nla.trove.indexer.api.EndPointDomainManager;
+import au.gov.nla.trove.indexer.api.WorkProcessor;
+import bamboo.trove.common.BaseWarcDomainManager;
+import bamboo.trove.common.DateRange;
+import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.LastRun;
+import bamboo.trove.common.Rule;
+import bamboo.trove.common.SolrEnum;
+import bamboo.trove.services.BambooRestrictionService;
+import bamboo.trove.services.FilteringCoordinationService;
+import com.codahale.metrics.Timer;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrQuery.SortClause;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -42,19 +43,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.stereotype.Service;
 
-import com.codahale.metrics.Timer;
-
-import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
-import au.gov.nla.trove.indexer.api.EndPointDomainManager;
-import au.gov.nla.trove.indexer.api.WorkProcessor;
-import bamboo.trove.common.BaseWarcDomainManager;
-import bamboo.trove.common.DateRange;
-import bamboo.trove.common.DocumentStatus;
-import bamboo.trove.common.LastRun;
-import bamboo.trove.common.Rule;
-import bamboo.trove.common.SolrEnum;
-import bamboo.trove.services.BambooRestrictionService;
-import bamboo.trove.services.FilteringCoordinationService;
+import javax.annotation.PostConstruct;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.TimeZone;
 
 @Service
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker{
@@ -745,7 +742,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 				}
 			}
 			log.info("Scheduler start Rule Check.");
-			manager.startProcessing();
+      // TODO - Renable this after the next run
+			//manager.startProcessing();
 		}
 	}
 }
