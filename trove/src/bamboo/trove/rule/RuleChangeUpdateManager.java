@@ -742,7 +742,9 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 				}
 			}
 			log.info("Scheduler start Rule Check.");
-      // TODO - Renable this after the next run
+      // TODO - Renable this after the next run. Note, there have also been changes to DISCOVERABLE/DELIVERABLE
+      // in the interim because we no longer add lucene segment data when 'false' is the desired value. Writes
+      // originating elsewhere need to mirror this and reads need to search for 'NOT true' when 'false' is desired.
 			//manager.startProcessing();
 		}
 	}

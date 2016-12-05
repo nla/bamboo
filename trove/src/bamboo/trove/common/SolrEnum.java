@@ -18,6 +18,7 @@ package bamboo.trove.common;
 public enum SolrEnum {
   // Keeping them in alphabetical order just
   // to help readability as the schema grows
+  AU_GOV("auGov"),
   CONTENT_TYPE("contentType"),
   DATE("date"),
   DELIVERABLE("deliverable"),

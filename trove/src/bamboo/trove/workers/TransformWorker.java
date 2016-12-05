@@ -121,6 +121,10 @@ public class TransformWorker implements Runnable {
     // We reverse the hostname (which is site + sub-domain) for efficient sub-domain wildcarding in Solr
     solr.addField(SolrEnum.HOST_REVERSED.toString(),
             (new StringBuffer(document.getBambooDocument().getHost())).reverse().toString());
+    // If it is an AU gov website we index this
+    if (document.getBambooDocument().getSite().endsWith(".gov.au")) {
+      solr.addField(SolrEnum.AU_GOV.toString(), true);
+    }
 
     // Optional metadata we _might_ get from html
     String description = document.getBambooDocument().getDescription();
@@ -131,17 +135,18 @@ public class TransformWorker implements Runnable {
 
   private void restrictions(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.RULE.toString(), document.getRuleId());
-    if (DocumentStatus.RESTRICTED_FOR_BOTH.equals(document.getStatus())) {
-      solr.addField(SolrEnum.DELIVERABLE.toString(), false);
-      solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
-    }
+    // Don't populate if false
+    //if (DocumentStatus.RESTRICTED_FOR_BOTH.equals(document.getStatus())) {
+      //solr.addField(SolrEnum.DELIVERABLE.toString(), false);
+      //solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
+    //}
     if (DocumentStatus.RESTRICTED_FOR_DELIVERY.equals(document.getStatus())) {
-      solr.addField(SolrEnum.DELIVERABLE.toString(), false);
+      //solr.addField(SolrEnum.DELIVERABLE.toString(), false);
       solr.addField(SolrEnum.DISCOVERABLE.toString(), true);
     }
     if (DocumentStatus.RESTRICTED_FOR_DISCOVERY.equals(document.getStatus())) {
       solr.addField(SolrEnum.DELIVERABLE.toString(), true);
-      solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
+      //solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
     }
   }
 
