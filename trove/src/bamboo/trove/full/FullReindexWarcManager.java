@@ -173,7 +173,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
     List<FullPersistenceDAO.OldError> oldErrors = dao.oldErrors();
     for (FullPersistenceDAO.OldError e : oldErrors) {
-      if (e.error.getSecond() < 5) {
+      if (e.error.getSecond() < ERROR_LIMIT) {
         WarcToIndex warc = new WarcToIndex();
         warc.setId(e.warcId);
         log.info("Old error for warc {} found. Marking for retry.", e.warcId);

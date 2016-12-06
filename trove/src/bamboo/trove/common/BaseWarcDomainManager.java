@@ -15,17 +15,6 @@
  */
 package bamboo.trove.common;
 
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.locks.ReentrantLock;
-
 import au.gov.nla.trove.indexer.api.BaseDomainManager;
 import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
@@ -48,6 +37,17 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Required;
+
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.ReentrantLock;
 
 public abstract class BaseWarcDomainManager extends BaseDomainManager implements Runnable {
   private static Logger log = LoggerFactory.getLogger(BaseWarcDomainManager.class);
@@ -283,10 +283,10 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     WarcProgressManager warc = newWarc(warcId, warcToIndex.getTrackedOffset(), warcToIndex.getUrlCount());
 
     try {
-      String urlString = bambooBaseUrl + "warcs/" + warcId + "/text";
+      String urlString = bambooBaseUrl + "warcs/" + warcId + "/text?tika=1&pdfbox=1";
       if (warcToIndex.isRetryAttempt()) {
         log.info("Forcing cache bypass for warc #{} because of error retry.", warcId);
-        urlString += "?bypass=1";
+        urlString += "&bypass=1";
       }
       URL url = new URL(urlString);
       connection = (HttpURLConnection) url.openConnection();
