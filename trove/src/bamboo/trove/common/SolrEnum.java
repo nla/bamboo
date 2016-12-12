@@ -21,6 +21,7 @@ public enum SolrEnum {
   AU_GOV("auGov"),
   CONTENT_TYPE("contentType"),
   DATE("date"),
+  DECADE("dv_decade"),
   DELIVERABLE("deliverable"),
   DESCRIPTION("description"),
   DISCOVERABLE("discoverable"),
@@ -36,7 +37,8 @@ public enum SolrEnum {
   STATUS_CODE("statusCode"),
   TEXT_ERROR("textError"),
   TITLE("title"),
-  URL("url");
+  URL("url"),
+  YEAR("dv_year");
 
   private String value;
   SolrEnum(String value) {

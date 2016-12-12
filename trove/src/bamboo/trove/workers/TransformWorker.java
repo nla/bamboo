@@ -28,6 +28,8 @@ import org.apache.solr.common.SolrInputDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.SimpleDateFormat;
+
 import static bamboo.trove.services.QualityControlService.*;
 
 public class TransformWorker implements Runnable {
@@ -99,6 +101,9 @@ public class TransformWorker implements Runnable {
     document.converted(solr);
   }
 
+  // Not SDF is not thread-safe, but this worker never allows
+  // more than one thread into this method per instantiated worker
+  private SimpleDateFormat dateYear = new SimpleDateFormat("yyyy");
   private void basicMetadata(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.ID.toString(), document.getDocId());
     // Remove the protocol for Solr. Search clients get fuzzy matches
@@ -113,7 +118,12 @@ public class TransformWorker implements Runnable {
     if (filename != null) {
       solr.addField(SolrEnum.FILENAME.toString(), filename);
     }
+
     solr.addField(SolrEnum.DATE.toString(), document.getBambooDocument().getDate());
+    String year = dateYear.format(document.getBambooDocument().getDate());
+    solr.addField(SolrEnum.DECADE.toString(), year.substring(0, 3));
+    solr.addField(SolrEnum.YEAR.toString(), year);
+
     solr.addField(SolrEnum.TITLE.toString(), document.getBambooDocument().getTitle());
     solr.addField(SolrEnum.CONTENT_TYPE.toString(), document.getBambooDocument().getContentType());
     solr.addField(SolrEnum.STATUS_CODE.toString(), document.getBambooDocument().getStatusCode());
