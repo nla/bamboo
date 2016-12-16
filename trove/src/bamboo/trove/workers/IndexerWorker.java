@@ -15,9 +15,9 @@
  */
 package bamboo.trove.workers;
 
-import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.ContentThreshold;
+import bamboo.trove.common.EndPointRotator;
 import bamboo.trove.common.IndexerDocument;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
@@ -27,14 +27,12 @@ import org.slf4j.LoggerFactory;
 public class IndexerWorker implements Runnable {
   private static Logger log = LoggerFactory.getLogger(IndexerWorker.class);
 
-  private EndPointDomainManager solrManager;
   private Timer timer;
   private Timer dqTimer;
   private IndexerDocument lastJob = null;
   private IndexerDocument thisJob = null;
 
-  public IndexerWorker(EndPointDomainManager solrManager, Timer timer) {
-    this.solrManager = solrManager;
+  public IndexerWorker(Timer timer) {
     this.timer = timer;
     // TODO: Remove dqTimer. it has no long term usefulness. It is just being used during development
     // to keep an eye on thread backlogs (or the possibility thereof) around the solr.add() method at
@@ -90,7 +88,7 @@ public class IndexerWorker implements Runnable {
         return;
       }
       // IndexerDocument implements AcknowledgeWorker so it will handle the timer.stop() and/or errors
-      solrManager.add(thisJob.getSolrDocument(), thisJob);
+      EndPointRotator.add(thisJob.getSolrDocument(), thisJob);
 
     } finally {
       ctx.stop();

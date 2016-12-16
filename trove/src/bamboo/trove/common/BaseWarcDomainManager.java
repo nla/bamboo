@@ -16,7 +16,6 @@
 package bamboo.trove.common;
 
 import au.gov.nla.trove.indexer.api.BaseDomainManager;
-import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.task.Document;
 import bamboo.trove.services.FilteringCoordinationService;
@@ -113,7 +112,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   // Trove indexer works. So here we want all domains to park and wait until after the 'full' domain has
   // started the shared worker pools.
   private static boolean imStarted = false;
-  protected static synchronized void startMe(EndPointDomainManager solr, FilteringCoordinationService filtering) {
+  protected static synchronized void startMe(FilteringCoordinationService filtering) {
     if (imStarted) {
       throw new IllegalStateException("You started me twice!");
     }
@@ -161,7 +160,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     // Indexing workers
     indexPool = new WorkProcessor(indexPoolLimit);
     for (int i = 0; i < indexPoolLimit; i++) {
-      indexPool.process(new IndexerWorker(solr, indexTimer));
+      indexPool.process(new IndexerWorker(indexTimer));
     }
 
     imStarted = true;

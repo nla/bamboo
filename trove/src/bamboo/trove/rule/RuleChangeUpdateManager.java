@@ -21,6 +21,7 @@ import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.DateRange;
 import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.EndPointRotator;
 import bamboo.trove.common.LastRun;
 import bamboo.trove.common.Rule;
 import bamboo.trove.common.SolrEnum;
@@ -68,6 +69,14 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	@Autowired
 	@Qualifier("solrDomainManager")
 	private EndPointDomainManager solrManager;
+
+	@Autowired
+	@Qualifier("solrDnsDomainManager")
+	private EndPointDomainManager solrDnsManager;
+
+	@Autowired
+	@Qualifier("solrThroughputDomainManager")
+	private EndPointDomainManager solrThroughputDomainManager;
 
 	@Autowired
 	private FilteringCoordinationService filteringService;
@@ -127,7 +136,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     BaseWarcDomainManager.setWorkerCounts(maxFilterWorkers, maxTransformWorkers, maxIndexWorkers);
 		// We must acquire the start lock before letting the other domains complete their init() methods.
 
-
 		log.info("Solr zk path          : {}", zookeeperConfig);
 		log.info("Collection            : {}", collection);
 		log.info("Number of workers     : {}", NUMBER_OF_WORKERS);
@@ -165,7 +173,11 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 				}
 			}			
 		}
-		startMe(solrManager, filteringService);
+    //EndPointRotator.registerNewEndPoint(solrManager);
+    //EndPointRotator.registerNewEndPoint(solrDnsManager);
+    EndPointRotator.registerNewEndPoint(solrThroughputDomainManager);
+    // Never start this until all the end points are registered
+		startMe(filteringService);
   }
 
 	@Override
