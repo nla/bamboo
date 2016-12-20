@@ -30,6 +30,15 @@ public class IndexerDocument implements AcknowledgeWorker {
     return docId;
   }
 
+  private float boost = 1.0f;
+  public float getBoost() {
+    return boost;
+  }
+  public float modifyBoost(float modifier) {
+    boost *= modifier;
+    return boost;
+  }
+
   //***********************************
   // Step 1) Get from Bamboo
   private Document bambooDocument;
