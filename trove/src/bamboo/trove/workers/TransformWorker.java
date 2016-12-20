@@ -137,9 +137,17 @@ public class TransformWorker implements Runnable {
     }
 
     // Optional metadata we _might_ get from html
-    String description = document.getBambooDocument().getDescription();
-    if (description != null && !"".equals(description)) {
-      solr.addField(SolrEnum.DESCRIPTION.toString(), description);
+    optionalMetadata(solr, document.getBambooDocument().getDescription());
+    optionalMetadata(solr, document.getBambooDocument().getKeywords());
+    optionalMetadata(solr, document.getBambooDocument().getPublisher());
+    optionalMetadata(solr, document.getBambooDocument().getCreator());
+    optionalMetadata(solr, document.getBambooDocument().getContributor());
+    optionalMetadata(solr, document.getBambooDocument().getCoverage());
+  }
+
+  private void optionalMetadata(SolrInputDocument solr, String optionalData) {
+    if (optionalData != null && !"".equals(optionalData)) {
+      solr.addField(SolrEnum.METADATA.toString(), optionalData);
     }
   }
 
