@@ -45,7 +45,6 @@ public class EndPointRotator {
     } else {
       index++;
     }
-    log.warn("tick() : INDEX = {}", endPoints.get(index).getName());
   }
 
   public static void registerNewEndPoint(EndPointDomainManager manager) {
