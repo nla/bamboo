@@ -71,10 +71,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private EndPointDomainManager solrManager;
 
 	@Autowired
-	@Qualifier("solrDnsDomainManager")
-	private EndPointDomainManager solrDnsManager;
-
-	@Autowired
 	@Qualifier("solrThroughputDomainManager")
 	private EndPointDomainManager solrThroughputDomainManager;
 
@@ -105,6 +101,12 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private boolean hasPassedLock = false;
 	private LastRun runStart = null;
 	private CloudSolrClient client = null;
+
+  private boolean useAsyncSolrClient = false;
+
+  public void setUseAsyncSolrClient(boolean useAsyncSolrClient) {
+    this.useAsyncSolrClient = useAsyncSolrClient;
+  }
 
   @Required
   public void setBambooBaseUrl(String bambooBaseUrl) {
@@ -173,9 +175,13 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 				}
 			}			
 		}
-    //EndPointRotator.registerNewEndPoint(solrManager);
-    //EndPointRotator.registerNewEndPoint(solrDnsManager);
-    EndPointRotator.registerNewEndPoint(solrThroughputDomainManager);
+
+		if (useAsyncSolrClient) {
+      EndPointRotator.registerNewEndPoint(solrThroughputDomainManager);
+    } else {
+      EndPointRotator.registerNewEndPoint(solrManager);
+    }
+
     // Never start this until all the end points are registered
 		startMe(filteringService);
   }
