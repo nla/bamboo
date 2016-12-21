@@ -210,7 +210,7 @@ public class TransformWorker implements Runnable {
       text = text.trim();
 
       if (!"".equals(text)) {
-        solr.addField(SolrEnum.FULL_TEXT.toString(), text);
+        //solr.addField(SolrEnum.FULL_TEXT.toString(), text);
       }
     }
   }
