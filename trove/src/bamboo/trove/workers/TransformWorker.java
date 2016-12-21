@@ -39,13 +39,15 @@ public class TransformWorker implements Runnable {
   private static final float BONUS_EDU_SITE = 1.1f;
   private static final float MALUS_SEARCH_CATEGORY = 0.9f;
   private static final float MALUS_UNDELIVERABLE = 0.8f;
+  private final boolean indexFullText;
 
   private Timer timer;
   private IndexerDocument lastJob = null;
   private IndexerDocument thisJob = null;
 
-  public TransformWorker(Timer timer) {
+  public TransformWorker(Timer timer, boolean indexFullText) {
     this.timer = timer;
+    this.indexFullText = indexFullText;
   }
 
   @Override
@@ -210,7 +212,9 @@ public class TransformWorker implements Runnable {
       text = text.trim();
 
       if (!"".equals(text)) {
-        //solr.addField(SolrEnum.FULL_TEXT.toString(), text);
+        if (indexFullText) {
+          solr.addField(SolrEnum.FULL_TEXT.toString(), text);
+        }
       }
     }
   }

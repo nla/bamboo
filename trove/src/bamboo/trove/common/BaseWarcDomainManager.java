@@ -112,7 +112,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   // Trove indexer works. So here we want all domains to park and wait until after the 'full' domain has
   // started the shared worker pools.
   private static boolean imStarted = false;
-  protected static synchronized void startMe(FilteringCoordinationService filtering) {
+  protected static synchronized void startMe(FilteringCoordinationService filtering, boolean indexFullText) {
     if (imStarted) {
       throw new IllegalStateException("You started me twice!");
     }
@@ -154,7 +154,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     // Transform workers
     transformPool = new WorkProcessor(transformPoolLimit);
     for (int i = 0; i < transformPoolLimit; i++) {
-      transformPool.process(new TransformWorker(transformTimer));
+      transformPool.process(new TransformWorker(transformTimer, indexFullText));
     }
 
     // Indexing workers

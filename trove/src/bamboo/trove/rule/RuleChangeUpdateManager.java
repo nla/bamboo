@@ -103,9 +103,14 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private CloudSolrClient client = null;
 
   private boolean useAsyncSolrClient = false;
+  private boolean indexFullText = false;
 
   public void setUseAsyncSolrClient(boolean useAsyncSolrClient) {
     this.useAsyncSolrClient = useAsyncSolrClient;
+  }
+
+  public void setIndexFullText(boolean indexFullText) {
+    this.indexFullText = indexFullText;
   }
 
   @Required
@@ -183,7 +188,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     }
 
     // Never start this until all the end points are registered
-		startMe(filteringService);
+		startMe(filteringService, indexFullText);
   }
 
 	@Override
