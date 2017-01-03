@@ -115,6 +115,17 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   private Map<Long, Integer> noSpamTimeout = new TreeMap<>();
 
+  private int moduloDivisor = -1;
+  private int moduloRemainder = -1;
+
+  public void setModuloDivisor(int moduloDivisor) {
+    this.moduloDivisor = moduloDivisor;
+  }
+
+  public void setModuloRemainder(int moduloRemainder) {
+    this.moduloRemainder = moduloRemainder;
+  }
+
   public void setBambooBatchSize(int bambooBatchSize) {
     this.bambooBatchSize = bambooBatchSize;
   }
@@ -156,7 +167,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     log.info("Run at start      : {}", runAtStart);
 
     dao = database.getDao().fullPersistence();
-    persistedWarcId = dao.getLastId();
+    persistedWarcId = dao.getLastId(moduloRemainder);
     endOfBatchId = persistedWarcId;
 
     MetricRegistry metrics = SharedMetricRegistries.getOrCreate(filteringCoordinationService.getMetricsRegistryName());
@@ -329,7 +340,21 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
     LinkedList<ToIndex> result = new LinkedList<>();
     while (json.nextToken() == JsonToken.START_OBJECT) {
-      result.add(new ToIndex(om.readValue(json, WarcToIndex.class)));
+      ToIndex nextWarc = new ToIndex(om.readValue(json, WarcToIndex.class));
+      if (moduloDivisor != -1 && moduloRemainder != -1) {
+        // We are only doing some things
+        if ((nextWarc.getId() % moduloDivisor) == moduloRemainder) {
+          result.add(nextWarc);
+        }
+
+      // We are doing everything
+      } else {
+        result.add(nextWarc);
+      }
+    }
+
+    if (moduloDivisor != -1 && moduloRemainder != -1) {
+      log.info("Received {} objects from Bamboo.", result.size());
     }
     return result;
   }
@@ -599,7 +624,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
     // All warcs are completed in this batch
     if (itIsDone) {
-      dao.updateLastId(warcId);
+      dao.updateLastId(warcId, moduloRemainder);
       persistedWarcId = warcId;
       log.info("Persisting progress for ID '{}'. Currently monitoring {} batches", warcId, allBatches.size());
       // Clear it from the head
