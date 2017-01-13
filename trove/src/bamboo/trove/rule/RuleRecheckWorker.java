@@ -33,7 +33,7 @@ public class RuleRecheckWorker implements Runnable{
 	private static final Map<String, Object> partialUpdateTrue = new HashMap<>();
 	private static final Map<String, Object> partialUpdateFalse = new HashMap<>();
 	static{
-		partialUpdateTrue.put("set", true);
+		partialUpdateTrue.put("set", null); // set to null to remove
 		partialUpdateFalse.put("set", false);
 	}
 

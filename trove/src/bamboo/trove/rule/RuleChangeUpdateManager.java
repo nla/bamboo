@@ -346,7 +346,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 //		if(rule.getUrl().isEmpty())continue; // TODO this could be a full re-index ?
 
 		// query part to stop records being processed more that once
-		String notLastIndexed = " AND lastIndexed:[* TO " + format(runStart.getDate()) + "]";
+		String notLastIndexed = " AND " + SolrEnum.LAST_INDEXED + ":[* TO " + format(runStart.getDate()) + "]";
 		
 		if(currentRule == null){
 			// this is a new rule search by url and possibly date
@@ -414,17 +414,17 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			// url changed search old rule and new url
 			SolrQuery query = createQuery(SolrEnum.RULE + ":"+currentRule.getId() + notLastIndexed);
 			processQuery(query);
-			query = createQuery("url:"+url + notLastIndexed);
+			query = createQuery(SolrEnum.URL_TOKENIZED + url + notLastIndexed);
 			processQuery(query);
 			return; // as we searched by url we should have tried all matching records.
 		}
 		if(captureRangeChanged){
-			SolrQuery query = createQuery(SolrEnum.URL + ":" + url + notLastIndexed);
+			SolrQuery query = createQuery(SolrEnum.URL_TOKENIZED + ":" + url + notLastIndexed);
 			processQuery(query);
 			return; // as we searched by url we should have tried all matching records.
 		}
 		if(retreivedRangeChanged){
-			SolrQuery query = createQuery(SolrEnum.URL + ":" + url + notLastIndexed);
+			SolrQuery query = createQuery(SolrEnum.URL_TOKENIZED + ":" + url + notLastIndexed);
 			processQuery(query);
 			return; // as we searched by url we should have tried all matching records.
 		}
@@ -433,7 +433,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			processQuery(query);
 			if(embargo > 0){
 				Date embargoDate = new Date(runStart.getDate().getTime() - (embargo * 1000)); // change seconds to milli
-				query = createQuery(SolrEnum.URL + ":"+url
+				query = createQuery(SolrEnum.URL_TOKENIZED + ":"+url
 					+ " AND " + SolrEnum.DATE + ":[" + format(embargoDate) + " TO *]" 
 					+ notLastIndexed);
 				processQuery(query);
@@ -475,7 +475,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 				log.info("URL is empty searching all records.");
 				url = "*";
 			}
-			String queryText = SolrEnum.URL + ":" + url + notLastIndexed;
+			String queryText = SolrEnum.URL_TOKENIZED + ":" + url + notLastIndexed;
 			SolrQuery query = createQuery(queryText);
 			processQuery(query);
 		}
@@ -491,7 +491,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			log.info("URL is empty searching all records.");
 			url = "*";
 		}
-		String queryText = SolrEnum.URL + ":" + url;
+		String queryText = SolrEnum.URL_TOKENIZED + ":" + url;
 		if(retrieved != null){
 			if (!retrieved.isDateInRange(runStart.getDate())){
 				// now is not in range so rule does not apply
@@ -520,7 +520,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		SolrQuery q = new SolrQuery("*:*");
 		q.setFilterQueries(query);
   	q.setFields(SOLR_FIELDS);
-  	q.setSort(SortClause.asc("id"));
+  	q.setSort(SortClause.asc(SolrEnum.ID.toString()));
   	q.setRows(1000);
   	return q;
 	}

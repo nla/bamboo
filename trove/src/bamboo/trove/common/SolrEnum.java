@@ -31,7 +31,8 @@ public enum SolrEnum {
   STATUS_CODE("statusCode"),
   TEXT_ERROR("textError"),
   TITLE("title"),
-  URL("url");
+  URL("url"),
+  URL_TOKENIZED("urlTokenized");
 
   private String value;
   SolrEnum(String value) {
