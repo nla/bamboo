@@ -1,8 +1,8 @@
 package bamboo.task;
 
+import bamboo.core.LockManager;
 import bamboo.crawl.*;
 import bamboo.util.SurtFilter;
-import com.google.common.net.InternetDomainName;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
@@ -24,7 +23,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 public class SolrIndexer implements Runnable {
 
@@ -37,11 +35,13 @@ public class SolrIndexer implements Runnable {
     private SolrServer solr;
 
     private static TextExtractor extractor = new TextExtractor();
+    private final LockManager lockManager;
 
-    public SolrIndexer(Collections collections, Crawls crawls, Warcs warcs) {
+    public SolrIndexer(Collections collections, Crawls crawls, Warcs warcs, LockManager lockManager) {
         this.crawls = crawls;
         this.collections = collections;
         this.warcs = warcs;
+        this.lockManager = lockManager;
     }
 
     public void run() {
@@ -61,7 +61,18 @@ public class SolrIndexer implements Runnable {
         ExecutorService threadPool = Executors.newFixedThreadPool(threads);
         try {
             for (Warc warc : warcs) {
-                threadPool.submit(() -> indexWarc(warc));
+                threadPool.submit(() -> {
+                    String lockName = "warc-" + warc.getId();
+                    if (lockManager.takeLock(lockName)) {
+                        try {
+                            indexWarc(warc);
+                        } finally {
+                            lockManager.releaseLock(lockName);
+                        }
+                    } else {
+                        // warc is locked by someone else, skip it for now.
+                    }
+                });
             }
             threadPool.shutdown();
             threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);

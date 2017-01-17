@@ -17,7 +17,8 @@ package bamboo.trove.common;
 
 public enum SearchCategory {
   NONE("none"),
-  TEXT("text"),
+  HTML("html"),
+  PDF("pdf"),
   PRESENTATION("presentation"),
   SPREADSHEET("spreadsheet"),
   DOCUMENT("document");

@@ -15,17 +15,19 @@
  */
 package bamboo.trove.rule;
 
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.TimeZone;
-
-import javax.annotation.PostConstruct;
-
+import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
+import au.gov.nla.trove.indexer.api.EndPointDomainManager;
+import au.gov.nla.trove.indexer.api.WorkProcessor;
+import bamboo.trove.common.BaseWarcDomainManager;
+import bamboo.trove.common.DateRange;
+import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.EndPointRotator;
+import bamboo.trove.common.LastRun;
+import bamboo.trove.common.Rule;
+import bamboo.trove.common.SolrEnum;
+import bamboo.trove.services.BambooRestrictionService;
+import bamboo.trove.services.FilteringCoordinationService;
+import com.codahale.metrics.Timer;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrQuery.SortClause;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -42,19 +44,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.stereotype.Service;
 
-import com.codahale.metrics.Timer;
-
-import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
-import au.gov.nla.trove.indexer.api.EndPointDomainManager;
-import au.gov.nla.trove.indexer.api.WorkProcessor;
-import bamboo.trove.common.BaseWarcDomainManager;
-import bamboo.trove.common.DateRange;
-import bamboo.trove.common.DocumentStatus;
-import bamboo.trove.common.LastRun;
-import bamboo.trove.common.Rule;
-import bamboo.trove.common.SolrEnum;
-import bamboo.trove.services.BambooRestrictionService;
-import bamboo.trove.services.FilteringCoordinationService;
+import javax.annotation.PostConstruct;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.TimeZone;
 
 @Service
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker{
@@ -71,6 +69,10 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	@Autowired
 	@Qualifier("solrDomainManager")
 	private EndPointDomainManager solrManager;
+
+	@Autowired
+	@Qualifier("solrThroughputDomainManager")
+	private EndPointDomainManager solrThroughputDomainManager;
 
 	@Autowired
 	private FilteringCoordinationService filteringService;
@@ -99,6 +101,17 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	private boolean hasPassedLock = false;
 	private LastRun runStart = null;
 	private CloudSolrClient client = null;
+
+  private boolean useAsyncSolrClient = false;
+  private boolean indexFullText = false;
+
+  public void setUseAsyncSolrClient(boolean useAsyncSolrClient) {
+    this.useAsyncSolrClient = useAsyncSolrClient;
+  }
+
+  public void setIndexFullText(boolean indexFullText) {
+    this.indexFullText = indexFullText;
+  }
 
   @Required
   public void setBambooBaseUrl(String bambooBaseUrl) {
@@ -129,7 +142,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     BaseWarcDomainManager.setBambooApiBaseUrl(bambooBaseUrl);
     BaseWarcDomainManager.setWorkerCounts(maxFilterWorkers, maxTransformWorkers, maxIndexWorkers);
 		// We must acquire the start lock before letting the other domains complete their init() methods.
-
 
 		log.info("Solr zk path          : {}", zookeeperConfig);
 		log.info("Collection            : {}", collection);
@@ -168,7 +180,15 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 				}
 			}			
 		}
-		startMe(solrManager, filteringService);
+
+		if (useAsyncSolrClient) {
+      EndPointRotator.registerNewEndPoint(solrThroughputDomainManager);
+    } else {
+      EndPointRotator.registerNewEndPoint(solrManager);
+    }
+
+    // Never start this until all the end points are registered
+		startMe(filteringService, indexFullText);
   }
 
 	@Override
@@ -179,7 +199,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			for(BaseWarcDomainManager m : BaseWarcDomainManager.getDomainList()){
 				m.restartForRestrictionsDomain();
 			}
-			runInsideLock();
+			// TODO: Disabled whilst we do distributed indexing
+			//runInsideLock();
 		}
 		finally {
 			releaseDomainStartLock();
@@ -745,7 +766,10 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 				}
 			}
 			log.info("Scheduler start Rule Check.");
-			manager.startProcessing();
+      // TODO - Renable this after the next run. Note, there have also been changes to DISCOVERABLE/DELIVERABLE
+      // in the interim because we no longer add lucene segment data when 'false' is the desired value. Writes
+      // originating elsewhere need to mirror this and reads need to search for 'NOT true' when 'false' is desired.
+			//manager.startProcessing();
 		}
 	}
 }

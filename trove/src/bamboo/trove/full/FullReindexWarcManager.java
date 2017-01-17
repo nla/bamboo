@@ -15,27 +15,6 @@
  */
 package bamboo.trove.full;
 
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentSkipListMap;
-import javax.annotation.PostConstruct;
-
 import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.task.WarcToIndex;
@@ -45,7 +24,11 @@ import bamboo.trove.common.WarcProgressManager;
 import bamboo.trove.common.WarcSummary;
 import bamboo.trove.db.FullPersistenceDAO;
 import bamboo.trove.rule.RuleChangeUpdateManager;
+import bamboo.trove.services.FilteringCoordinationService;
 import bamboo.trove.services.JdbiService;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,16 +40,32 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.sql.Timestamp;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentSkipListMap;
+
 @Service
 public class FullReindexWarcManager extends BaseWarcDomainManager {
   private static final Logger log = LoggerFactory.getLogger(FullReindexWarcManager.class);
   private static final int POLL_INTERVAL_SECONDS = 1;
-  private static final long TIMEOUT_ERROR_RETRY_MS = 15 * 60 * 1000; // 15 mins
+  private static final int ERROR_LIMIT = 0; // 5 is normal in prod. 0 is fastest but discards errors very aggressively
+  private static final long TIMEOUT_ERROR_RETRY_MS = 5 * 60 * 1000; // 5 mins
   private static final long TIMEOUT_STALE_WARC_MS = 10 * 60 * 1000; // 10 mins
 
 	@Autowired
 	@Qualifier("solrDomainManager")
 	private EndPointDomainManager solrManager;
+
+	@Autowired(required = true)
+	private FilteringCoordinationService filteringCoordinationService;
 
 	@Autowired
 	private JdbiService database;
@@ -83,6 +82,9 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private int bambooReadThreads = 1;
   private String bambooCollectionsUrl;
   private int queueLimit = 5;
+  // If not configured... will try stop seeking work
+  // if there is less than 256mb of free heap  
+  private long freeHeapLimit = 1024 * 1024 * 256;
 
   // Lifecycle states
   private boolean running = false;
@@ -113,6 +115,17 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   private Map<Long, Integer> noSpamTimeout = new TreeMap<>();
 
+  private int moduloDivisor = -1;
+  private int moduloRemainder = -1;
+
+  public void setModuloDivisor(int moduloDivisor) {
+    this.moduloDivisor = moduloDivisor;
+  }
+
+  public void setModuloRemainder(int moduloRemainder) {
+    this.moduloRemainder = moduloRemainder;
+  }
+
   public void setBambooBatchSize(int bambooBatchSize) {
     this.bambooBatchSize = bambooBatchSize;
   }
@@ -123,6 +136,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   public void setQueueLimit(int queueLimit) {
     this.queueLimit = queueLimit;
+  }
+
+  public void setFreeHeapLimit(long freeHeapLimit) {
+    this.freeHeapLimit = freeHeapLimit;
   }
 
   public Map<Long, WarcSummary> getBatchMap() {
@@ -150,12 +167,24 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     log.info("Run at start      : {}", runAtStart);
 
     dao = database.getDao().fullPersistence();
-    persistedWarcId = dao.getLastId();
+    persistedWarcId = dao.getLastId(moduloRemainder);
     endOfBatchId = persistedWarcId;
+
+    MetricRegistry metrics = SharedMetricRegistries.getOrCreate(filteringCoordinationService.getMetricsRegistryName());
+    Gauge<Long> gaugeQueue = () -> (long) (warcTracking.size() + warcIdQueue.size());
+    metrics.register("queueLength", gaugeQueue);
+    Gauge<Long> gaugeHeap = () -> (Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory())
+            + Runtime.getRuntime().freeMemory();
+    metrics.register("freeHeap", gaugeHeap);
+    // These don't change at runtime, but we'll use the same plumbing to get them to the UI
+    Gauge<Long> gaugeQueueLimit = () -> (long) queueLimit;
+    metrics.register("queueLengthLimit", gaugeQueueLimit);
+    Gauge<Long> gaugeHeapLimit = () -> freeHeapLimit;
+    metrics.register("freeHeapLimit", gaugeHeapLimit);
 
     List<FullPersistenceDAO.OldError> oldErrors = dao.oldErrors();
     for (FullPersistenceDAO.OldError e : oldErrors) {
-      if (e.error.getSecond() < 5) {
+      if (e.error.getSecond() < ERROR_LIMIT) {
         WarcToIndex warc = new WarcToIndex();
         warc.setId(e.warcId);
         log.info("Old error for warc {} found. Marking for retry.", e.warcId);
@@ -311,7 +340,21 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
     LinkedList<ToIndex> result = new LinkedList<>();
     while (json.nextToken() == JsonToken.START_OBJECT) {
-      result.add(new ToIndex(om.readValue(json, WarcToIndex.class)));
+      ToIndex nextWarc = new ToIndex(om.readValue(json, WarcToIndex.class));
+      if (moduloDivisor != -1 && moduloRemainder != -1) {
+        // We are only doing some things
+        if ((nextWarc.getId() % moduloDivisor) == moduloRemainder) {
+          result.add(nextWarc);
+        }
+
+      // We are doing everything
+      } else {
+        result.add(nextWarc);
+      }
+    }
+
+    if (moduloDivisor != -1 && moduloRemainder != -1) {
+      log.info("Received {} objects from Bamboo.", result.size());
     }
     return result;
   }
@@ -358,8 +401,17 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
       return;
     }
 
-    // Saturated queue
-    if ((warcTracking.size() + warcIdQueue.size()) >= queueLimit) {
+    // Saturated queue?
+    int queueSize = (warcTracking.size() + warcIdQueue.size());
+    if (queueSize >= queueLimit) {
+      Thread.sleep(1000);
+      return;
+    }
+
+    // Saturated heap? But only if the queue is large as well
+    long unusedHeap = (Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory())
+            + Runtime.getRuntime().freeMemory();
+    if (queueSize >= 10 && unusedHeap < freeHeapLimit) {
       Thread.sleep(1000);
       return;
     }
@@ -413,7 +465,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     Pair<Timestamp, Integer> errorData = dao.checkError(warc.getWarcId());
     warc.trackedError(errorData);
 
-    if (errorData.getSecond() < 5) {
+    if (errorData.getSecond() < ERROR_LIMIT) {
       // Schedule for a retry
       retryErrors.put(warc.getWarcId(), errorData);
       return false;
@@ -434,18 +486,29 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
       if (warc == null) {
         throw new IllegalStateException("Warc ID " + key + " is null in the tracking map. This is a logic bug");
       }
-      // State = Healthy
-      if (warc.finishedWithoutError()) {
-        completedWarcs.add(key);
-        dao.removeError(key);
-        warcsProcessed++;
-        if (key > progressInBatchId) {
-          progressInBatchId = key;
+
+      // Branch 1 ... the work is 'finished'
+      if (warc.finished()) {
+        // State = Healthy
+        if (warc.finishedWithoutError()) {
+          completedWarcs.add(key);
+          dao.removeError(key);
+          warcsProcessed++;
+          if (key > progressInBatchId) {
+            progressInBatchId = key;
+          }
+
+        // State = Error
+        } else {
+          if (trackError(warc)) {
+            completedWarcs.add(key);
+          }
         }
 
+      // Branch 2 ... why has it not finished?
       } else {
         // State = Error
-        if (warc.finished() || warc.isLoadingFailed()) {
+        if (warc.isLoadingFailed()) {
           if (trackError(warc)) {
             completedWarcs.add(key);
           }
@@ -561,7 +624,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
     // All warcs are completed in this batch
     if (itIsDone) {
-      dao.updateLastId(warcId);
+      dao.updateLastId(warcId, moduloRemainder);
       persistedWarcId = warcId;
       log.info("Persisting progress for ID '{}'. Currently monitoring {} batches", warcId, allBatches.size());
       // Clear it from the head

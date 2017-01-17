@@ -15,11 +15,6 @@
  */
 package bamboo.trove.db;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.util.List;
-
 import org.apache.commons.math3.util.Pair;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.Bind;
@@ -28,10 +23,16 @@ import org.skife.jdbi.v2.sqlobject.SqlUpdate;
 import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.List;
+
 @RegisterMapper({FullPersistenceDAO.ErrorMapper.class, FullPersistenceDAO.OldErrorMapper.class})
 public interface FullPersistenceDAO {
   public static final String ID_TABLE = "index_persistance_web_archives";
   public static final String ID_COLUMN = "last_warc_id";
+  public static final String MOD_COLUMN = "modulo_remainder";
   public static final String ERROR_TABLE = "index_persistance_web_archives_errors";
   public static final String ERROR_ID_COLUMN = "warc_id";
   public static final String ERROR_RETRY_COLUMN = "retries";
@@ -51,11 +52,12 @@ public interface FullPersistenceDAO {
     }
   }
 
-  @SqlUpdate("UPDATE " + ID_TABLE + " SET " + ID_COLUMN + " = :lastId")
-  public void updateLastId(@Bind("lastId") long lastId);
+  @SqlUpdate("INSERT INTO " + ID_TABLE + " (" + ID_COLUMN + ", " + MOD_COLUMN + ") VALUES (:lastId, :moduloRemainder)"
+          + " ON DUPLICATE KEY UPDATE " + ID_COLUMN + " = :lastId")
+  public void updateLastId(@Bind("lastId") long lastId, @Bind("moduloRemainder") int moduloRemainder);
 
-  @SqlQuery("SELECT " + ID_COLUMN + " FROM " + ID_TABLE)
-  public long getLastId();
+  @SqlQuery("SELECT " + ID_COLUMN + " FROM " + ID_TABLE + " WHERE " + MOD_COLUMN + " = :moduloRemainder")
+  public long getLastId(@Bind("moduloRemainder") int moduloRemainder);
 
   @SqlUpdate("INSERT INTO " + ERROR_TABLE + " (" + ERROR_ID_COLUMN + ") VALUES (:warcId)" 
           + " ON DUPLICATE KEY UPDATE " + ERROR_RETRY_COLUMN + " = " + ERROR_RETRY_COLUMN + " + 1")

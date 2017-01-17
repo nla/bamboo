@@ -18,22 +18,28 @@ package bamboo.trove.common;
 public enum SolrEnum {
   // Keeping them in alphabetical order just
   // to help readability as the schema grows
-  CONTENT_TYPE("contentType"),
+  AU_GOV("auGov"),
   DATE("date"),
+  DECADE("decade"),
   DELIVERABLE("deliverable"),
   DISCOVERABLE("discoverable"),
+  FILENAME("filename"),
   FULL_TEXT("fulltext"),
+  HOST("host"),
+  HOST_REVERSED("hostReversed"),
   ID("id"),
   LAST_INDEXED("lastIndexed"),
+  METADATA("metadata"),
+  PROTOCOL("protocol"),
   RULE("ruleId"),
   SEARCH_CATEGORY("searchCategory"),
   SITE("site"),
-  STATUS_CODE("statusCode"),
   TEXT_ERROR("textError"),
   TITLE("title"),
-  URL("url"),
-  URL_TOKENIZED("urlTokenized");
-
+  URL("url"),  
+  URL_TOKENIZED("urlTokenized"),
+  YEAR("year");
+  
   private String value;
   SolrEnum(String value) {
     this.value = value;

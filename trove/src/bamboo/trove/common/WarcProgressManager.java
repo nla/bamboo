@@ -15,6 +15,11 @@
  */
 package bamboo.trove.common;
 
+import bamboo.task.Document;
+import org.apache.commons.math3.util.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.LinkedList;
@@ -23,11 +28,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-
-import bamboo.task.Document;
-import org.apache.commons.math3.util.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class WarcProgressManager {
   private static final Logger log = LoggerFactory.getLogger(WarcProgressManager.class);
@@ -172,6 +172,14 @@ public class WarcProgressManager {
       if (indexProgress.isEmpty()) {
         indexComplete = true;
       }
+    }
+
+    // Except for the first time...
+    if (timer != null) {
+      // Force the timer to de-reference its own thread
+      // and don't hold on to a reference to the timer
+      timer.cancel();
+      timer = null;
     }
 
     if (!mothballed && !(filterComplete && transformComplete && indexComplete)) {

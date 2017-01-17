@@ -79,7 +79,8 @@ public class FilteringCoordinationService {
     List<String> allowedTypes = new ArrayList<>();
     allowedTypes.addAll(Arrays.asList("imagejpeg", "imagegif", "imagepng", "textplain", "textcss", "textxml"));
     // Then add all the things we index
-    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.TEXT_CONTENT_TYPES));
+    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.HTML_CONTENT_TYPES));
+    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.PDF_CONTENT_TYPES));
     allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.DOCUMENT_CONTENT_TYPES));
     allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.PRESENTATION_CONTENT_TYPES));
     allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.SPREADSHEET_CONTENT_TYPES));

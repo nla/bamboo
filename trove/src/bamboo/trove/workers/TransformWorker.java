@@ -15,31 +15,39 @@
  */
 package bamboo.trove.workers;
 
-import static bamboo.trove.services.QualityControlService.DOCUMENT_CONTENT_TYPES;
-import static bamboo.trove.services.QualityControlService.PRESENTATION_CONTENT_TYPES;
-import static bamboo.trove.services.QualityControlService.SPREADSHEET_CONTENT_TYPES;
-import static bamboo.trove.services.QualityControlService.TEXT_CONTENT_TYPES;
-
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.FilenameFinder;
 import bamboo.trove.common.IndexerDocument;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
+import bamboo.util.Urls;
 import com.codahale.metrics.Timer;
 import org.apache.solr.common.SolrInputDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.SimpleDateFormat;
+
+import static bamboo.trove.services.QualityControlService.*;
+
 public class TransformWorker implements Runnable {
-  private static Logger log = LoggerFactory.getLogger(TransformWorker.class);
+  private static final Logger log = LoggerFactory.getLogger(TransformWorker.class);
+
+  private static final float BONUS_GOV_SITE = 1.35f;
+  private static final float BONUS_EDU_SITE = 1.1f;
+  private static final float MALUS_SEARCH_CATEGORY = 0.9f;
+  private static final float MALUS_UNDELIVERABLE = 0.8f;
+  private final boolean indexFullText;
 
   private Timer timer;
   private IndexerDocument lastJob = null;
   private IndexerDocument thisJob = null;
 
-  public TransformWorker(Timer timer) {
+  public TransformWorker(Timer timer, boolean indexFullText) {
     this.timer = timer;
+    this.indexFullText = indexFullText;
   }
 
   @Override
@@ -47,7 +55,7 @@ public class TransformWorker implements Runnable {
     while (loop()) {}
   }
 
-  public boolean loop() {
+  private boolean loop() {
     try {
       findJob();
       doJob();
@@ -97,31 +105,82 @@ public class TransformWorker implements Runnable {
     errorHandling(solr, document);
     fullText(solr, document);
 
+    solr.setDocumentBoost(document.getBoost());
     document.converted(solr);
   }
 
+  // Not SDF is not thread-safe, but this worker never allows
+  // more than one thread into this method per instantiated worker
+  private SimpleDateFormat dateYear = new SimpleDateFormat("yyyy");
   private void basicMetadata(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.ID.toString(), document.getDocId());
-    solr.addField(SolrEnum.URL.toString(), document.getBambooDocument().getUrl());
+    // Remove the protocol for Solr. Search clients get fuzzy matches
+    String url = document.getBambooDocument().getUrl();
+    String strippedUrl = Urls.removeScheme(url);
+    // But we need to store the protocol (if there was one) to render an accurate delivery URL.
+    if (!url.equals(strippedUrl)) {
+      solr.addField(SolrEnum.PROTOCOL.toString(), url.substring(0, url.indexOf(":")));
+    }
+    solr.addField(SolrEnum.URL.toString(), strippedUrl);
+    String filename = FilenameFinder.getFilename(document.getBambooDocument().getUrl());
+    if (filename != null) {
+      solr.addField(SolrEnum.FILENAME.toString(), filename);
+    }
+
     solr.addField(SolrEnum.DATE.toString(), document.getBambooDocument().getDate());
+    String year = dateYear.format(document.getBambooDocument().getDate());
+    solr.addField(SolrEnum.DECADE.toString(), year.substring(0, 3));
+    solr.addField(SolrEnum.YEAR.toString(), year);
     solr.addField(SolrEnum.TITLE.toString(), document.getBambooDocument().getTitle());
-    solr.addField(SolrEnum.CONTENT_TYPE.toString(), document.getBambooDocument().getContentType());
-    solr.addField(SolrEnum.STATUS_CODE.toString(), document.getBambooDocument().getStatusCode());
+
+    domainMetadata(solr, document);
+
+    // Optional metadata we _might_ get from html
+    optionalMetadata(solr, document.getBambooDocument().getDescription());
+    optionalMetadata(solr, document.getBambooDocument().getKeywords());
+    optionalMetadata(solr, document.getBambooDocument().getPublisher());
+    optionalMetadata(solr, document.getBambooDocument().getCreator());
+    optionalMetadata(solr, document.getBambooDocument().getContributor());
+    optionalMetadata(solr, document.getBambooDocument().getCoverage());
+  }
+
+  private void domainMetadata(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
+    solr.addField(SolrEnum.HOST.toString(), document.getBambooDocument().getHost());
+    // We reverse the hostname (which is site + sub-domain) for efficient sub-domain wildcarding in Solr
+    solr.addField(SolrEnum.HOST_REVERSED.toString(),
+            (new StringBuffer(document.getBambooDocument().getHost())).reverse().toString());
+    // If it is an AU gov website we index this
+    if (document.getBambooDocument().getSite().endsWith(".gov.au")) {
+      solr.addField(SolrEnum.AU_GOV.toString(), true);
+      document.modifyBoost(BONUS_GOV_SITE);
+    }
+    if (document.getBambooDocument().getSite().endsWith(".edu.au")) {
+      document.modifyBoost(BONUS_EDU_SITE);
+    }
+  }
+
+  private void optionalMetadata(SolrInputDocument solr, String optionalData) {
+    if (optionalData != null && !"".equals(optionalData)) {
+      solr.addField(SolrEnum.METADATA.toString(), optionalData);
+    }
   }
 
   private void restrictions(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.RULE.toString(), document.getRuleId());
+    // Don't populate if false
     if (DocumentStatus.RESTRICTED_FOR_BOTH.equals(document.getStatus())) {
+      document.modifyBoost(MALUS_UNDELIVERABLE);
       solr.addField(SolrEnum.DELIVERABLE.toString(), false);
       solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
     }
     if (DocumentStatus.RESTRICTED_FOR_DELIVERY.equals(document.getStatus())) {
+      //document.modifyBoost(MALUS_UNDELIVERABLE);
       solr.addField(SolrEnum.DELIVERABLE.toString(), false);
-      solr.addField(SolrEnum.DISCOVERABLE.toString(), true);
+      //solr.addField(SolrEnum.DISCOVERABLE.toString(), true);
     }
     if (DocumentStatus.RESTRICTED_FOR_DISCOVERY.equals(document.getStatus())) {
-      solr.addField(SolrEnum.DELIVERABLE.toString(), true);
+      //solr.addField(SolrEnum.DELIVERABLE.toString(), true);
       solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
     }
   }
@@ -134,25 +193,28 @@ public class TransformWorker implements Runnable {
 
   private void fullText(SolrInputDocument solr, IndexerDocument document) {
     if (ContentThreshold.METADATA_ONLY.equals(document.getTheshold())) {
+      document.modifyBoost(MALUS_SEARCH_CATEGORY);
       solr.addField(SolrEnum.SEARCH_CATEGORY.toString(), SearchCategory.NONE.toString());
       return;
     }
 
     searchCategory(solr, document);
 
-    if (ContentThreshold.DOCUMENT_START_ONLY.equals(document.getTheshold())) {
+    //if (ContentThreshold.DOCUMENT_START_ONLY.equals(document.getTheshold())) {
       // TODO: Full text == First X words
-    }
-    if (ContentThreshold.UNIQUE_TERMS_ONLY.equals(document.getTheshold())) {
+    //}
+    //if (ContentThreshold.UNIQUE_TERMS_ONLY.equals(document.getTheshold())) {
       // TODO: Full text == Only unique terms
-    }
+    //}
     if (ContentThreshold.FULL_TEXT.equals(document.getTheshold())) {
       String text = document.getBambooDocument().getText();
       if (text == null) return;
       text = text.trim();
 
       if (!"".equals(text)) {
-        solr.addField(SolrEnum.FULL_TEXT.toString(), text);
+        if (indexFullText) {
+          solr.addField(SolrEnum.FULL_TEXT.toString(), text);
+        }
       }
     }
   }
@@ -161,16 +223,22 @@ public class TransformWorker implements Runnable {
     SearchCategory category = SearchCategory.NONE;
     String type = document.getBambooDocument().getContentType();
 
-    if (TEXT_CONTENT_TYPES.contains(type)) {
-      category = SearchCategory.TEXT;
-    }
     if (DOCUMENT_CONTENT_TYPES.contains(type)) {
+      document.modifyBoost(MALUS_SEARCH_CATEGORY);
       category = SearchCategory.DOCUMENT;
     }
+    if (HTML_CONTENT_TYPES.contains(type)) {
+      category = SearchCategory.HTML;
+    }
+    if (PDF_CONTENT_TYPES.contains(type)) {
+      category = SearchCategory.PDF;
+    }
     if (PRESENTATION_CONTENT_TYPES.contains(type)) {
+      document.modifyBoost(MALUS_SEARCH_CATEGORY);
       category = SearchCategory.PRESENTATION;
     }
     if (SPREADSHEET_CONTENT_TYPES.contains(type)) {
+      document.modifyBoost(MALUS_SEARCH_CATEGORY);
       category = SearchCategory.SPREADSHEET;
     }
 

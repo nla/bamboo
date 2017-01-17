@@ -18,6 +18,7 @@ package bamboo.trove;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -29,6 +30,7 @@ import java.util.List;
 import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.FilenameFinder;
 import bamboo.trove.common.IndexerDocument;
 import bamboo.trove.common.Rule;
 import bamboo.trove.services.BambooRestrictionService.FilterSegments;
@@ -238,6 +240,27 @@ public class TroveIndexerTest {
     // Writing
     startWithAssertions(document.index, timer);
     document.index.finish();
+  }
+
+  @Test
+  public void filenameExtractionTest() {
+    assertFileNameCorrect("http://random.file.com", null);
+    assertFileNameCorrect("http://random.file.com/", null);
+    assertFileNameCorrect("http://random.file.com/file.name", "file.name");
+    assertFileNameCorrect("http://random.file.com/filename", "filename");
+    assertFileNameCorrect("http://random.file.com/path/filename", "filename");
+    assertFileNameCorrect("http://random.file.com/path/filename#anchor", "filename");
+    assertFileNameCorrect("http://random.file.com/path/filename?param", "filename");
+    assertFileNameCorrect("http://random.file.com/path/filename#/param", "filename");
+  }
+
+  private void assertFileNameCorrect(String input, String expected) {
+    String output = FilenameFinder.getFilename(input);
+    if (expected == null) {
+      assertNull("Filename should be null", output);
+    } else {
+      assertEquals("Invalid filename", expected, output);
+    }
   }
 
   private void startWithAssertions(IndexerDocument.StateTracker state, Timer timer) {
