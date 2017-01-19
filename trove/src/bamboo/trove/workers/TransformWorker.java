@@ -35,10 +35,12 @@ import static bamboo.trove.services.QualityControlService.*;
 public class TransformWorker implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(TransformWorker.class);
 
-  private static final float BONUS_GOV_SITE = 1.35f;
-  private static final float BONUS_EDU_SITE = 1.1f;
-  private static final float MALUS_SEARCH_CATEGORY = 0.9f;
-  private static final float MALUS_UNDELIVERABLE = 0.8f;
+  // Boost modifiers also used in RuleRecheckWorker.
+  public static final float BONUS_GOV_SITE = 1.35f;
+  public static final float BONUS_EDU_SITE = 1.1f;
+  public static final float MALUS_SEARCH_CATEGORY = 0.9f;
+  public static final float MALUS_UNDELIVERABLE = 0.8f;
+  
   private final boolean indexFullText;
 
   private Timer timer;

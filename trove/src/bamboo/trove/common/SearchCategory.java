@@ -30,4 +30,16 @@ public enum SearchCategory {
   public String toString() {
     return value;
   }
+  
+  public static SearchCategory fromValue(String value){
+  	if(value == null){
+  		return null;
+  	}
+  	for(SearchCategory sc : SearchCategory.values()){
+  		if(sc.value.equals(value)){
+  			return sc;
+  		}
+  	}
+  	return null;
+  }
 }

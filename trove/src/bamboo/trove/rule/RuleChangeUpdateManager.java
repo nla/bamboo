@@ -24,6 +24,7 @@ import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.EndPointRotator;
 import bamboo.trove.common.LastRun;
 import bamboo.trove.common.Rule;
+import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.services.BambooRestrictionService;
 import bamboo.trove.services.FilteringCoordinationService;
@@ -58,7 +59,8 @@ import java.util.TimeZone;
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker{
   private static final Logger log = LoggerFactory.getLogger(RuleChangeUpdateManager.class);
   
-  private static final String[] SOLR_FIELDS = new String[]{SolrEnum.ID.toString(), SolrEnum.URL.toString(), SolrEnum.DATE.toString()};
+  private static final String[] SOLR_FIELDS = new String[]{SolrEnum.ID.toString(), SolrEnum.URL.toString(), 
+  				SolrEnum.DATE.toString(), SolrEnum.SEARCH_CATEGORY.toString(), SolrEnum.SITE.toString()};
   private static final SimpleDateFormat format = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss'Z'");
 	private static int NUMBER_OF_WORKERS = 5;
 	private static int NUMBER_OF_DISTRIBUTORS = 3;
@@ -227,10 +229,11 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		log.debug("{} Rules have changed.", changedRules.size());
 
 		int changeCount = 1;
+		int totalChanges = deletedRules.size() + changedRules.size() + newRules.size() + dateRules.size();
 		while(running){
 			for(Rule r : deletedRules){
 				Timer.Context context = timer.time();
-				progress = "Processing " + changeCount++ + " deleted Rule : Rule<" + r.getId() + ">";
+				progress = "Processing (" + changeCount++ + " of " + totalChanges + "). Deleted Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocumentsDeleteRule(r);
 				}
@@ -245,7 +248,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			for(Rule r : changedRules){
 				Timer.Context context = timer.time();
 				Rule newRule = restrictionsService.getRule(r.getId());
-				progress = "Processing " + changeCount++ + " changed Rule : Rule<" + r.getId() + ">";
+				progress = "Processing (" + changeCount++ + " of " + totalChanges + "). Changed Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocuments(r, newRule);
 				}
@@ -259,7 +262,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			}
 			for(Rule r : newRules){
 				Timer.Context context = timer.time();
-				progress = "Processing " + changeCount++ + " New Rule : Rule<" + r.getId() + ">";
+				progress = "Processing (" + changeCount++ + " of " + totalChanges + "). New Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocuments(null, r);
 				}
@@ -273,7 +276,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			}
 			for(Rule r : dateRules){
 				Timer.Context context = timer.time();
-				progress = "Processing " + changeCount++ + " date Rule : Rule<" + r.getId() + ">";
+				progress = "Processing (" + changeCount++ + " of " + totalChanges + "). Date Rule : Rule<" + r.getId() + ">";
 				try{
 					findDocuments(r, null);
 				}
@@ -333,8 +336,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 	public void acknowledge(SolrInputDocument doc){
 		synchronized(documents){
 			documents.remove((String)doc.get("id").getValue());
-	}
-	
+		}
 	}
 	
 	protected void update(SolrInputDocument doc){
@@ -435,7 +437,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 			// url changed search old rule and new url
 			SolrQuery query = createQuery(SolrEnum.RULE + ":"+currentRule.getId() + notLastIndexed);
 			processQuery(query);
-			query = createQuery(SolrEnum.URL_TOKENIZED + url + notLastIndexed);
+			query = createQuery(SolrEnum.URL_TOKENIZED + ":" + url + notLastIndexed);
 			processQuery(query);
 			return; // as we searched by url we should have tried all matching records.
 		}
@@ -556,6 +558,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   	String cursor = CursorMarkParams.CURSOR_MARK_START;
   	while(more){
     	query.set(CursorMarkParams.CURSOR_MARK_PARAM, cursor);
+  		Timer.Context contextQuery = getTimer(getName() + ".query").time();
+
     	QueryResponse response = client.query(query);
     	SolrDocumentList results = response.getResults();
     	String nextCursor = response.getNextCursorMark();
@@ -566,6 +570,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 //    	log.debug("work size {}", workProcessor.processingWaiting());
 //    	log.debug("dist size {}", workDistributor.processingWaiting());
   		cursor = nextCursor;
+  		contextQuery.stop();
   	}		
 		// wait until batch finished
   	boolean empty = false;
@@ -598,8 +603,16 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 		  		}
 		  		String url = (String)doc.getFieldValue(SolrEnum.URL.toString());
 		  		Date capture = (Date)doc.getFieldValue(SolrEnum.DATE.toString());
+		  		String site = (String)doc.getFieldValue(SolrEnum.SITE.toString());
+		  		String sc = (String)doc.getFieldValue(SolrEnum.SEARCH_CATEGORY.toString());
+		  		SearchCategory searchCategory = SearchCategory.fromValue(sc);
+		  		if(searchCategory == null){
+		  			log.warn("Invalid Search Category : " + sc + " for record id : " + id);
+		  			searchCategory = SearchCategory.NONE;
+		  		}
 //		  		log.debug("create worker URL:"+url+" id:"+id+" capture:"+ capture);
-		  		RuleRecheckWorker worker = new RuleRecheckWorker(id, url, capture, manager, restrictionsService);
+		  		RuleRecheckWorker worker = 
+		  				new RuleRecheckWorker(id, url, capture, site, searchCategory, manager, restrictionsService);
 		  		workProcessor.process(worker);
 		  	}				
 //		}
