@@ -182,7 +182,8 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
         @Override
         public WarcResumptionToken map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
             return new WarcResumptionToken(resultSet.getTimestamp("time").toInstant(),
-                    resultSet.getLong("warc_id"));
+                    resultSet.getLong("warc_id"),
+                    resultSet.getLong("urlCount"));
         }
     }
 

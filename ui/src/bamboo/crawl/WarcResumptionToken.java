@@ -7,11 +7,16 @@ public class WarcResumptionToken {
 
     public final Instant time;
     public final long id;
-    public Long urlCount;
+    public final long urlCount;
 
-    public WarcResumptionToken(Instant time, long id) {
+    public WarcResumptionToken(Instant time, long id, long urlCount) {
         this.time = time;
         this.id = id;
+        this.urlCount = urlCount;
+    }
+
+    public WarcResumptionToken(Instant time, long id) {
+        this(time, id, -1);
     }
 
     static WarcResumptionToken parse(String s) {
