@@ -7,6 +7,7 @@ public class WarcResumptionToken {
 
     public final Instant time;
     public final long id;
+    public Long urlCount;
 
     public WarcResumptionToken(Instant time, long id) {
         this.time = time;

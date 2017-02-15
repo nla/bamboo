@@ -158,8 +158,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     List<Warc> findByCollectionId(@Bind("collectionId") long collectionId, @Bind("start") long start, @Bind("rows") long rows);
 
 
-    @SqlQuery("SELECT wh.time, wh.warc_id\n" +
+    @SqlQuery("SELECT wh.time, wh.warc_id, w.records urlCount\n" +
             "FROM warc_history wh\n" +
+            "  LEFT JOIN warc w ON w.id = wh.warc_id\n" +
             "  LEFT JOIN warc_history more_recent\n" +
             "    ON wh.warc_id = more_recent.warc_id\n" +
             "       AND more_recent.id > wh.id\n" +
