@@ -5,11 +5,13 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
+import org.skife.jdbi.v2.sqlobject.Bind;
 
 public class Warcs {
     private final WarcsDAO dao;
@@ -200,5 +202,10 @@ public class Warcs {
         warc.setSha256(Scrub.calculateDigest("SHA-256", path));
         warc.setStateId(Warc.IMPORTED);
         return warc;
+    }
+
+    public List<WarcResumptionToken> resumptionByCollectionIdAndStateId(
+            long collectionId, int stateId, WarcResumptionToken after, int limit) {
+        return dao.resumptionByCollectionIdAndStateId(collectionId, stateId, Timestamp.from(after.time), after.id, limit);
     }
 }
