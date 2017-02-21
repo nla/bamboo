@@ -23,6 +23,7 @@ import bamboo.trove.common.ToIndex;
 import bamboo.trove.common.WarcProgressManager;
 import bamboo.trove.common.WarcSummary;
 import bamboo.trove.db.FullPersistenceDAO;
+import bamboo.trove.db.FullPersistenceDAO.OldError;
 import bamboo.trove.rule.RuleChangeUpdateManager;
 import bamboo.trove.services.FilteringCoordinationService;
 import bamboo.trove.services.JdbiService;
@@ -74,11 +75,11 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 	private RuleChangeUpdateManager ruleChangeUpdateManager;
 
   // Trove's DB stores IDs on where we are up to
-  private FullPersistenceDAO dao;
+  protected FullPersistenceDAO dao;
   private long persistedWarcId = 0;
 
-  private long bambooCollectionId = 3;
-  private int bambooBatchSize = 100;
+  protected long bambooCollectionId = 3;
+  protected int bambooBatchSize = 100;
   private int bambooReadThreads = 1;
   private String bambooCollectionsUrl;
   private int queueLimit = 5;
@@ -87,11 +88,11 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private long freeHeapLimit = 1024 * 1024 * 256;
 
   // Lifecycle states
-  private boolean running = false;
-  private boolean starting = false;
-  private boolean stopping = false;
+  protected boolean running = false;
+  protected boolean starting = false;
+  protected boolean stopping = false;
 
-  private boolean finishedFinding = false;
+  protected boolean finishedFinding = false;
   private long warcsProcessed = 0;
   private long progressInBatchId = -1;
   private long endOfBatchId = -1;
@@ -110,7 +111,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private Map<Long, WarcProgressManager> warcTracking = new ConcurrentSkipListMap<>();
   private Map<Long, WarcSummary> warcSummaries = new ConcurrentSkipListMap<>();
   private Map<Long, Pair<Timestamp, Integer>> retryErrors = new ConcurrentHashMap<>();
-  private Map<Long, Pair<Timestamp, Integer>> ignoredErrors = new ConcurrentHashMap<>();
+  private Map<Long, FullPersistenceDAO.OldError> ignoredErrors = new ConcurrentHashMap<>();
   private Timer timer;
 
   private Map<Long, Integer> noSpamTimeout = new TreeMap<>();
@@ -146,7 +147,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     return warcSummaries;
   }
 
-  public Map<Long, Pair<Timestamp, Integer>> getIgnoredErrors() {
+  public Map<Long, FullPersistenceDAO.OldError> getIgnoredErrors() {
     return ignoredErrors;
   }
 
@@ -157,6 +158,9 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   @PostConstruct
   public void init() throws InterruptedException {
+    init(true);
+  }
+  public void init(boolean createMetrics) throws InterruptedException {
     waitUntilStarted();
     log.info("***** FullReindexWarcManager *****");
     bambooCollectionsUrl = getBambooApiBaseUrl() + "collections/" + bambooCollectionId + "/warcs/json";
@@ -170,18 +174,20 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     persistedWarcId = dao.getLastId(moduloRemainder);
     endOfBatchId = persistedWarcId;
 
-    MetricRegistry metrics = SharedMetricRegistries.getOrCreate(filteringCoordinationService.getMetricsRegistryName());
-    Gauge<Long> gaugeQueue = () -> (long) (warcTracking.size() + warcIdQueue.size());
-    metrics.register("queueLength", gaugeQueue);
-    Gauge<Long> gaugeHeap = () -> (Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory())
-            + Runtime.getRuntime().freeMemory();
-    metrics.register("freeHeap", gaugeHeap);
-    // These don't change at runtime, but we'll use the same plumbing to get them to the UI
-    Gauge<Long> gaugeQueueLimit = () -> (long) queueLimit;
-    metrics.register("queueLengthLimit", gaugeQueueLimit);
-    Gauge<Long> gaugeHeapLimit = () -> freeHeapLimit;
-    metrics.register("freeHeapLimit", gaugeHeapLimit);
-
+    if(createMetrics){
+      MetricRegistry metrics = SharedMetricRegistries.getOrCreate(filteringCoordinationService.getMetricsRegistryName());
+      Gauge<Long> gaugeQueue = () -> (long) (warcTracking.size() + warcIdQueue.size());
+      metrics.register("queueLength", gaugeQueue);
+      Gauge<Long> gaugeHeap = () -> (Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory())
+              + Runtime.getRuntime().freeMemory();
+      metrics.register("freeHeap", gaugeHeap);
+      // These don't change at runtime, but we'll use the same plumbing to get them to the UI
+      Gauge<Long> gaugeQueueLimit = () -> (long) queueLimit;
+      metrics.register("queueLengthLimit", gaugeQueueLimit);
+      Gauge<Long> gaugeHeapLimit = () -> freeHeapLimit;
+      metrics.register("freeHeapLimit", gaugeHeapLimit);
+    }
+    
     List<FullPersistenceDAO.OldError> oldErrors = dao.oldErrors();
     for (FullPersistenceDAO.OldError e : oldErrors) {
       if (e.error.getSecond() < ERROR_LIMIT) {
@@ -190,7 +196,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
         log.info("Old error for warc {} found. Marking for retry.", e.warcId);
         warcIdQueue.offer(new ToIndex(warc));
       } else {
-        ignoredErrors.put(e.warcId, e.error);
+        ignoredErrors.put(e.warcId, e);
       }
     }
 
@@ -205,9 +211,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     }
   }
 
-  private void stopWorkers() {
+  protected void stopWorkers() {
     // Tell each worker to stop
-    for (int i = 0; i < bambooReadThreads; i++) {
+    int size = readWorkers.size();
+    for (int i = 0; i < size; i++) {
       readWorkers.get(0).stop();
       // Then dereference them from the domain
       readWorkers.remove(0);
@@ -299,7 +306,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   }
 
 
-  private void loop() {
+  protected void loop() {
     while (running && !stopping && !finishedFinding) {
       try {
         try {
@@ -320,7 +327,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     }
   }
 
-  private LinkedList<ToIndex> getNextBatch() throws IOException {
+  protected LinkedList<ToIndex> getNextBatch() throws IOException {
     long startOfNextBatch = endOfBatchId + 1;
     URL url = new URL(bambooCollectionsUrl + "?start=" + startOfNextBatch + "&rows=" + bambooBatchSize);
     log.info("Contacting Bamboo for more IDs. start={}, rows={}", startOfNextBatch, bambooBatchSize);
@@ -394,7 +401,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
      }
   }
 
-  private void doWork() throws InterruptedException, IOException {
+  protected void doWork() throws InterruptedException, IOException {
     // Work complete
     if (checkWorkComplete()) {
       finishedFinding = true;
@@ -461,13 +468,13 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
     // Persist into the database.
     // This will update timestamp and (if required) bump the retry counter
-    dao.trackError(warc.getWarcId());
-    Pair<Timestamp, Integer> errorData = dao.checkError(warc.getWarcId());
-    warc.trackedError(errorData);
+    updateTrackError(warc.getWarcId());
+    FullPersistenceDAO.OldError errorData = dao.checkError(warc.getWarcId());
+    warc.trackedError(errorData.error);
 
-    if (errorData.getSecond() < ERROR_LIMIT) {
+    if (errorData.error.getSecond() < ERROR_LIMIT) {
       // Schedule for a retry
-      retryErrors.put(warc.getWarcId(), errorData);
+      retryErrors.put(warc.getWarcId(), errorData.error);
       return false;
     } else {
       // Remove it entirely
@@ -476,6 +483,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     }
   }
 
+  protected void updateTrackError(long id){
+    dao.trackError(id, FullPersistenceDAO.Domain.FULL.getCode());
+  }
+  
   private void checkBatches() {
     long now = new Date().getTime();
     // Check state
@@ -587,7 +598,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
     boolean itIsDone = false;
     boolean keepGoing = true;
-    long warcId = 0;
+    ToIndex warcIndexing = null;
 
     // Until we find something still active, keep trying
     while (keepGoing) {
@@ -597,7 +608,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
         keepGoing = false;
         continue;
       }
-      warcId = warcToIndex.getId();
+      warcIndexing = warcToIndex;
       if (!warcToIndex.hasBeenRetrieved) {
         // We haven't indexed this far yet!
         keepGoing = false;
@@ -605,8 +616,8 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
       }
 
       // If it is still being tracked...
-      if (warcTracking.containsKey(warcId)) {
-        WarcProgressManager warc = warcTracking.get(warcId);
+      if (warcTracking.containsKey(warcIndexing.getId())) {
+        WarcProgressManager warc = warcTracking.get(warcIndexing.getId());
         // It might only be tracked because of errors... which are persisted separately
         if (warc.finished() && warc.hasErrors()) {
           iHopeThisIsDone.poll();
@@ -624,14 +635,17 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
     // All warcs are completed in this batch
     if (itIsDone) {
-      dao.updateLastId(warcId, moduloRemainder);
-      persistedWarcId = warcId;
-      log.info("Persisting progress for ID '{}'. Currently monitoring {} batches", warcId, allBatches.size());
+      updateLastId(warcIndexing);
+      persistedWarcId = warcIndexing.getId();
+      log.info("Persisting progress for ID '{}'. Currently monitoring {} batches", warcIndexing.getId(), allBatches.size());
       // Clear it from the head
       allBatches.poll();
     }
   }
 
+  protected void updateLastId(ToIndex warc){
+    dao.updateLastId(warc.getId(), moduloRemainder);
+  }
   @Override
   protected WarcProgressManager newWarc(long warcId, long trackedOffset, long urlCountEstimate) {
     WarcProgressManager newWarc = new WarcProgressManager(warcId, trackedOffset, urlCountEstimate);

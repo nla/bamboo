@@ -206,7 +206,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   	// and spring not able to control the start order.
   	long timeoutSec = 20;
   	long timeout = System.currentTimeMillis() + (timeoutSec*1000);
-  	while(domainsList.size()<2){
+  	while(domainsList.size()<3){
       try{
       	if(System.currentTimeMillis() > timeout){
       		throw new IllegalStateException("Failed to register domains after "+timeoutSec+" secs.");

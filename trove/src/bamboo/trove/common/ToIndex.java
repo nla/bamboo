@@ -16,8 +16,9 @@
 package bamboo.trove.common;
 
 import bamboo.task.WarcToIndex;
+import bamboo.task.WarcToIndexResumption;
 
-public class ToIndex extends WarcToIndex {
+public class ToIndex extends WarcToIndexResumption {
   public boolean hasBeenRetrieved = false;
   private WarcProgressManager oldWarcInstance = null;
   private long trackedOffset = -1;
@@ -26,6 +27,9 @@ public class ToIndex extends WarcToIndex {
   public ToIndex(WarcToIndex warc) {
     setId(warc.getId());
     setUrlCount(warc.getUrlCount());
+    if(warc instanceof WarcToIndexResumption){
+      setResumptionToken(((WarcToIndexResumption)warc).getResumptionToken());
+    }
   }
 
   // Something from the retry queue
