@@ -40,7 +40,6 @@ import bamboo.trove.full.FullReindexWarcManager;
 import bamboo.trove.rule.RuleChangeUpdateManager;
 
 public class PeriodicWarcManager extends FullReindexWarcManager{
-  private static final Logger log = LoggerFactory.getLogger(PeriodicWarcManager.class);
 
   @Autowired(required = true)
   private RuleChangeUpdateManager ruleChangeUpdateManager;
@@ -54,6 +53,10 @@ public class PeriodicWarcManager extends FullReindexWarcManager{
   private int stopMinute = 0;
   private String runMessage = "";
 
+  public PeriodicWarcManager(){
+  	log = LoggerFactory.getLogger(PeriodicWarcManager.class);
+	}
+  
   public void setLimitRunningTime(boolean limitRunningTime){
     this.limitRunningTime = limitRunningTime;
   }
