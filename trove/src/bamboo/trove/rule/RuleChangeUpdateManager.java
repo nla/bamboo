@@ -198,8 +198,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       for (BaseWarcDomainManager m : BaseWarcDomainManager.getDomainList()) {
         m.restartForRestrictionsDomain();
       }
-      // TODO: Disabled whilst we do distributed indexing
-      //runInsideLock();
+      runInsideLock();
     } finally {
       releaseDomainStartLock();
     }

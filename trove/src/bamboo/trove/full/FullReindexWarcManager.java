@@ -23,7 +23,6 @@ import bamboo.trove.common.ToIndex;
 import bamboo.trove.common.WarcProgressManager;
 import bamboo.trove.common.WarcSummary;
 import bamboo.trove.db.FullPersistenceDAO;
-import bamboo.trove.db.FullPersistenceDAO.OldError;
 import bamboo.trove.rule.RuleChangeUpdateManager;
 import bamboo.trove.services.FilteringCoordinationService;
 import bamboo.trove.services.JdbiService;
@@ -123,7 +122,11 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   	log = LoggerFactory.getLogger(FullReindexWarcManager.class);
   }
   public void setModuloDivisor(int moduloDivisor) {
+    // TODO - Cannot use this when the restrictions update code and/or periodic domain are working
+    // comment out the call to RuleChangeUpdateManager::runInsideLock() if you are doing this...
+    // or code a graceful way to have them all co-exist... good luck
     this.moduloDivisor = moduloDivisor;
+    throw new IllegalArgumentException("Cannot set moduloDivisor. Distributed indexing requires dev hax!");
   }
 
   public void setModuloRemainder(int moduloRemainder) {
