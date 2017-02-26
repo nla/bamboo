@@ -55,7 +55,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 
 @Service
 public class FullReindexWarcManager extends BaseWarcDomainManager {
-  private static final Logger log = LoggerFactory.getLogger(FullReindexWarcManager.class);
+  protected Logger log;
   private static final int POLL_INTERVAL_SECONDS = 1;
   private static final int ERROR_LIMIT = 0; // 5 is normal in prod. 0 is fastest but discards errors very aggressively
   private static final long TIMEOUT_ERROR_RETRY_MS = 5 * 60 * 1000; // 5 mins
@@ -119,6 +119,9 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private int moduloDivisor = -1;
   private int moduloRemainder = -1;
 
+  public FullReindexWarcManager(){
+  	log = LoggerFactory.getLogger(FullReindexWarcManager.class);
+  }
   public void setModuloDivisor(int moduloDivisor) {
     this.moduloDivisor = moduloDivisor;
   }
