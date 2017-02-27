@@ -59,12 +59,9 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
 
   // Reading data from Bamboo
   private static Timer bambooReadTimer; 
-  private static Timer bambooParseTimer; 
-  private static Gauge<Long> bambooCacheNull;
+  private static Timer bambooParseTimer;
   private static long bambooCacheNullLong = 0;
-  private static Gauge<Long> bambooCacheHit;
   private static long bambooCacheHitLong = 0;
-  private static Gauge<Long> bambooCacheMiss;
   private static long bambooCacheMissLong = 0;
   private static Histogram warcDocCountHistogram;
   private static Histogram warcSizeHistogram;
@@ -82,11 +79,8 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
 
   // Performing pool tasks
   private static int filterPoolLimit;
-  private static WorkProcessor filterPool;
   private static int transformPoolLimit;
-  private static WorkProcessor transformPool;
   private static int indexPoolLimit;
-  private static WorkProcessor indexPool;
 
   private static void notAlreadyStarted() {
     if (imStarted) {
@@ -128,11 +122,11 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     metrics.register("bambooReadTimer", bambooReadTimer);
     bambooParseTimer = new Timer();
     metrics.register("bambooParseTimer", bambooParseTimer);
-    bambooCacheNull = () -> bambooCacheNullLong;
+    Gauge<Long> bambooCacheNull = () -> bambooCacheNullLong;
     metrics.register("bambooCacheNull", bambooCacheNull);
-    bambooCacheHit = () -> bambooCacheHitLong;
+    Gauge<Long> bambooCacheHit = () -> bambooCacheHitLong;
     metrics.register("bambooCacheHit", bambooCacheHit);
-    bambooCacheMiss = () -> bambooCacheMissLong;
+    Gauge<Long> bambooCacheMiss = () -> bambooCacheMissLong;
     metrics.register("bambooCacheMiss", bambooCacheMiss);
     warcDocCountHistogram = new Histogram(new UniformReservoir());
     metrics.register("warcDocCountHistogram", warcDocCountHistogram);
@@ -146,19 +140,19 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     metrics.register("indexTimer", indexTimer);
 
     // Filter workers
-    filterPool = new WorkProcessor(filterPoolLimit);
+    WorkProcessor filterPool = new WorkProcessor(filterPoolLimit);
     for (int i = 0; i < filterPoolLimit; i++) {
       filterPool.process(new FilterWorker(filtering, filterTimer));
     }
 
     // Transform workers
-    transformPool = new WorkProcessor(transformPoolLimit);
+    WorkProcessor transformPool = new WorkProcessor(transformPoolLimit);
     for (int i = 0; i < transformPoolLimit; i++) {
       transformPool.process(new TransformWorker(transformTimer, indexFullText));
     }
 
     // Indexing workers
-    indexPool = new WorkProcessor(indexPoolLimit);
+    WorkProcessor indexPool = new WorkProcessor(indexPoolLimit);
     for (int i = 0; i < indexPoolLimit; i++) {
       indexPool.process(new IndexerWorker(indexTimer));
     }
@@ -167,16 +161,17 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   }
 
   private static final ReentrantLock DOMAIN_START_LOCK = new ReentrantLock();
-  public static void acquireDomainStartLock() {
+  protected static void acquireDomainStartLock() {
     DOMAIN_START_LOCK.lock();
   }
-  public static void releaseDomainStartLock() {
+  protected static void releaseDomainStartLock() {
     // Only the holding thread is allowed to call this,
     // otherwise an IllegalMonitorStateException will be thrown
     DOMAIN_START_LOCK.unlock();
   }
 
   @VisibleForTesting
+  @SuppressWarnings("unused")
   public static void forTestSetMetricsRegistryName(String metricsRegistryName) {
     if (imStarted) {
       throw new IllegalStateException("Unit tests only!!!");
@@ -193,6 +188,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   }
 
   @VisibleForTesting
+  @SuppressWarnings("unused")
   public static void forTestSetBambooBaseUrl(String bambooBaseUrl) {
     if (imStarted) {
       throw new IllegalStateException("Unit tests only!!!");
@@ -200,7 +196,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     BaseWarcDomainManager.bambooBaseUrl = bambooBaseUrl;
   }
 
-  public static List<BaseWarcDomainManager> getDomainList(){
+  protected static List<BaseWarcDomainManager> getDomainList(){
   	// wait for domains to register
   	// this code is needed to allow the domains to start but hide the circular dependency
   	// and spring not able to control the start order.
@@ -266,6 +262,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     return transformQueue.poll();
   }
 
+  @SuppressWarnings("unused")
   public static IndexerDocument getNextIndexJob(IndexerDocument lastJob) {
     return indexQueue.poll();
   }

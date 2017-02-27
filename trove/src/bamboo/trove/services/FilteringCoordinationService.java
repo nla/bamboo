@@ -40,6 +40,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class FilteringCoordinationService {
@@ -90,11 +91,9 @@ public class FilteringCoordinationService {
     return type.replaceAll(cleanKeyPattern, "");
   }
   private static List<String> cleanTypesDuringStartup(List<String> input) {
-    List<String> output = new ArrayList<>();
-    for (String in : input) {
-      output.add(cleanType(in));
-    }
-    return output;
+    return input.stream()
+            .map(FilteringCoordinationService::cleanType)
+            .collect(Collectors.toList());
   }
 
   @PostConstruct
@@ -103,6 +102,7 @@ public class FilteringCoordinationService {
     loadDomainMetrics();
   }
 
+  @SuppressWarnings("unused")
   public void setCollectMetrics(boolean collectMetrics) {
     this.collectMetrics = collectMetrics;
   }

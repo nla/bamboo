@@ -43,8 +43,8 @@ public class WarcProgressManager {
   private Queue<IndexerDocument> indexProgress = new LinkedList<>();
   private int countIndexCompleted = 0;
   // Error queue
-  protected BlockingQueue<IndexerDocument> errorQ = new ArrayBlockingQueue<>(5);
-  protected int discardedErrors = 0;
+  BlockingQueue<IndexerDocument> errorQ = new ArrayBlockingQueue<>(5);
+  int discardedErrors = 0;
   private boolean trackedError = false;
   private Pair<Timestamp, Integer> errorTracking = null;
 
@@ -104,11 +104,11 @@ public class WarcProgressManager {
     return trackedDocument;
   }
 
-  public boolean isLoadingComplete() {
+  boolean isLoadingComplete() {
     return loadingComplete;
   }
 
-  public void setLoadComplete() {
+  void setLoadComplete() {
     loadingComplete = true;
   }
 
@@ -116,7 +116,7 @@ public class WarcProgressManager {
     return loadingFailed;
   }
 
-  public void setLoadFailed() {
+  void setLoadFailed() {
     loadingFailed = true;
   }
 
@@ -229,7 +229,7 @@ public class WarcProgressManager {
     errorTracking = errorData;
   }
 
-  public Pair<Timestamp, Integer> getErrorTracking() {
+  Pair<Timestamp, Integer> getErrorTracking() {
     return errorTracking;
   }
 
@@ -281,11 +281,11 @@ public class WarcProgressManager {
     return batchSize;
   }
 
-  public long getBatchBytes() {
+  long getBatchBytes() {
     return batchBytes;
   }
 
-  public void setBatchBytes(long batchBytes) {
+  void setBatchBytes(long batchBytes) {
     this.batchBytes = batchBytes;
   }
 }

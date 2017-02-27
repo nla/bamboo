@@ -39,15 +39,16 @@ public class ToIndex extends WarcToIndexResumption {
     oldWarcInstance = warc;
   }
 
-  public boolean isRetryAttempt() {
+  boolean isRetryAttempt() {
     return !(oldWarcInstance == null);
   }
 
+  @SuppressWarnings("unused")
   public WarcProgressManager oldAttempt() {
     return oldWarcInstance;
   }
 
-  public long getTrackedOffset() {
+  long getTrackedOffset() {
     return trackedOffset;
   }
 

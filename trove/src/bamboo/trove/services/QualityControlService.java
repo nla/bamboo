@@ -20,12 +20,13 @@ import bamboo.trove.common.ContentThreshold;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Service
 public class QualityControlService {
-  public static final List<String> HTML_CONTENT_TYPES = Arrays.asList("text/html");
-  public static final List<String> PDF_CONTENT_TYPES = Arrays.asList("application/pdf");
+  public static final List<String> HTML_CONTENT_TYPES = Collections.singletonList("text/html");
+  public static final List<String> PDF_CONTENT_TYPES = Collections.singletonList("application/pdf");
   public static final List<String> DOCUMENT_CONTENT_TYPES = Arrays.asList("application/rtf", "application/msword",
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
           "application/vnd.oasis.opendocument.text");
@@ -36,7 +37,7 @@ public class QualityControlService {
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/csv", "application/csv",
           "application/vnd.oasis.opendocument.spreadsheet");
 
-  public ContentThreshold filterDocument(Document document) {
+  ContentThreshold filterDocument(Document document) {
     // Status code - Unless we actually harvested the content, don't index it
     if (document.getStatusCode() != 200) {
       return ContentThreshold.METADATA_ONLY;

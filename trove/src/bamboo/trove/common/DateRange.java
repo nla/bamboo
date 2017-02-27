@@ -28,11 +28,11 @@ public class DateRange{
 	private Date end;
 	
 	/**
-	 * Create a range can be open ended(start or end can be null). 
-	 * @param start
-	 * @param end
+	 * Create a range can be open ended (start or end can be null, but not both).
+	 * @param start Start of date range (can be null)
+	 * @param end End of date range (can be null)
 	 */
-	public DateRange(Date start, Date end){
+	DateRange(Date start, Date end){
 		if(start == null && end == null){
 			throw new NullPointerException("Both start and end cannot be null.");
 		}
@@ -46,8 +46,8 @@ public class DateRange{
 	/**
 	 * Check if the date fits in this range.
 	 * 
-	 * @param date
-	 * @return
+	 * @param date Date to check
+	 * @return true if in range, false if not
 	 */
 	public boolean isDateInRange(Date date){
 		if(date == null){
@@ -102,26 +102,24 @@ public class DateRange{
 	/**
 	 * Check that these dates are valid for use in a dateRange.
 	 * 
-	 * @param start
-	 * @param end
-	 * @return
+	 * @param start Date to start the range with
+	 * @param end Date to end the range with
+	 * @return true if valid, false if not
 	 */
-	public static boolean isValidRange(Date start, Date end){
-		if(start == null && end == null){
-			return false;
-		}
-		if(start == null){
-			return true;
-		}
-		if(end == null){
-			return true;
-		}
-		if(end.before(start)){
-			return false;
-		}
-		return true;
-	}
-	@Override
+  static boolean isValidRange(Date start, Date end) {
+    if (start == null && end == null) {
+      return false;
+    }
+    if (start == null) {
+      return true;
+    }
+    if (end == null) {
+      return true;
+    }
+    return !end.before(start);
+  }
+
+  @Override
 	public String toString(){
 		// TODO Auto-generated method stub
 		return this.getStart() + " TO " + this.getEnd();

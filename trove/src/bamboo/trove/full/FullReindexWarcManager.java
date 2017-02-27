@@ -51,6 +51,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.stream.Collectors;
 
 @Service
 public class FullReindexWarcManager extends BaseWarcDomainManager {
@@ -64,7 +65,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 	@Qualifier("solrDomainManager")
 	private EndPointDomainManager solrManager;
 
-	@Autowired(required = true)
+	@Autowired
 	private FilteringCoordinationService filteringCoordinationService;
 
 	@Autowired
@@ -72,7 +73,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   // We don't really need this, but we want Spring to start it before us, so we list it as a dependency
   @SuppressWarnings("unused")
-	@Autowired(required = true)
+	@Autowired
 	private RuleChangeUpdateManager ruleChangeUpdateManager;
 
   // Trove's DB stores IDs on where we are up to
@@ -90,7 +91,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   // Lifecycle states
   protected boolean running = false;
-  protected boolean starting = false;
+  private boolean starting = false;
   protected boolean stopping = false;
 
   protected boolean finishedFinding = false;
@@ -120,9 +121,11 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private int moduloDivisor = -1;
   private int moduloRemainder = -1;
 
-  public FullReindexWarcManager(){
+  protected FullReindexWarcManager(){
   	log = LoggerFactory.getLogger(FullReindexWarcManager.class);
   }
+
+  @SuppressWarnings("unused")
   public void setModuloDivisor(int moduloDivisor) {
     // TODO - Cannot use this when the restrictions update code and/or periodic domain are working
     // comment out the call to RuleChangeUpdateManager::runInsideLock() if you are doing this...
@@ -131,30 +134,37 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     throw new IllegalArgumentException("Cannot set moduloDivisor. Distributed indexing requires dev hax!");
   }
 
+  @SuppressWarnings("unused")
   public void setModuloRemainder(int moduloRemainder) {
     this.moduloRemainder = moduloRemainder;
   }
 
+  @SuppressWarnings("unused")
   public void setBambooBatchSize(int bambooBatchSize) {
     this.bambooBatchSize = bambooBatchSize;
   }
 
+  @SuppressWarnings("unused")
   public void setBambooReadThreads(int bambooReadThreads) {
     this.bambooReadThreads = bambooReadThreads;
   }
 
+  @SuppressWarnings("unused")
   public void setQueueLimit(int queueLimit) {
     this.queueLimit = queueLimit;
   }
 
+  @SuppressWarnings("unused")
   public void setFreeHeapLimit(long freeHeapLimit) {
     this.freeHeapLimit = freeHeapLimit;
   }
 
+  @SuppressWarnings("unused")
   public Map<Long, WarcSummary> getBatchMap() {
     return warcSummaries;
   }
 
+  @SuppressWarnings("unused")
   public Map<Long, FullPersistenceDAO.OldError> getIgnoredErrors() {
     return ignoredErrors;
   }
@@ -168,7 +178,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   public void init() throws InterruptedException {
     init(true);
   }
-  public void init(boolean createMetrics) throws InterruptedException {
+  protected void init(boolean createMetrics) throws InterruptedException {
     waitUntilStarted();
     log.info("***** FullReindexWarcManager *****");
     bambooCollectionsUrl = getBambooApiBaseUrl() + "collections/" + bambooCollectionId + "/warcs/json";
@@ -394,9 +404,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
        }
        // Including a separate reference just to ensure we know when to persist back to the DB
        LinkedList<ToIndex> persistTracking = new LinkedList<>();
-       for (ToIndex w : newBatch) {
-         persistTracking.add(w);
-       }
+       persistTracking.addAll(newBatch);
        allBatches.add(persistTracking);
        // Update state
        endOfBatchId = newBatch.peekLast().getId();
@@ -579,11 +587,9 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     }
 
     // Cleaning up ignored errors is even simpler... just make sure we aren't tracking them still
-    for (Long warcId : ignoredErrors.keySet()) {
-      if (warcTracking.containsKey(warcId)) {
-        completedWarcs.add(warcId);
-      }
-    }
+    completedWarcs.addAll(ignoredErrors.keySet().stream()
+            .filter(warcId -> warcTracking.containsKey(warcId))
+            .collect(Collectors.toList()));
 
     // Cleanup
     for (Long warcId : completedWarcs) {
@@ -643,9 +649,11 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
     // All warcs are completed in this batch
     if (itIsDone) {
-      updateLastId(warcIndexing);
-      persistedWarcId = warcIndexing.getId();
-      log.info("Persisting progress for ID '{}'. Currently monitoring {} batches", warcIndexing.getId(), allBatches.size());
+      if (warcIndexing != null) {
+        updateLastId(warcIndexing);
+        persistedWarcId = warcIndexing.getId();
+        log.info("Persisting progress for ID '{}'. Currently monitoring {} batches", warcIndexing.getId(), allBatches.size());
+      }
       // Clear it from the head
       allBatches.poll();
     }
@@ -681,8 +689,8 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
         WarcProgressManager batch = getAndEnqueueWarc(toIndex);
         if (batch != null) {
-          //log.info("Warc #{} retrieval complete. {} docs, estimated {}",
-          //        toIndex.getId(), batch.size(), toIndex.getUrlCount());
+          log.trace("Warc #{} retrieval complete. {} docs, estimated {}",
+                  toIndex.getId(), batch.size(), toIndex.getUrlCount());
         } else {
           log.error("Warc #{} was not indexed. Null response from Bamboo", toIndex.getId());
         }

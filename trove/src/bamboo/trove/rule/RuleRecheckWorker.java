@@ -27,7 +27,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RuleRecheckWorker implements Runnable{
+class RuleRecheckWorker implements Runnable{
 //  private static final Logger log = LoggerFactory.getLogger(RuleRecheckWorker.class);
 
 	private static final Map<String, Object> partialUpdateNull = new HashMap<>();
@@ -46,7 +46,7 @@ public class RuleRecheckWorker implements Runnable{
 	private SearchCategory searchCategory;
 	private float boost = 1.0f;
 	
-	public RuleRecheckWorker(String id, String url, Date capture, 
+	RuleRecheckWorker(String id, String url, Date capture,
 			String site, SearchCategory searchCategory, 
 			RuleChangeUpdateManager manager, BambooRestrictionService service){
 		this.manager = manager;
@@ -130,7 +130,7 @@ public class RuleRecheckWorker implements Runnable{
 		return update;
 	}
 	
-  public float modifyBoost(float modifier) {
+  private float modifyBoost(float modifier) {
     boost *= modifier;
     return boost;
   }

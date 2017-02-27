@@ -68,6 +68,7 @@ public class DbPool implements Closeable {
     return dao;
   }
 
+  @SuppressWarnings("unused")
   public TroveDaoRegistry take() {
     return dbi.open(TroveDaoRegistry.class);
   }
@@ -77,7 +78,7 @@ public class DbPool implements Closeable {
     ds.terminate();
   }
 
-  public static class PathArgumentFactory implements ArgumentFactory<Path> {
+  private static class PathArgumentFactory implements ArgumentFactory<Path> {
     @Override
     public boolean accepts(Class<?> aClass, Object o, StatementContext statementContext) {
       return o instanceof Path;

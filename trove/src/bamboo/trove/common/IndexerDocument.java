@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class IndexerDocument implements AcknowledgeWorker {
+  @SuppressWarnings("unused")
   private static Logger log = LoggerFactory.getLogger(IndexerDocument.class);
 
   private String docId;
@@ -76,7 +77,7 @@ public class IndexerDocument implements AcknowledgeWorker {
     return rule.getId();
   }
   private Throwable filterError = null;
-  public Throwable getFilterError() {
+  Throwable getFilterError() {
     return filterError;
   }
   public void setFilterError(Throwable filterError) {
@@ -97,7 +98,7 @@ public class IndexerDocument implements AcknowledgeWorker {
   }
   public StateTracker transform = new StateTracker("Work");
   private Throwable transformError = null;
-  public Throwable getTransformError() {
+  Throwable getTransformError() {
     return transformError;
   }
   public void setTransformError(Throwable transformError) {
@@ -111,7 +112,7 @@ public class IndexerDocument implements AcknowledgeWorker {
   // Step 4) Write to Solr
   public StateTracker index = new StateTracker("Writing");
   private Throwable indexError = null;
-  public Throwable getIndexError() {
+  Throwable getIndexError() {
     return indexError;
   }
   public void setIndexError(Throwable indexError) {
@@ -131,7 +132,7 @@ public class IndexerDocument implements AcknowledgeWorker {
     this.setIndexError(throwable);
   }
 
-  public boolean isInError() {
+  boolean isInError() {
     return (filterError != null || transformError != null || indexError != null);
   }
 
@@ -141,7 +142,7 @@ public class IndexerDocument implements AcknowledgeWorker {
     private boolean finished = false;
     private Timer.Context timer = null;
 
-    public StateTracker(String name) {
+    StateTracker(String name) {
       this.name = name;
     }
     public void start(Timer timer) {
@@ -166,10 +167,10 @@ public class IndexerDocument implements AcknowledgeWorker {
       finished = true;
       timer.stop();
     }
-    public boolean hasStarted() {
+    boolean hasStarted() {
       return started;
     }
-    public boolean hasFinished() {
+    boolean hasFinished() {
       return finished;
     }
   }

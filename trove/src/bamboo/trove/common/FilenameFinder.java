@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 
 public class FilenameFinder {
+  @SuppressWarnings("unused")
   private static Logger log = LoggerFactory.getLogger(FilenameFinder.class);
 
   public static String getFilename(String input) {

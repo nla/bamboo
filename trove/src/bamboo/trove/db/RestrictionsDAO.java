@@ -18,7 +18,6 @@ package bamboo.trove.db;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.LastRun;
 import bamboo.trove.common.Rule;
-import org.skife.jdbi.v2.SQLStatement;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.Bind;
 import org.skife.jdbi.v2.sqlobject.Binder;
@@ -45,11 +44,11 @@ import java.util.List;
 
 @RegisterMapper({RestrictionsDAO.CollectionRuleMapper.class, RestrictionsDAO.CollectionLastRunMapper.class})
 public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> {
-  public static final String TABLE     = "restriction_rule_web_archives";
-  public static final String TABLE_RUN = "restriction_rule_last_run_web_archives";
+  private static final String TABLE     = "restriction_rule_web_archives";
+  private static final String TABLE_RUN = "restriction_rule_last_run_web_archives";
   
   @SqlQuery("select * from "+TABLE+ " where status = :status")
-  protected abstract List<Rule> getRules(@Bind("status") String status);
+  abstract List<Rule> getRules(@Bind("status") String status);
   public List<Rule> getCurrentRules(){
   	return getRules("c");
   }
@@ -71,13 +70,13 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   public abstract void addNewRuleSet(@RuleBinder List<Rule> rule);
   
   @SqlUpdate("delete from " + TABLE + " where status = 'p'")
-  protected abstract void removePreviousRuleSet();
+  abstract void removePreviousRuleSet();
   
   @SqlUpdate("update " + TABLE + " set status = 'p' where status = 'c'")
-  protected abstract void makeCurrentRuleSetPrevious();
+  abstract void makeCurrentRuleSetPrevious();
   
   @SqlUpdate("update " + TABLE + " set status = 'c' where status = 'n'")
-  protected abstract void makeNewRuleSetCurrent();
+  abstract void makeNewRuleSetCurrent();
 
   @Transaction
   public void makeNewRulesCurrent(LastRun lastRun){
@@ -88,7 +87,7 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   }
   
 
-  public static class CollectionRuleMapper implements ResultSetMapper<Rule> {
+  static class CollectionRuleMapper implements ResultSetMapper<Rule> {
     @Override
     public Rule map(int index, ResultSet rs, StatementContext ctx) throws SQLException {
     	return new Rule(rs.getInt("id"), DocumentStatus.valueOf(rs.getString("policy")), 
@@ -105,7 +104,7 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
     }
   }
 
-  public static class CollectionLastRunMapper implements ResultSetMapper<LastRun> {
+  static class CollectionLastRunMapper implements ResultSetMapper<LastRun> {
     @Override
     public LastRun map(int index, ResultSet rs, StatementContext ctx) throws SQLException {
     	return new LastRun(new Date(rs.getTimestamp("last_run").getTime()), "t".equals(rs.getString("finished")));
@@ -133,36 +132,33 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   @BindingAnnotation(RestrictionsDAO.RuleBinder.RuleBinderFactory.class)
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.PARAMETER})
-  public @interface RuleBinder{
-  	public static class RuleBinderFactory implements BinderFactory{
+  @interface RuleBinder{
+  	class RuleBinderFactory implements BinderFactory{
   		public Binder<RuleBinder, Rule> build(Annotation annotation){
-  			return new Binder<RuleBinder, Rule>(){
-					@Override
-  				public void bind(SQLStatement<?> q, RuleBinder bind, Rule r){
-  					q.bind("id", r.getId());
-  					q.bind("lastUpdated", r.getLastUpdated());
-  					q.bind("surt", r.getSurt());
-  					q.bind("policy", r.getPolicy().toString());
-  					q.bind("embargo", r.getEmbargo());
-  					q.bind("matchExact", r.isMatchExact()?"t":"f");
-  					if(r.getCapturedRange() == null){
-    					q.bind("capturedRangeStart", (Date)null);
-    					q.bind("capturedRangeEnd", (Date)null);  						
-  					}
-  					else{
-  						q.bind("capturedRangeStart", r.getCapturedRange().getStart());
-  						q.bind("capturedRangeEnd", r.getCapturedRange().getEnd());
-  					}
-  					if(r.getRetrievedRange() == null){
-    					q.bind("retrievedRangeStart", (Date)null);
-    					q.bind("retrievedRangeEnd", (Date)null);  						
-  					}
-  					else{
-  						q.bind("retrievedRangeStart", r.getRetrievedRange().getStart());
-  						q.bind("retrievedRangeEnd", r.getRetrievedRange().getEnd());
-  					}
-  				}
-  			};
+  			return (q, bind, r) -> {
+          q.bind("id", r.getId());
+          q.bind("lastUpdated", r.getLastUpdated());
+          q.bind("surt", r.getSurt());
+          q.bind("policy", r.getPolicy().toString());
+          q.bind("embargo", r.getEmbargo());
+          q.bind("matchExact", r.isMatchExact()?"t":"f");
+          if(r.getCapturedRange() == null){
+            q.bind("capturedRangeStart", (Date)null);
+            q.bind("capturedRangeEnd", (Date)null);
+          }
+          else{
+            q.bind("capturedRangeStart", r.getCapturedRange().getStart());
+            q.bind("capturedRangeEnd", r.getCapturedRange().getEnd());
+          }
+          if(r.getRetrievedRange() == null){
+            q.bind("retrievedRangeStart", (Date)null);
+            q.bind("retrievedRangeEnd", (Date)null);
+          }
+          else{
+            q.bind("retrievedRangeStart", r.getRetrievedRange().getStart());
+            q.bind("retrievedRangeEnd", r.getRetrievedRange().getEnd());
+          }
+        };
   		}
   	}
   }
@@ -170,16 +166,13 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   @BindingAnnotation(RestrictionsDAO.LastRunBinder.LastRunBinderFactory.class)
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.PARAMETER})
-  public @interface LastRunBinder{
-  	public static class LastRunBinderFactory implements BinderFactory{
+  @interface LastRunBinder{
+  	class LastRunBinderFactory implements BinderFactory{
   		public Binder<LastRunBinder, LastRun> build(Annotation annotation){
-  			return new Binder<LastRunBinder, LastRun>(){
-					@Override
-  				public void bind(SQLStatement<?> q, LastRunBinder bind, LastRun r){
-  					q.bind("lastRun", r.getDate());
-  					q.bind("finished", r.isFinished()?"t":"f");
-  				}
-  			};
+  			return (q, bind, r) -> {
+          q.bind("lastRun", r.getDate());
+          q.bind("finished", r.isFinished()?"t":"f");
+        };
   		}
   	}
   }

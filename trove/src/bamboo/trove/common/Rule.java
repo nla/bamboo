@@ -64,9 +64,9 @@ public class Rule implements Comparable<Rule>{
 	/** 
 	 * Check if this URL and capture date meets this rule.
 	 * 
-	 * @param surtTxt
-	 * @param captureDate
-	 * @return
+	 * @param surtTxt The URL to test
+	 * @param captureDate The capture date of this URL
+	 * @return true if the rule matches, false if not
 	 */
 	public boolean matches(String surtTxt, Date captureDate){
 

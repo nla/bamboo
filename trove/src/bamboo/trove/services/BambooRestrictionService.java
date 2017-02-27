@@ -62,8 +62,8 @@ public class BambooRestrictionService {
   private static Logger log = LoggerFactory.getLogger(BambooRestrictionService.class);
 
   private boolean recovery = false;
-  protected List<Rule> currentRules;
-  protected List<Rule> newRules;
+  List<Rule> currentRules;
+  List<Rule> newRules;
   // map to find rules for a site so that we don't have to check against all rules
   private Map<String, List<Rule>> rulesBySite;
   private LastRun lastRun;
@@ -106,11 +106,7 @@ public class BambooRestrictionService {
   public boolean checkForChangedRules() {
     if (recovery) {
       // in recovery only changed if we have new rules to process.
-      if (!newRules.isEmpty()) {
-        return true;
-      } else {
-        return false;
-      }
+      return !newRules.isEmpty();
     }
     List<Rule> rules = getRulesFromServer();
 //  	for(Rule r : rules){
@@ -134,7 +130,7 @@ public class BambooRestrictionService {
   }
 
 
-  public Rule filterDocument(Document doc) {
+  Rule filterDocument(Document doc) {
     return filterDocument(doc.getUrl(), doc.getDate());
   }
 
@@ -153,7 +149,7 @@ public class BambooRestrictionService {
     }
     List<Rule> rules = getRulesFor(s);
 
-    final Comparator<Rule> comp = (o1, o2) -> o1.compareTo(o2);
+    final Comparator<Rule> comp = Rule::compareTo;
     Optional<Rule> r = rules.stream()
             .filter(i -> i.matches(surt, capture))
             .max(comp);
@@ -174,7 +170,7 @@ public class BambooRestrictionService {
    * This will check that the last run was finished and store a new run date in
    * the database or return the date of the last run.
    *
-   * @return
+   * @return LastRun
    */
   public LastRun startProcess() {
     if (lastRun.isFinished()) {
@@ -206,7 +202,7 @@ public class BambooRestrictionService {
    * there restrictions updated.<br/>
    * This should only include rules that have changed(edited).
    *
-   * @return
+   * @return List<Rule>
    */
   public List<Rule> getChangedRules() {
     Map<Integer, Rule> nRuleMap = new HashMap<>();
@@ -241,7 +237,7 @@ public class BambooRestrictionService {
     return changed;
   }
 
-  public boolean haveRulesChanged(List<Rule> current, List<Rule> next) {
+  private boolean haveRulesChanged(List<Rule> current, List<Rule> next) {
     Map<Integer, Rule> nRuleMap = new HashMap<>();
     for (Rule r : next) {
       nRuleMap.put(r.getId(), r);
@@ -256,10 +252,7 @@ public class BambooRestrictionService {
         return true; // deleted
       }
     }
-    if (!nRuleMap.isEmpty()) {
-      return true; // new
-    }
-    return false;
+    return !nRuleMap.isEmpty();
   }
 
   public List<Rule> getDeletedRules() {
@@ -282,7 +275,7 @@ public class BambooRestrictionService {
    * there restrictions updated.<br/>
    * This should only include rules that have dates in there rules(edited).
    *
-   * @return
+   * @return List<Rule>
    */
   public List<Rule> getDateRules() {
     List<Rule> list = new ArrayList<>();
@@ -320,7 +313,8 @@ public class BambooRestrictionService {
   }
 
   public class FilterSegments extends HashMap<String, FilterSegments> {
-    public void merge(FilterSegments newData) {
+    @SuppressWarnings("unused")
+    void merge(FilterSegments newData) {
       if (newData == null || newData.isEmpty()) {
         return;
       }
@@ -334,7 +328,7 @@ public class BambooRestrictionService {
     }
   }
 
-  protected void updateRulesBySiteList(List<Rule> rules) {
+  void updateRulesBySiteList(List<Rule> rules) {
     Map<String, List<Rule>> map = new HashMap<>();
     for (Rule r : rules) {
       String surt = r.getSurt();
@@ -694,7 +688,7 @@ public class BambooRestrictionService {
   }
 
   private static List<Rule> parseXML(InputStream is) {
-    List<Rule> rules = new ArrayList<Rule>();
+    List<Rule> rules = new ArrayList<>();
     JAXBContext context;
     RulesPojo rs;
     try {
@@ -706,7 +700,7 @@ public class BambooRestrictionService {
       // Not able to parse the XML may be best to stop as the rules have changed(?) but contain errors
       throw new IllegalStateException("Error parsing the returned XML.", e);
     }
-    List<Integer> ids = new ArrayList<Integer>();
+    List<Integer> ids = new ArrayList<>();
     for (RulePojo r : rs.getRules()) {
       if (r.getSurt().startsWith("www")) continue; //TODO this should be an error invalid rule
       // Rules should have unique id's
@@ -728,7 +722,8 @@ public class BambooRestrictionService {
       if ("true".equalsIgnoreCase(r.getExactMatch())) {
         matchExact = true;
       }
-      rules.add(new Rule(r.getId(), policy, r.getLastModified(), r.getEmbargo(), r.getCaptureStart(), r.getCaptureEnd(), r.getViewStart(), r.getViewEnd(), r.getSurt(), matchExact));
+      rules.add(new Rule(r.getId(), policy, r.getLastModified(), r.getEmbargo(), r.getCaptureStart(), r.getCaptureEnd(),
+              r.getViewStart(), r.getViewEnd(), r.getSurt(), matchExact));
     }
     return rules;
   }

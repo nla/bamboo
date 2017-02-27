@@ -27,6 +27,7 @@ import java.util.List;
  * serializing all of a Warc's data every time the UI ajax tick fires so this minimal summary object carries
  * only what is required. The heaviest work required is when errors exist... but we can accept that edge case.
  */
+@SuppressWarnings("unused")
 public class WarcSummary {
   @JsonIgnore
   private WarcProgressManager warc;

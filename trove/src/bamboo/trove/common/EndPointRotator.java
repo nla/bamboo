@@ -20,14 +20,14 @@ import java.util.TimerTask;
  * NOTE: This was not strongly considered in terms of thread safety for production use as it is a diagnostic class.
  */
 public class EndPointRotator {
+  @SuppressWarnings("unused")
   private static final Logger log = LoggerFactory.getLogger(EndPointRotator.class);
 
   private static final int MINS = 5;
   private static final long ROTATION_TIMEOUT_MS = 1000 * 60 * MINS;
-  private static Timer timer;
 
   static {
-    timer = new Timer();
+    Timer timer = new Timer();
     timer.scheduleAtFixedRate(new TimerTask() {
       @Override
       public void run() {
@@ -61,7 +61,7 @@ public class EndPointRotator {
     }
   }
 
-  static class AsyncDocWrapper implements AcknowledgableSolrInputDocument {
+  private static class AsyncDocWrapper implements AcknowledgableSolrInputDocument {
     private SolrInputDocument document;
     private AcknowledgeWorker acknowledgeWorker;
 

@@ -25,6 +25,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.BufferedInputStream;
@@ -35,7 +36,8 @@ import java.net.URL;
 import java.util.Calendar;
 import java.util.LinkedList;
 
-public class PeriodicWarcManager extends FullReindexWarcManager{
+@Service
+public class PeriodicWarcManager extends FullReindexWarcManager {
 
   // We don't really need this, but we want Spring to start it before us, so we list it as a dependency
   @SuppressWarnings("unused")
