@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 National Library of Australia
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ public class Rule implements Comparable<Rule> {
       throw new NullPointerException("Must have a lastUpdated date.");
     }
     if (embargo < 0) {
-      throw new IllegalArgumentException("Embargo can not be negitave.");
+      throw new IllegalArgumentException("Embargo can not be negative.");
     }
     if (surt == null) {
       throw new NullPointerException("Must have a SURT string.");
@@ -117,17 +117,21 @@ public class Rule implements Comparable<Rule> {
     }
     if (ret == 0) {
       if (this.getCapturedRange() != null) {
-        ret = comp(this.getCapturedRange().getStart(), o.getCapturedRange() != null ? o.getCapturedRange().getStart() : null);
+        ret = comp(this.getCapturedRange().getStart(),
+                o.getCapturedRange() != null ? o.getCapturedRange().getStart() : null);
         if (ret == 0) {
-          ret = comp(this.getCapturedRange().getEnd(), o.getCapturedRange() != null ? o.getCapturedRange().getEnd() : null);
+          ret = comp(this.getCapturedRange().getEnd(),
+                  o.getCapturedRange() != null ? o.getCapturedRange().getEnd() : null);
         }
       }
     }
     if (ret == 0) {
       if (this.getRetrievedRange() != null) {
-        ret = comp(this.getRetrievedRange().getStart(), o.getRetrievedRange() != null ? o.getRetrievedRange().getStart() : null);
+        ret = comp(this.getRetrievedRange().getStart(),
+                o.getRetrievedRange() != null ? o.getRetrievedRange().getStart() : null);
         if (ret == 0) {
-          ret = comp(this.getRetrievedRange().getEnd(), o.getRetrievedRange() != null ? o.getRetrievedRange().getEnd() : null);
+          ret = comp(this.getRetrievedRange().getEnd(),
+                  o.getRetrievedRange() != null ? o.getRetrievedRange().getEnd() : null);
         }
       }
     }
