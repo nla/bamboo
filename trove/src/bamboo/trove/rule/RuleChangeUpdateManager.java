@@ -54,6 +54,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 
 @Service
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker {
@@ -298,10 +299,9 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   }
 
   private void removeById(List<Rule> dateRules, List<Rule> changed) {
-    List<Integer> ids = new ArrayList<>();
-    for (Rule r : changed) {
-      ids.add(r.getId());
-    }
+    List<Integer> ids = changed.stream()
+            .map(Rule::getId)
+            .collect(Collectors.toList());
     Iterator<Rule> i = dateRules.iterator();
     while (i.hasNext()) {
       Rule r = i.next();
@@ -311,7 +311,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     }
   }
 
-  private List<String> documents = new ArrayList<>();
+  private final List<String> documents = new ArrayList<>();
 
   @Override
   public void errorProcessing(SolrInputDocument doc, Throwable error) {
@@ -325,7 +325,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   @Override
   public void acknowledge(SolrInputDocument doc) {
     synchronized (documents) {
-      documents.remove((String) doc.get("id").getValue());
+      documents.remove(doc.get("id").getValue().toString());
     }
   }
 
@@ -349,10 +349,10 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
    * <li>Retrieve date changed we also need to search if now is with in the range.</li>
    * </ul>
    *
-   * @param currentRule
-   * @param newRule
-   * @throws IOException
-   * @throws SolrServerException
+   * @param currentRule The current rule in place
+   * @param newRule The rule that will replace it
+   * @throws IOException If network errors occur
+   * @throws SolrServerException If errors occur inside the Solr servers
    */
   private void findDocuments(Rule currentRule, Rule newRule) throws SolrServerException, IOException {
     log.debug("Find docs for rules {}", currentRule != null ? currentRule.getId() : newRule.getId());
@@ -383,39 +383,39 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     DateRange captuer = currentRule.getCapturedRange();
     DateRange retrieved = currentRule.getRetrievedRange();
     DocumentStatus policy = currentRule.getPolicy();
-    if (newRule != null) {
-      log.debug("Rule {} has changed.", currentRule.getId());
-      // use the new url if we have one
-      if (!url.equals(newRule.getUrl())) {
-        urlChanged = true;
-      }
-      if (embargo != newRule.getEmbargo()) {
-        embargoChanged = true;
-      }
-      if (captuer != null && !captuer.equals(newRule.getCapturedRange())) {
-        captureRangeChanged = true;
-      } else if (newRule.getCapturedRange() != null && !newRule.getCapturedRange().equals(captuer)) {
-        captureRangeChanged = true;
-      }
-      if (retrieved != null && !retrieved.equals(newRule.getRetrievedRange())) {
-        retreivedRangeChanged = true;
-      } else if (newRule.getRetrievedRange() != null && !newRule.getRetrievedRange().equals(retrieved)) {
-        retreivedRangeChanged = true;
-      }
-      if (policy != newRule.getPolicy()) {
-        policyChanged = true;
-      }
-      url = newRule.getUrl();
-      if (embargo < newRule.getEmbargo()) {
-        // use the longest embargo time
-        embargo = newRule.getEmbargo();
-      } else {
-        embargo = 0; // only search using the rule id as time got shorter
-      }
-      captuer = newRule.getCapturedRange();
-      retrieved = newRule.getRetrievedRange();
-      log.debug("Changed url:{} embargo:{} capture:{} retrieve:{}", urlChanged, embargoChanged, captureRangeChanged, retreivedRangeChanged);
+
+    log.debug("Rule {} has changed.", currentRule.getId());
+    // use the new url if we have one
+    if (!url.equals(newRule.getUrl())) {
+      urlChanged = true;
     }
+    if (embargo != newRule.getEmbargo()) {
+      embargoChanged = true;
+    }
+    if (captuer != null && !captuer.equals(newRule.getCapturedRange())) {
+      captureRangeChanged = true;
+    } else if (newRule.getCapturedRange() != null && !newRule.getCapturedRange().equals(captuer)) {
+      captureRangeChanged = true;
+    }
+    if (retrieved != null && !retrieved.equals(newRule.getRetrievedRange())) {
+      retreivedRangeChanged = true;
+    } else if (newRule.getRetrievedRange() != null && !newRule.getRetrievedRange().equals(retrieved)) {
+      retreivedRangeChanged = true;
+    }
+    if (policy != newRule.getPolicy()) {
+      policyChanged = true;
+    }
+    url = newRule.getUrl();
+    if (embargo < newRule.getEmbargo()) {
+      // use the longest embargo time
+      embargo = newRule.getEmbargo();
+    } else {
+      embargo = 0; // only search using the rule id as time got shorter
+    }
+    log.debug("Changed url:{} embargo:{} capture:{} retrieve:{}",
+            urlChanged, embargoChanged, captureRangeChanged, retreivedRangeChanged);
+
+
     if (url.trim().isEmpty()) {
       log.info("URL is empty searching all records.");
       url = "*";
@@ -453,7 +453,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     if (policyChanged) {
       SolrQuery query = createQuery(SolrEnum.RULE + ":" + currentRule.getId() + notLastIndexed);
       processQuery(query);
-      return;
     }
   }
 
@@ -462,7 +461,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     boolean searchNeeded = false;
     String url = currentRule.getUrl();
     long embargo = currentRule.getEmbargo();
-    DateRange captuer = currentRule.getCapturedRange();
     DateRange retrieved = currentRule.getRetrievedRange();
     if (embargo > 0) {
       // only looking for records where the embargo has expired so search using rule
@@ -635,12 +633,10 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     throw new IllegalArgumentException();
   }
 
-  public void stopProcessing() {
+  private void stopProcessing() {
     if (running && !stopping) {
       stopping = true;
       log.info("Stopping domain... ");
-//      stopWorkers();
-      log.info("All workers stopped!");
     }
   }
 
@@ -687,34 +683,22 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     return "Rules last processed : " + (lastProcessed == null ? "" : lastProcessed.toString());
   }
 
-  public List<Rule> getChangedRules() {
-    return changedRules;
-  }
-
+  @SuppressWarnings("unused")
   public void setChangedRules(List<Rule> changedRules) {
     this.changedRules = changedRules;
   }
 
-  public String getCollection() {
-    return collection;
-  }
-
+  @SuppressWarnings("unused")
   public void setCollection(String collection) {
     this.collection = collection;
   }
 
-  public String getZookeeperConfig() {
-    return zookeeperConfig;
-  }
-
+  @SuppressWarnings("unused")
   public void setZookeeperConfig(String zookeeperConfig) {
     this.zookeeperConfig = zookeeperConfig;
   }
 
-  public int getScheduleTimeHour() {
-    return scheduleTimeHour;
-  }
-
+  @SuppressWarnings("unused")
   public void setScheduleTimeHour(int scheduleTimeHour) {
     if (scheduleTimeHour < 0 || scheduleTimeHour > 23) {
       throw new IllegalArgumentException("Hour must be between 0 and 23");
@@ -722,10 +706,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     this.scheduleTimeHour = scheduleTimeHour;
   }
 
-  public int getScheduleTimeMinute() {
-    return scheduleTimeMinute;
-  }
-
+  @SuppressWarnings("unused")
   public void setScheduleTimeMinute(int scheduleTimeMinute) {
     if (scheduleTimeMinute < 0 || scheduleTimeMinute > 59) {
       throw new IllegalArgumentException("Minute must be between 0 and 59");
@@ -733,10 +714,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     this.scheduleTimeMinute = scheduleTimeMinute;
   }
 
-  public static int getNumberOfWorkers() {
-    return NUMBER_OF_WORKERS;
-  }
-
+  @SuppressWarnings("unused")
   public static void setNumberOfWorkers(int numberOfWorkers) {
     NUMBER_OF_WORKERS = numberOfWorkers;
   }
@@ -775,10 +753,10 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
         }
       }
       log.info("Scheduler start Rule Check.");
-      // TODO - Re-enable this after the next run. Note, there have also been changes to DISCOVERABLE/DELIVERABLE
-      // in the interim because we no longer add lucene segment data when 'false' is the desired value. Writes
-      // originating elsewhere need to mirror this and reads need to search for 'NOT true' when 'false' is desired.
-      //manager.startProcessing();
+      // TODO - There have been changes to DISCOVERABLE/DELIVERABLE because we no longer add lucene segment data
+      // when 'false' is the desired value. Writes originating elsewhere need to mirror this and reads need to
+      // search for 'NOT true' when 'false' is desired.
+      manager.startProcessing();
     }
   }
 }

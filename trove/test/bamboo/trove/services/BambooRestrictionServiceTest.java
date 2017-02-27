@@ -40,8 +40,8 @@ public class BambooRestrictionServiceTest{
 	@Test
 	public void testFilterDocument(){
 		BambooRestrictionService service = new BambooRestrictionService();  
-		service.currentRules = new ArrayList<Rule>();
-		service.newRules = new ArrayList<Rule>();
+		service.currentRules = new ArrayList<>();
+		service.newRules = new ArrayList<>();
 		Date now = new Date();
 		service.currentRules.add(new Rule(1, DocumentStatus.ACCEPTED, now, 0, null, null, null, null, "(", false));
 		service.currentRules.add(new Rule(2, DocumentStatus.RESTRICTED_FOR_BOTH, now, 0, null, null, null, null, "(au,", false));
@@ -80,8 +80,8 @@ public class BambooRestrictionServiceTest{
 	@Test
 	public void testMatchesBadURL(){
 		BambooRestrictionService service = new BambooRestrictionService();  
-		service.currentRules = new ArrayList<Rule>();
-		service.newRules = new ArrayList<Rule>();
+		service.currentRules = new ArrayList<>();
+		service.newRules = new ArrayList<>();
 		Rule r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(", false);
 		service.currentRules.add(r);
 		service.updateRulesBySiteList(service.currentRules);
@@ -101,8 +101,8 @@ public class BambooRestrictionServiceTest{
 	@Test
 	public void testMatchesCatchAll(){
 		BambooRestrictionService service = new BambooRestrictionService();  
-		service.currentRules = new ArrayList<Rule>();
-		service.newRules = new ArrayList<Rule>();
+		service.currentRules = new ArrayList<>();
+		service.newRules = new ArrayList<>();
 		Rule r = new Rule(1, DocumentStatus.ACCEPTED, new Date(), 0, null, null, null, null , "(", false);
 		service.currentRules.add(r);
 		service.updateRulesBySiteList(service.currentRules);
