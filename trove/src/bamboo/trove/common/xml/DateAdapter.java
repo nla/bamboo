@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +16,9 @@
 
 package bamboo.trove.common.xml;
 
+import javax.xml.bind.annotation.adapters.XmlAdapter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-
-import javax.xml.bind.annotation.adapters.XmlAdapter;
 
 
 public class DateAdapter extends XmlAdapter<String, Date>{

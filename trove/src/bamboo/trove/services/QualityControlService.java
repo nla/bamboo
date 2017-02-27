@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,12 +15,12 @@
  */
 package bamboo.trove.services;
 
-import java.util.Arrays;
-import java.util.List;
-
 import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
 import org.springframework.stereotype.Service;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Service
 public class QualityControlService {

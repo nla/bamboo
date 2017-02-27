@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 National Library of Australia
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");

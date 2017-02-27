@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +15,6 @@
  */
 package bamboo.trove.demand;
 
-import javax.annotation.PostConstruct;
-
 import bamboo.task.WarcToIndex;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.IndexerDocument;
@@ -29,10 +27,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
+
 @Service
 public class OnDemandWarcManager extends BaseWarcDomainManager {
   private static final Logger log = LoggerFactory.getLogger(OnDemandWarcManager.class);
 
+  // We don't really need this, but we want Spring to start it before us, so we list it as a dependency
+  @SuppressWarnings("unused")
 	@Autowired(required = true)
 	private RuleChangeUpdateManager ruleChangeUpdateManager;
 

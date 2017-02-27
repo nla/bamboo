@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,12 +15,12 @@
  */
 package bamboo.trove.common;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.math3.util.Pair;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class exists solely for ferrying data between the App server and the dashboard. We don't won't to be

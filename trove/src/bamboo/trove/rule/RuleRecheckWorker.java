@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,19 +15,17 @@
  */
 package bamboo.trove.rule;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.apache.solr.common.SolrInputDocument;
-
-import com.codahale.metrics.Timer;
-
 import bamboo.trove.common.Rule;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.services.BambooRestrictionService;
 import bamboo.trove.workers.TransformWorker;
+import com.codahale.metrics.Timer;
+import org.apache.solr.common.SolrInputDocument;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class RuleRecheckWorker implements Runnable{
 //  private static final Logger log = LoggerFactory.getLogger(RuleRecheckWorker.class);

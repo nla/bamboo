@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 National Library of Australia
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -63,7 +63,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
           SolrEnum.DATE.toString(), SolrEnum.SEARCH_CATEGORY.toString(), SolrEnum.SITE.toString()};
   private static final SimpleDateFormat format = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss'Z'");
   private static int NUMBER_OF_WORKERS = 5;
-  private static int NUMBER_OF_DISTRIBUTORS = 3;
 
   @Autowired
   private BambooRestrictionService restrictionsService;
@@ -90,11 +89,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private String zookeeperConfig = null;
 
   private WorkProcessor workProcessor;
-//	private WorkProcessor workDistributor;
-
 
   private List<Rule> changedRules;
-  private List<Rule> dateRules;
   private LastRun lastProcessed = null;
   private String progress = null;
   private long updateCount = 0;
@@ -107,10 +103,12 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private boolean useAsyncSolrClient = false;
   private boolean indexFullText = false;
 
+  @SuppressWarnings("unused")
   public void setUseAsyncSolrClient(boolean useAsyncSolrClient) {
     this.useAsyncSolrClient = useAsyncSolrClient;
   }
 
+  @SuppressWarnings("unused")
   public void setIndexFullText(boolean indexFullText) {
     this.indexFullText = indexFullText;
   }
@@ -148,12 +146,14 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     log.info("Solr zk path          : {}", zookeeperConfig);
     log.info("Collection            : {}", collection);
     log.info("Number of workers     : {}", NUMBER_OF_WORKERS);
+
     client = new CloudSolrClient(zookeeperConfig);
     client.setDefaultCollection(collection);
     format.setTimeZone(TimeZone.getTimeZone("UTC"));
     workProcessor = new WorkProcessor(NUMBER_OF_WORKERS);
-//		workDistributor = new WorkProcessor(NUMBER_OF_DISTRIBUTORS);
     lastProcessed = restrictionsService.getLastProcessed();
+
+    // Find our initial run state
     boolean runNow = false;
     if (restrictionsService.isRecovery()) {
       log.info("Restart into Rule recovery mode.");
@@ -168,6 +168,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
         Schedule.nextRun(this, nextRun);
       }
     }
+
+    // Start running?
     if (runNow) {
       startProcessing();
       // wait until the recovery process has had a chance to get the lock
@@ -175,11 +177,13 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
         try {
           Thread.sleep(1000);
         } catch (InterruptedException e) {
-          // ignore
+          // ignore. log at a very low level to avoid IDE objections about empty catch block
+          log.trace("Sleep interrupted... sleeping again.", e);
         }
       }
     }
 
+    // Typically this doesn't change, but the 'throughput' domain is experimental
     if (useAsyncSolrClient) {
       EndPointRotator.registerNewEndPoint(solrThroughputDomainManager);
     } else {
@@ -195,16 +199,15 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     acquireDomainStartLock();
     hasPassedLock = true;
     try {
-      for (BaseWarcDomainManager m : BaseWarcDomainManager.getDomainList()) {
-        m.restartForRestrictionsDomain();
-      }
+      BaseWarcDomainManager.getDomainList()
+              .forEach(BaseWarcDomainManager::restartForRestrictionsDomain);
       runInsideLock();
     } finally {
       releaseDomainStartLock();
     }
   }
 
-  public void runInsideLock() {
+  private void runInsideLock() {
     // check if we have a changed rule set.
     progress = "Checking for new Rules";
     Timer timer = getTimer(getName() + ".processRule");
@@ -218,7 +221,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       deletedRules = restrictionsService.getDeletedRules();
       newRules = restrictionsService.getNewRules();
     }
-    dateRules = restrictionsService.getDateRules();
+    List<Rule> dateRules = restrictionsService.getDateRules();
     // remove any rules that have changed from the date list as we don't need to process twice.
     removeById(dateRules, changedRules);
     log.debug("{} Rules have changed.", changedRules.size());
@@ -738,18 +741,18 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     NUMBER_OF_WORKERS = numberOfWorkers;
   }
 
-  static class Schedule implements Runnable {
+  private static class Schedule implements Runnable {
     private RuleChangeUpdateManager manager;
     long nextRun;
 
-    public static void nextRun(RuleChangeUpdateManager manager, Date nextRun) {
+    static void nextRun(RuleChangeUpdateManager manager, Date nextRun) {
       new Schedule(manager, nextRun);
     }
 
     /**
      * Set a timer for the next run to check for new rules and re-check date rules.
      */
-    public Schedule(RuleChangeUpdateManager manager, Date nextRun) {
+    Schedule(RuleChangeUpdateManager manager, Date nextRun) {
       this.manager = manager;
       this.nextRun = nextRun.getTime();
       Thread t = new Thread(this);
@@ -772,7 +775,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
         }
       }
       log.info("Scheduler start Rule Check.");
-      // TODO - Renable this after the next run. Note, there have also been changes to DISCOVERABLE/DELIVERABLE
+      // TODO - Re-enable this after the next run. Note, there have also been changes to DISCOVERABLE/DELIVERABLE
       // in the interim because we no longer add lucene segment data when 'false' is the desired value. Writes
       // originating elsewhere need to mirror this and reads need to search for 'NOT true' when 'false' is desired.
       //manager.startProcessing();

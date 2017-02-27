@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +15,6 @@
  */
 package bamboo.trove.db;
 
-import java.io.Closeable;
-import java.nio.file.Path;
-
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.StatementContext;
@@ -27,6 +24,9 @@ import org.skife.jdbi.v2.tweak.ArgumentFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vibur.dbcp.ViburDBCPDataSource;
+
+import java.io.Closeable;
+import java.nio.file.Path;
 
 public class DbPool implements Closeable {
   private static Logger log = LoggerFactory.getLogger(DbPool.class);

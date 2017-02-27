@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +15,18 @@
  */
 package bamboo.trove.periodic;
 
+import bamboo.task.WarcToIndexResumption;
+import bamboo.trove.common.ToIndex;
+import bamboo.trove.db.FullPersistenceDAO;
+import bamboo.trove.full.FullReindexWarcManager;
+import bamboo.trove.rule.RuleChangeUpdateManager;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import javax.annotation.PostConstruct;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,24 +35,10 @@ import java.net.URL;
 import java.util.Calendar;
 import java.util.LinkedList;
 
-import javax.annotation.PostConstruct;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import bamboo.task.WarcToIndexResumption;
-import bamboo.trove.common.ToIndex;
-import bamboo.trove.db.FullPersistenceDAO;
-import bamboo.trove.full.FullReindexWarcManager;
-import bamboo.trove.rule.RuleChangeUpdateManager;
-
 public class PeriodicWarcManager extends FullReindexWarcManager{
 
+  // We don't really need this, but we want Spring to start it before us, so we list it as a dependency
+  @SuppressWarnings("unused")
   @Autowired(required = true)
   private RuleChangeUpdateManager ruleChangeUpdateManager;
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -70,6 +70,8 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 	@Autowired
 	private JdbiService database;
 
+  // We don't really need this, but we want Spring to start it before us, so we list it as a dependency
+  @SuppressWarnings("unused")
 	@Autowired(required = true)
 	private RuleChangeUpdateManager ruleChangeUpdateManager;
 

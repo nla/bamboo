@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,18 +15,17 @@
  */
 package bamboo.trove.services;
 
-import static org.junit.Assert.*;
-
-import java.util.ArrayList;
-import java.util.Date;
-
+import bamboo.task.Document;
+import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.Rule;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import bamboo.task.Document;
-import bamboo.trove.common.DocumentStatus;
-import bamboo.trove.common.Rule;
+import java.util.ArrayList;
+import java.util.Date;
+
+import static org.junit.Assert.assertEquals;
 
 public class BambooRestrictionServiceTest{
 
