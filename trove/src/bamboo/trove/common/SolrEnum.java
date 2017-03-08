@@ -17,14 +17,16 @@ package bamboo.trove.common;
 
 public enum SolrEnum {
   ID("id"),
-  URL("url"),
+  DISPLAY_URL("url"),
   DATE("date"),
   TITLE("title"),
   CONTENT_TYPE("contentType"),
   SITE("site"),
   DELIVERABLE("deliverable"),
   DISCOVERABLE("discoverable"),
-  TEXT_ERROR("textError");
+  TEXT_ERROR("textError"),
+  DELIVERY_URL("deliveryUrl"),
+  PANDORA_URL("pandoraUrl");
 
   private String value;
   SolrEnum(String value) {

@@ -6,6 +6,8 @@ import java.util.Date;
 
 public class Document {
     private String url;
+    private String deliveryUrl;
+    private String pandoraUrl;
     private Date date;
     private int statusCode;
     private long contentLength;
@@ -37,6 +39,22 @@ public class Document {
 
     public void setUrl(String url) {
         this.url = url;
+    }
+
+    public String getDeliveryUrl() {
+        return deliveryUrl;
+    }
+
+    public void setDeliveryUrl(String deliveryUrl) {
+        this.deliveryUrl = deliveryUrl;
+    }
+
+    public String getPandoraUrl() {
+        return pandoraUrl;
+    }
+
+    public void setPandoraUrl(String pandoraUrl) {
+        this.pandoraUrl = pandoraUrl;
     }
 
     public Date getDate() {

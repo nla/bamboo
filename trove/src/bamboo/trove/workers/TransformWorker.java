@@ -86,11 +86,13 @@ public class TransformWorker implements Runnable {
 
     SolrInputDocument solr = new SolrInputDocument();
     solr.addField(SolrEnum.ID.toString(), document.getDocId());
-    solr.addField(SolrEnum.URL.toString(), document.getBambooDocument().getUrl());
+    solr.addField(SolrEnum.DISPLAY_URL.toString(), document.getBambooDocument().getUrl());
     solr.addField(SolrEnum.DATE.toString(), document.getBambooDocument().getDate());
     solr.addField(SolrEnum.TITLE.toString(), document.getBambooDocument().getTitle());
     solr.addField(SolrEnum.CONTENT_TYPE.toString(), document.getBambooDocument().getContentType());
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
+    solr.addField(SolrEnum.DELIVERY_URL.toString(), document.getBambooDocument().getDeliveryUrl());
+    solr.addField(SolrEnum.PANDORA_URL.toString(), document.getBambooDocument().getPandoraUrl());
     if (DocumentStatus.RESTRICTED_FOR_BOTH.equals(document.getStatus())) {
       solr.addField(SolrEnum.DELIVERABLE.toString(), false);
       solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
