@@ -32,11 +32,6 @@ interface PandasDAO extends Closeable {
     @SqlQuery("select INSTANCE_ID from (select INSTANCE_ID from INSTANCE where CURRENT_STATE_ID = 1 and INSTANCE_ID > :startingFrom and TYPE_NAME <> 'Legacy pandora cgi' order by INSTANCE_ID asc) where rownum <= :limit")
     List<Long> listArchivedInstanceIds(@Bind("startingFrom") long startingFrom, @Bind("limit") int limit);
 
-    @SqlQuery("select TITLE_ID titleId, PERIOD_MULTIPLIER periodMultiplier, PERIOD_TYPE_ID periodTypeId, AGENCY_AREA_ID agencyAreaId from PERIOD_RESTR")
-    @MapResultAsBean
-    List<PeriodRestr> listPeriodRestrictions();
-
-
     @SqlQuery("select INSTANCE_ID from (select INSTANCE_ID from INSTANCE where CURRENT_STATE_ID = 1 and INSTANCE_ID > :startingFrom and TYPE_NAME = :type order by INSTANCE_ID asc) where rownum <= :limit")
     List<Long> listArchivedInstanceIds(@Bind("type") String type, @Bind("startingFrom") long startingFrom, @Bind("limit") int limit);
 
