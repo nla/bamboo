@@ -69,7 +69,14 @@ public class TextExtractor {
         }
 
         String arcDate = WarcUtils.getArcDate(warcHeader);
-        doc.setUrl(url);
+        if (url.startsWith("http://pandora.nla.gov.au/pan/")) {
+            String hackedOffUrl = url.replaceFirst("^http://pandora.nla.gov.au/pan/[0-9]+/[0-9-]+/([^/.]+\\.[^/]+)", "http://$1");
+            doc.setUrl(hackedOffUrl);
+            doc.setDeliveryUrl(hackedOffUrl);
+            doc.setPandoraUrl(url);
+        } else {
+            doc.setUrl(url);
+        }
         doc.setContentLength(warcHeader.getContentLength());
         Instant instant = LocalDateTime.parse(arcDate, WarcUtils.arcDateFormat).atOffset(ZoneOffset.UTC).toInstant();
         doc.setDate(Date.from(instant));
