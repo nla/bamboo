@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Date;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TextExtractor {
@@ -42,6 +43,19 @@ public class TextExtractor {
     private boolean boilingEnabled = false;
     private boolean usePdfBox = false;
     private boolean useTika = false;
+
+    public static final Pattern PANDORA_REGEX = Pattern.compile("http://pandora.nla.gov.au/pan/[0-9]+/[0-9-]+/([^/.]+\\.[^/]+/.*)");
+    public static void hackOffPandoraUrl(Document doc) {
+        String url = doc.getUrl();
+        Matcher m = PANDORA_REGEX.matcher(url);
+        if (m.matches()) {
+            // TODO: consult url.map
+            doc.setPandoraUrl(url);
+            String hackedOffUrl = "http://" + m.group(1);
+            doc.setUrl(hackedOffUrl);
+            doc.setDeliveryUrl(hackedOffUrl);
+        }
+    }
 
     public Document extract(ArchiveRecord record) throws TextExtractionException {
         Document doc = new Document();
@@ -69,14 +83,8 @@ public class TextExtractor {
         }
 
         String arcDate = WarcUtils.getArcDate(warcHeader);
-        if (url.startsWith("http://pandora.nla.gov.au/pan/")) {
-            String hackedOffUrl = url.replaceFirst("^http://pandora.nla.gov.au/pan/[0-9]+/[0-9-]+/([^/.]+\\.[^/]+)", "http://$1");
-            doc.setUrl(hackedOffUrl);
-            doc.setDeliveryUrl(hackedOffUrl);
-            doc.setPandoraUrl(url);
-        } else {
-            doc.setUrl(url);
-        }
+        doc.setUrl(url);
+        hackOffPandoraUrl(doc);
         doc.setContentLength(warcHeader.getContentLength());
         Instant instant = LocalDateTime.parse(arcDate, WarcUtils.arcDateFormat).atOffset(ZoneOffset.UTC).toInstant();
         doc.setDate(Date.from(instant));
