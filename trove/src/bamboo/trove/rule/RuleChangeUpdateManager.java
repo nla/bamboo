@@ -19,16 +19,19 @@ import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
 import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.trove.common.BaseWarcDomainManager;
-import bamboo.trove.common.DateRange;
-import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.EndPointRotator;
 import bamboo.trove.common.LastRun;
-import bamboo.trove.common.Rule;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
-import bamboo.trove.services.BambooRestrictionService;
+import bamboo.trove.common.cdx.CdxDateRange;
+import bamboo.trove.common.cdx.CdxRule;
+import bamboo.trove.common.cdx.RulesDiff;
+import bamboo.trove.services.CdxRestrictionService;
 import bamboo.trove.services.FilteringCoordinationService;
+import bamboo.util.Urls;
 import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
+import org.apache.commons.lang.StringUtils;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrQuery.SortClause;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -48,13 +51,15 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TimeZone;
-import java.util.stream.Collectors;
 
 @Service
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker {
@@ -64,9 +69,11 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
           SolrEnum.DATE.toString(), SolrEnum.SEARCH_CATEGORY.toString(), SolrEnum.SITE.toString()};
   private static final SimpleDateFormat format = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss'Z'");
   private static int NUMBER_OF_WORKERS = 5;
+  private static final ZoneId TZ = ZoneId.systemDefault();
+
 
   @Autowired
-  private BambooRestrictionService restrictionsService;
+  private CdxRestrictionService restrictionsService;
 
   @Autowired
   @Qualifier("solrDomainManager")
@@ -91,18 +98,18 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
   private WorkProcessor workProcessor;
 
-  private List<Rule> changedRules;
   private LastRun lastProcessed = null;
   private String progress = null;
   private long updateCount = 0;
   private boolean running = false;
   private boolean stopping = false;
   private boolean hasPassedLock = false;
-  private LastRun runStart = null;
   private CloudSolrClient client = null;
 
   private boolean useAsyncSolrClient = false;
   private boolean indexFullText = false;
+  private boolean nightlyRunInProgress = false;
+  private boolean earlyAbortNightlyRun = false;
 
   @SuppressWarnings("unused")
   public void setUseAsyncSolrClient(boolean useAsyncSolrClient) {
@@ -156,12 +163,14 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
     // Find our initial run state
     boolean runNow = false;
-    if (restrictionsService.isRecovery()) {
+    if (restrictionsService.isInRecovery()) {
       log.info("Restart into Rule recovery mode.");
       runNow = true;
+
     } else {
       long oneDayAgo = System.currentTimeMillis() - (24 * 60 * 60 * 1000);
-      if (lastProcessed.getDate().getTime() < oneDayAgo) {
+      if (lastProcessed != null && lastProcessed.getAllCompleted() != null
+              && lastProcessed.getAllCompleted().getTime() < oneDayAgo) {
         log.info("Restart into Rule processing mode as last check was more that a day ago.");
         runNow = true;
       } else {
@@ -202,113 +211,137 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     try {
       BaseWarcDomainManager.getDomainList()
               .forEach(BaseWarcDomainManager::restartForRestrictionsDomain);
-      runInsideLock();
+      // To reach this line we are now 'holding' the start lock
+      // for all domains and are sure they have stopped.
+      earlyAbortNightlyRun = false;
+      nightlyRunInProgress = true;
+
+      try {
+        runInsideLock();
+
+      } catch (CdxRestrictionService.RulesOutOfDateException e) {
+        log.error("Rules update execution terminated due to error and rules are now out of date. " +
+                "Halting all ingest until restriction rules are fixed.", e);
+        restrictionsService.lockDueToError();
+      }
+
+      nightlyRunInProgress = false;
+
     } finally {
       releaseDomainStartLock();
     }
   }
 
-  private void runInsideLock() {
-    // check if we have a changed rule set.
-    progress = "Checking for new Rules";
+  private void runInsideLock() throws CdxRestrictionService.RulesOutOfDateException {
+    // 'Nightly' run starting
+    progress = "Starting new update process";
+    restrictionsService.startProcess();
     Timer timer = getTimer(getName() + ".processRule");
-    runStart = restrictionsService.startProcess();
-    changedRules = new ArrayList<>();
-    List<Rule> deletedRules = new ArrayList<>();
-    List<Rule> newRules = new ArrayList<>();
-    boolean changes = restrictionsService.checkForChangedRules();
-    if (changes) {
-      changedRules = restrictionsService.getChangedRules();
-      deletedRules = restrictionsService.getDeletedRules();
-      newRules = restrictionsService.getNewRules();
+
+    // Process any date based rules
+    List<CdxRule> dateRules = restrictionsService.getDateRules();
+    if (dateRules != null && !dateRules.isEmpty()) {
+      int changeCount = 1;
+      int totalChanges = dateRules.size();
+      Iterator<CdxRule> it = dateRules.iterator();
+      while (running && !earlyAbortNightlyRun && it.hasNext()) {
+        CdxRule rule = it.next();
+        Timer.Context context = timer.time();
+        progress = "Processing (" + changeCount++ + " of " + totalChanges + "). Date Rule : Rule<#" + rule.getId() + ">";
+        try {
+          WorkLog workLog = findDocuments(rule, null);
+          restrictionsService.storeWorkLog(workLog);
+
+        } catch (IOException | SolrServerException e) {
+          setError("Error processing date rule : " + rule.getId(), e);
+          stopProcessing();
+
+        } finally {
+          context.stop();
+        }
+      }
     }
-    List<Rule> dateRules = restrictionsService.getDateRules();
-    // remove any rules that have changed from the date list as we don't need to process twice.
-    removeById(dateRules, changedRules);
-    log.debug("{} Rules have changed.", changedRules.size());
+
+    // TODO - This is redundant right now, but see comments above the other call, deeper in the stack.
+    // Stop here and wait for any pending workers to finish processing stuff we just queue'd up
+    // We are about to (maybe) change the live rule set and (definitely) update the 'TODAY' context
+    waitUntilCaughtUp();
+
+    // Check for early termination
+    if (earlyAbortNightlyRun || !running) {
+      log.warn("Aborting execution of nightly rules processing. Early terminated requested.");
+      return;
+    }
+
+    // Update DB with progress through run. This will also update TODAY because
+    // we are now up-to-date and about to begin the nightly rule changes.
+    restrictionsService.finishDateBasedRules();
+
+    // Go to the server for an update (maybe... we could be in recovery)
+    RulesDiff diff = restrictionsService.checkForChangedRules();
+    if (!diff.hasWorkLeft()) {
+      // We are done. Awesome sauce
+      restrictionsService.finishNightlyRun();
+      running = false;
+      stopping = false;
+      return;
+    }
 
     int changeCount = 1;
-    int totalChanges = deletedRules.size() + changedRules.size() + newRules.size() + dateRules.size();
-    while (running) {
-      for (Rule r : deletedRules) {
-        Timer.Context context = timer.time();
-        progress = "Processing (" + changeCount++ + " of " + totalChanges + "). Deleted Rule : Rule<" + r.getId() + ">";
-        try {
-          findDocumentsDeleteRule(r);
-        } catch (SolrServerException | IOException e) {
-          setError("Error processing changed rule : " + r.getId(), e);
-          stopProcessing();
-        } finally {
-          context.stop();
+    int totalChanges = diff.size();
+    while (running && !earlyAbortNightlyRun && diff.hasWorkLeft()) {
+      RulesDiff.RulesWrapper work = diff.nextRule();
+
+      Timer.Context context = timer.time();
+      progress = "Processing (" + changeCount++ + " of " + totalChanges + "). Rule<#" + work.rule.getId()
+              + ">, Reason: " + work.reason;
+      try {
+        WorkLog workLog = null;
+        switch (work.reason) {
+          case NEW:
+            workLog = findDocuments(null, work.rule);
+            break;
+          case DELETED:
+            workLog = findDocumentsDeleteRule(work.rule);
+            break;
+          case CHANGED:
+            workLog = findDocuments(work.rule, work.newRule);
+            break;
         }
+        restrictionsService.storeWorkLog(workLog);
+
+      } catch (IOException | SolrServerException e) {
+        setError("Error processing rule : " + work.rule.getId(), e);
+        stopProcessing();
+
+      } finally {
+        context.stop();
       }
-      for (Rule r : changedRules) {
-        Timer.Context context = timer.time();
-        Rule newRule = restrictionsService.getRule(r.getId());
-        progress = "Processing (" + changeCount++ + " of " + totalChanges + "). Changed Rule : Rule<" + r.getId() + ">";
-        try {
-          findDocuments(r, newRule);
-        } catch (IOException | SolrServerException e) {
-          setError("Error processing changed rule : " + r.getId(), e);
-          stopProcessing();
-        } finally {
-          context.stop();
-        }
-      }
-      for (Rule r : newRules) {
-        Timer.Context context = timer.time();
-        progress = "Processing (" + changeCount++ + " of " + totalChanges + "). New Rule : Rule<" + r.getId() + ">";
-        try {
-          findDocuments(null, r);
-        } catch (IOException | SolrServerException e) {
-          setError("Error processing changed rule : " + r.getId(), e);
-          stopProcessing();
-        } finally {
-          context.stop();
-        }
-      }
-      for (Rule r : dateRules) {
-        Timer.Context context = timer.time();
-        progress = "Processing (" + changeCount++ + " of " + totalChanges + "). Date Rule : Rule<" + r.getId() + ">";
-        try {
-          findDocuments(r, null);
-        } catch (IOException | SolrServerException e) {
-          setError("Error processing changed rule : " + r.getId(), e);
-          stopProcessing();
-        } finally {
-          context.stop();
-        }
-      }
-      if (!changedRules.isEmpty() || !newRules.isEmpty() || !deletedRules.isEmpty()) {
-        // finished processing the changes so we will save the new rules
-        restrictionsService.changeToNewRules(runStart);
-      } else {
-        restrictionsService.updateRunFinished(runStart);
-      }
-      progress = null;
-      lastProcessed = restrictionsService.getLastProcessed();
-      Date nextRun = nextRunDate();
-      Schedule.nextRun(this, nextRun);
-      stopProcessing();
+
       if (stopping) {
         running = false;
       }
     }
+
+    // Check for early termination
+    if (earlyAbortNightlyRun || !running) {
+      log.warn("Aborting execution of nightly rules processing. Early terminated requested.");
+      return;
+    }
+
+    // TODO - This is redundant right now, but see comments above the other call, deeper in the stack.
+    // Stop here and wait for any pending workers to finish processing stuff we just queue'd up
+    // We are about to (maybe) change the live rule set and (definitely) update the 'TODAY' context
+    waitUntilCaughtUp();
+
+    // Graceful completion
+    restrictionsService.finishNightlyRun();
     running = false;
     stopping = false;
-  }
+    progress = null;
+    lastProcessed = restrictionsService.getLastProcessed();
 
-  private void removeById(List<Rule> dateRules, List<Rule> changed) {
-    List<Integer> ids = changed.stream()
-            .map(Rule::getId)
-            .collect(Collectors.toList());
-    Iterator<Rule> i = dateRules.iterator();
-    while (i.hasNext()) {
-      Rule r = i.next();
-      if (ids.contains(r.getId())) {
-        i.remove();
-      }
-    }
+    Schedule.nextRun(this, nextRunDate());
   }
 
   private final List<String> documents = new ArrayList<>();
@@ -354,177 +387,150 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
    * @throws IOException If network errors occur
    * @throws SolrServerException If errors occur inside the Solr servers
    */
-  private void findDocuments(Rule currentRule, Rule newRule) throws SolrServerException, IOException {
-    log.debug("Find docs for rules {}", currentRule != null ? currentRule.getId() : newRule.getId());
-//		if(rule.getUrl().isEmpty())continue; // TODO this could be a full re-index ?
+  private WorkLog findDocuments(CdxRule currentRule, CdxRule newRule) throws SolrServerException, IOException {
+    log.debug("Find docs for rule {}", currentRule != null ? currentRule.getId() : newRule.getId());
 
     // query part to stop records being processed more that once
-    String notLastIndexed = " AND " + SolrEnum.LAST_INDEXED + ":[* TO " + format(runStart.getDate()) + "]";
+    String notLastIndexed = SolrEnum.LAST_INDEXED + ":[* TO " + format(CdxRestrictionService.TODAY) + "]";
 
     if (currentRule == null) {
       // this is a new rule search by url and possibly date
-      findDocumentsNewRule(newRule, notLastIndexed);
-      return;
+      return findDocumentsNewRule(newRule, notLastIndexed);
     }
     if (newRule == null) {
       // this is a current rule search date change processing
-      findDocumentsDateRule(currentRule, notLastIndexed);
-      return;
+      return findDocumentsDateRule(currentRule, notLastIndexed);
     }
 
-    boolean urlChanged = false;
-    boolean embargoChanged = false;
-    boolean captureRangeChanged = false;
-    boolean retreivedRangeChanged = false;
-    boolean policyChanged = false;
-
-    String url = currentRule.getUrl();
-    long embargo = currentRule.getEmbargo();
-    DateRange captuer = currentRule.getCapturedRange();
-    DateRange retrieved = currentRule.getRetrievedRange();
-    DocumentStatus policy = currentRule.getPolicy();
-
-    log.debug("Rule {} has changed.", currentRule.getId());
-    // use the new url if we have one
-    if (!url.equals(newRule.getUrl())) {
-      urlChanged = true;
-    }
-    if (embargo != newRule.getEmbargo()) {
-      embargoChanged = true;
-    }
-    if (captuer != null && !captuer.equals(newRule.getCapturedRange())) {
-      captureRangeChanged = true;
-    } else if (newRule.getCapturedRange() != null && !newRule.getCapturedRange().equals(captuer)) {
-      captureRangeChanged = true;
-    }
-    if (retrieved != null && !retrieved.equals(newRule.getRetrievedRange())) {
-      retreivedRangeChanged = true;
-    } else if (newRule.getRetrievedRange() != null && !newRule.getRetrievedRange().equals(retrieved)) {
-      retreivedRangeChanged = true;
-    }
-    if (policy != newRule.getPolicy()) {
-      policyChanged = true;
-    }
-    url = newRule.getUrl();
-    if (embargo < newRule.getEmbargo()) {
-      // use the longest embargo time
-      embargo = newRule.getEmbargo();
-    } else {
-      embargo = 0; // only search using the rule id as time got shorter
-    }
-    log.debug("Changed url:{} embargo:{} capture:{} retrieve:{}",
-            urlChanged, embargoChanged, captureRangeChanged, retreivedRangeChanged);
-
-
-    if (url.trim().isEmpty()) {
-      log.info("URL is empty searching all records.");
-      url = "*";
-    }
-    if (urlChanged) {
-      // url changed search old rule and new url
-      SolrQuery query = createQuery(SolrEnum.RULE + ":" + currentRule.getId() + notLastIndexed);
-      processQuery(query);
-      query = createQuery(SolrEnum.URL_TOKENIZED + ":" + url + notLastIndexed);
-      processQuery(query);
-      return; // as we searched by url we should have tried all matching records.
-    }
-    if (captureRangeChanged) {
-      SolrQuery query = createQuery(SolrEnum.URL_TOKENIZED + ":" + url + notLastIndexed);
-      processQuery(query);
-      return; // as we searched by url we should have tried all matching records.
-    }
-    if (retreivedRangeChanged) {
-      SolrQuery query = createQuery(SolrEnum.URL_TOKENIZED + ":" + url + notLastIndexed);
-      processQuery(query);
-      return; // as we searched by url we should have tried all matching records.
-    }
-    if (embargoChanged) {
-      SolrQuery query = createQuery(SolrEnum.RULE + ":" + currentRule.getId() + notLastIndexed);
-      processQuery(query);
-      if (embargo > 0) {
-        Date embargoDate = new Date(runStart.getDate().getTime() - (embargo * 1000)); // change seconds to milli
-        query = createQuery(SolrEnum.URL_TOKENIZED + ":" + url
-                + " AND " + SolrEnum.DATE + ":[" + format(embargoDate) + " TO *]"
-                + notLastIndexed);
-        processQuery(query);
-      }
-      return;
-    }
-    if (policyChanged) {
-      SolrQuery query = createQuery(SolrEnum.RULE + ":" + currentRule.getId() + notLastIndexed);
-      processQuery(query);
-    }
+    // Changed rules
+    WorkLog workLog = new WorkLog(currentRule.getId());
+    // Step 1.. find everything that is already impacted by this rule and reindex it
+    SolrQuery query = createQuery(SolrEnum.RULE + ":" + currentRule.getId());
+    query.addFilterQuery(notLastIndexed);
+    processQuery(query, workLog);
+    // Step 2.. find anything that would be covered by the new rule that hasn't already been re-indexed
+    query = convertRuleToSearch(newRule, notLastIndexed);
+    processQuery(query, workLog);
+    // Job done
+    return workLog;
   }
 
-  private void findDocumentsDateRule(Rule currentRule, String notLastIndexed) throws SolrServerException, IOException {
+  private WorkLog findDocumentsDateRule(CdxRule dateBasedRule, String notLastIndexed) throws SolrServerException, IOException {
+    WorkLog workLog = new WorkLog(dateBasedRule.getId());
+
     // these are from no change to the rule so we are checking date coming into or going out of range
-    boolean searchNeeded = false;
-    String url = currentRule.getUrl();
-    long embargo = currentRule.getEmbargo();
-    DateRange retrieved = currentRule.getRetrievedRange();
-    if (embargo > 0) {
-      // only looking for records where the embargo has expired so search using rule
-      SolrQuery query = createQuery(SolrEnum.RULE + ":" + currentRule.getId() + notLastIndexed);
-      processQuery(query);
-    }
-    if (retrieved != null) {
-      if (retrieved.isDateInRange(runStart.getDate())) {
+    boolean urlSearchNeeded = false;
+
+    // *******************
+    // Access dates
+    CdxDateRange accessDates = dateBasedRule.getAccessed();
+    if (accessDates != null && accessDates.hasData()) {
+      if (accessDates.contains(CdxRestrictionService.TODAY)) {
         // now is in range so we need to search by url
-        searchNeeded = true;
+        urlSearchNeeded = true;
+
       } else {
-        // look for records set by the rule to see if still in date
-        SolrQuery query = createQuery(SolrEnum.RULE + ":" + currentRule.getId() + notLastIndexed);
-        processQuery(query);
+        // Rule is no longer applicable. Look for records set by the rule to re-process them
+        SolrQuery query = createQuery(SolrEnum.RULE + ":" + dateBasedRule.getId());
+        query.addFilterQuery(notLastIndexed);
+        processQuery(query, workLog);
+        // Job done... this rule will no longer apply to anything in the index
+        return workLog;
       }
     }
-    if (searchNeeded) {
-      if (url.trim().isEmpty()) {
-        log.info("URL is empty searching all records.");
-        url = "*";
-      }
-      String queryText = SolrEnum.URL_TOKENIZED + ":" + url + notLastIndexed;
-      SolrQuery query = createQuery(queryText);
-      processQuery(query);
+
+    // *******************
+    // Embargoes
+    if (dateBasedRule.getPeriod() != null) {
+      // Any capture dates older than TODAY - embargo period should be checked for possible release
+      Instant embargoStart = CdxRestrictionService.TODAY.toInstant().minus(dateBasedRule.getPeriod());
+      SolrQuery query = createQuery(SolrEnum.RULE + ":" + dateBasedRule.getId());
+      query.addFilterQuery(SolrEnum.DATE + ":[* TO " + format.format(Date.from(embargoStart)) + "]");
+      query.addFilterQuery(notLastIndexed);
+      processQuery(query, workLog);
+      // Still need a URL search to find stuff coming in to restriction
+      urlSearchNeeded = true;
     }
+
+    // *******************
+    // URL based search
+    if (urlSearchNeeded) {
+      SolrQuery query = convertRuleToSearch(dateBasedRule, notLastIndexed);
+      processQuery(query, workLog);
+    }
+    return workLog;
   }
 
-  private void findDocumentsNewRule(Rule newRule, String notLastIndexed) throws SolrServerException, IOException {
-    // these are from no change to the rule so we are checking date coming into or going out of range
-    String url = newRule.getUrl();
-    long embargo = newRule.getEmbargo();
-    DateRange captuer = newRule.getCapturedRange();
-    DateRange retrieved = newRule.getRetrievedRange();
-    if (url.trim().isEmpty()) {
-      log.info("URL is empty searching all records.");
-      url = "*";
-    }
-    String queryText = SolrEnum.URL_TOKENIZED + ":" + url;
-    if (retrieved != null) {
-      if (!retrieved.isDateInRange(runStart.getDate())) {
-        // now is not in range so rule does not apply
-        return;
+  @VisibleForTesting
+  public SolrQuery convertRuleToSearch(CdxRule rule, String notLastIndexed) {
+    // URL complexity first
+    List<String> urlQueries = new ArrayList<>();
+    for (String url : rule.getUrlPatterns()) {
+      if (!url.trim().isEmpty()) {
+        urlQueries.add(urlSearch(url));
       }
     }
-    if (captuer != null) {
-      queryText += " AND " + SolrEnum.DATE + ":[" + format(captuer.getStart()) + " TO " + format(captuer.getEnd()) + "]";
+    if (urlQueries.isEmpty()) {
+      urlQueries.add("*:*");
     }
-    if (embargo > 0) {
-      Date embargoDate = new Date(System.currentTimeMillis() - (embargo * 1000));
-      queryText += " AND " + SolrEnum.DATE + ":[" + format(embargoDate) + " TO *]";
+    SolrQuery query = createQuery("(" + StringUtils.join(urlQueries, ") OR (") + ")");
+
+    // Filter out stuff we have touched already this run
+    query.addFilterQuery(notLastIndexed);
+    // Filter for Embargo
+    if (rule.getPeriod() != null && !rule.getPeriod().isZero()) {
+      // TODAY +/- embargo period
+      ZonedDateTime today = ZonedDateTime.ofInstant(CdxRestrictionService.TODAY.toInstant(), TZ);
+      Date embargoStart = Date.from(today.minus(rule.getPeriod()).toInstant());
+      Date embargoEnd = Date.from(today.plus(rule.getPeriod()).toInstant());
+      query.addFilterQuery(SolrEnum.DATE + ":[" + format.format(embargoStart)
+              + " TO " + format.format(embargoEnd) + "]");
     }
-    queryText += " " + notLastIndexed;
-    SolrQuery query = createQuery(queryText);
-    processQuery(query);
+    // Filter for Capture date
+    if (rule.getCaptured() != null && rule.getCaptured().hasData()) {
+      query.addFilterQuery(SolrEnum.DATE + ":[" + format.format(rule.getCaptured().start)
+              + " TO " + format.format(rule.getCaptured().end) + "]");
+    }
+    // Worth noting we don't filter for access date because it is one of the
+    // deciding data points in whether or not to run this query at all.
+    return query;
   }
 
-  private void findDocumentsDeleteRule(Rule deleteRule) throws SolrServerException, IOException {
-    // this rule was delete so we have to recheck any records covered by this rule
-    SolrQuery query = createQuery(SolrEnum.RULE + ":" + deleteRule.getId());
-    processQuery(query);
+  private String urlSearch(String url) {
+    return SolrEnum.URL_TOKENIZED + ":\"" + Urls.removeScheme(url) + "\"";
+  }
+
+  private WorkLog findDocumentsNewRule(CdxRule newRule, String notLastIndexed) throws SolrServerException, IOException {
+    WorkLog workLog = new WorkLog(newRule.getId());
+
+    // Check access dates
+    CdxDateRange accessDates = newRule.getAccessed();
+    if (accessDates != null && accessDates.hasData()) {
+      if (!accessDates.contains(CdxRestrictionService.TODAY)) {
+        // That was easy... the rule is not yet in effect
+        return workLog;
+      }
+    }
+
+    // Convert the rule to a search for new content
+    SolrQuery query = convertRuleToSearch(newRule, notLastIndexed);
+    processQuery(query, workLog);
+    return workLog;
+  }
+
+  private WorkLog findDocumentsDeleteRule(CdxRule rule) throws SolrServerException, IOException {
+    WorkLog workLog = new WorkLog(rule.getId());
+
+    // this rule was deleted so we have to recheck any records currently covered by this rule
+    SolrQuery query = createQuery(SolrEnum.RULE + ":" + rule.getId());
+    processQuery(query, workLog);
+    return workLog;
   }
 
   private SolrQuery createQuery(String query) {
     SolrQuery q = new SolrQuery("*:*");
+    // TODO: Should we add a request handler to the solr cluster to get metrics
+    // on the volume and/or performance of these searches in their own bucket?
     q.setFilterQueries(query);
     q.setFields(SOLR_FIELDS);
     q.setSort(SortClause.asc(SolrEnum.ID.toString()));
@@ -532,8 +538,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     return q;
   }
 
-  private void processQuery(SolrQuery query) throws SolrServerException, IOException {
-    log.debug("Query for rule : " + query.toString());
+  private void processQuery(SolrQuery query, WorkLog workLog) throws SolrServerException, IOException {
+    log.debug("Query for rule : {}", query.toString());
     Timer.Context context = getTimer(getName() + ".processQuery").time();
     // need to commit here so that we can ignore documents just processed
     client.commit();
@@ -545,21 +551,31 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       Timer.Context contextQuery = getTimer(getName() + ".query").time();
 
       QueryResponse response = client.query(query);
+      workLog.ranSearch();
       SolrDocumentList results = response.getResults();
+      log.debug("Found {} (of {} docs) in QT = {} ms", results.size(), results.getNumFound(), response.getQTime());
       String nextCursor = response.getNextCursorMark();
       if (cursor.equals(nextCursor)) {
         more = false;
       }
-      distributeResponse(results);
+      distributeResponse(results, workLog);
 //    	log.debug("work size {}", workProcessor.processingWaiting());
 //    	log.debug("dist size {}", workDistributor.processingWaiting());
       cursor = nextCursor;
       contextQuery.stop();
     }
-    // wait until batch finished
+
+    // TODO - Do we really need to wait here? It would cause some mildly
+    // redundant processing, but overall will slow down progress
+    // Have added a second call at a higher level that is (for now) redundant,
+    // but makes this safe to remove in the context of nightly logic.
+    waitUntilCaughtUp();
+    context.stop();
+  }
+
+  private void waitUntilCaughtUp() {
     boolean empty = false;
     while (!empty) {
-      log.debug("wait for batch : {}", documents.size());
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
@@ -569,17 +585,14 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
         empty = documents.isEmpty();
       }
     }
-    context.stop();
   }
 
-  private void distributeResponse(SolrDocumentList results) {
+  private void distributeResponse(SolrDocumentList results, WorkLog workLog) {
     updateCount += results.size();
     RuleChangeUpdateManager manager = this;
-//		workDistributor.process(new Runnable(){
-//			
-//			@Override
-//			public void run(){
+
     for (SolrDocument doc : results) {
+      workLog.foundDocument();
       String id = (String) doc.getFieldValue(SolrEnum.ID.toString());
       synchronized (documents) {
         documents.add(id);
@@ -593,13 +606,14 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
         log.warn("Invalid Search Category : " + sc + " for record id : " + id);
         searchCategory = SearchCategory.NONE;
       }
-//		  		log.debug("create worker URL:"+url+" id:"+id+" capture:"+ capture);
+
       RuleRecheckWorker worker =
               new RuleRecheckWorker(id, url, capture, site, searchCategory, manager, restrictionsService);
+      // TODO... we do write activity on every document we receive... some way of checking whether
+      // the write activity is required would be desirable
+      workLog.wroteDocument();
       workProcessor.process(worker);
     }
-//		}
-//		});
   }
 
   @Override
@@ -615,7 +629,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   @Override
   public void start() {
     startProcessing();
-//		throw new IllegalArgumentException();
   }
 
   private void startProcessing() {
@@ -681,11 +694,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       return progress;
     }
     return "Rules last processed : " + (lastProcessed == null ? "" : lastProcessed.toString());
-  }
-
-  @SuppressWarnings("unused")
-  public void setChangedRules(List<Rule> changedRules) {
-    this.changedRules = changedRules;
   }
 
   @SuppressWarnings("unused")
@@ -757,6 +765,53 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       // when 'false' is the desired value. Writes originating elsewhere need to mirror this and reads need to
       // search for 'NOT true' when 'false' is desired.
       manager.startProcessing();
+    }
+  }
+
+  public static class WorkLog {
+    private final long ruleId;
+    private long searches = 0;
+    private long documents = 0;
+    private long written = 0;
+    private long msElapsed = 0;
+    private final long started;
+
+    WorkLog(long ruleId) {
+      this.started = System.currentTimeMillis();
+      this.ruleId = ruleId;
+    }
+
+    void ranSearch() {
+      searches++;
+    }
+    void foundDocument() {
+      documents++;
+    }
+    void wroteDocument() {
+      written++;
+    }
+    public void completed() {
+      msElapsed = System.currentTimeMillis() - started;
+    }
+
+    public long getRuleId() {
+      return ruleId;
+    }
+
+    public long getSearches() {
+      return searches;
+    }
+
+    public long getDocuments() {
+      return documents;
+    }
+
+    public long getWritten() {
+      return written;
+    }
+
+    public long getMsElapsed() {
+      return msElapsed;
     }
   }
 }

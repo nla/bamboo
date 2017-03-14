@@ -96,7 +96,7 @@ public class TransformWorker implements Runnable {
 
   private void transform(IndexerDocument document) {
     // No indexing at all
-    if (ContentThreshold.NONE.equals(document.getTheshold())) {
+    if (ContentThreshold.NONE.equals(document.getThreshold())) {
       return;
     }
 
@@ -194,7 +194,7 @@ public class TransformWorker implements Runnable {
   }
 
   private void fullText(SolrInputDocument solr, IndexerDocument document) {
-    if (ContentThreshold.METADATA_ONLY.equals(document.getTheshold())) {
+    if (ContentThreshold.METADATA_ONLY.equals(document.getThreshold())) {
       document.modifyBoost(MALUS_SEARCH_CATEGORY);
       solr.addField(SolrEnum.SEARCH_CATEGORY.toString(), SearchCategory.NONE.toString());
       return;
@@ -208,7 +208,7 @@ public class TransformWorker implements Runnable {
     //if (ContentThreshold.UNIQUE_TERMS_ONLY.equals(document.getTheshold())) {
       // TODO: Full text == Only unique terms
     //}
-    if (ContentThreshold.FULL_TEXT.equals(document.getTheshold())) {
+    if (ContentThreshold.FULL_TEXT.equals(document.getThreshold())) {
       String text = document.getBambooDocument().getText();
       if (text == null) return;
       text = text.trim();

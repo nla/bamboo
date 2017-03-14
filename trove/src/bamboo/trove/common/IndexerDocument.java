@@ -17,6 +17,7 @@ package bamboo.trove.common;
 
 import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
 import bamboo.task.Document;
+import bamboo.trove.common.cdx.CdxRule;
 import com.codahale.metrics.Timer;
 import org.apache.solr.common.SolrInputDocument;
 import org.slf4j.Logger;
@@ -59,21 +60,21 @@ public class IndexerDocument implements AcknowledgeWorker {
 
   //***********************************
   // Step 2) Filtering
-  private Rule rule = null;
-  private ContentThreshold theshold = null;
+  private CdxRule rule = null;
+  private ContentThreshold threshold = null;
   public StateTracker filter = new StateTracker("Filtering");
-  public void applyFiltering(Rule rule, ContentThreshold theshold) {
+  public void applyFiltering(CdxRule rule, ContentThreshold threshold) {
     this.rule = rule;
-    this.theshold = theshold;
+    this.threshold = threshold;
   }
   public DocumentStatus getStatus() {
     if (rule == null) return null; 
-    return rule.getPolicy();
+    return rule.getIndexerPolicy();
   }
-  public ContentThreshold getTheshold() {
-    return theshold;
+  public ContentThreshold getThreshold() {
+    return threshold;
   }
-  public int getRuleId(){
+  public long getRuleId(){
     return rule.getId();
   }
   private Throwable filterError = null;

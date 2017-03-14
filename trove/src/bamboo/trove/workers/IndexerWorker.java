@@ -82,8 +82,8 @@ public class IndexerWorker implements Runnable {
     Timer.Context ctx = dqTimer.time();
     try {
       thisJob.index.start(timer);
-      if (thisJob.getTheshold() == null || thisJob.getSolrDocument() == null
-              || thisJob.getTheshold().equals(ContentThreshold.NONE)) {
+      if (thisJob.getThreshold() == null || thisJob.getSolrDocument() == null
+              || thisJob.getThreshold().equals(ContentThreshold.NONE)) {
         thisJob.index.finish();
         return;
       }

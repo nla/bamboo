@@ -1,0 +1,22 @@
+[
+  {
+    "id": 0,
+    "name": "Public",
+    "accessPoints": [
+      "public",
+      "staff"
+    ]
+  },
+  {
+    "id": 1,
+    "name": "Staff Only",
+    "accessPoints": [
+      "staff"
+    ]
+  },
+  {
+    "id": 2,
+    "name": "No Access",
+    "accessPoints": []
+  }
+]

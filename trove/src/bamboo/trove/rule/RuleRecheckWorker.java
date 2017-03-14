@@ -15,10 +15,10 @@
  */
 package bamboo.trove.rule;
 
-import bamboo.trove.common.Rule;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
-import bamboo.trove.services.BambooRestrictionService;
+import bamboo.trove.common.cdx.CdxRule;
+import bamboo.trove.services.CdxRestrictionService;
 import bamboo.trove.workers.TransformWorker;
 import com.codahale.metrics.Timer;
 import org.apache.solr.common.SolrInputDocument;
@@ -27,9 +27,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-class RuleRecheckWorker implements Runnable{
+class RuleRecheckWorker implements Runnable {
 //  private static final Logger log = LoggerFactory.getLogger(RuleRecheckWorker.class);
-
 	private static final Map<String, Object> partialUpdateNull = new HashMap<>();
 	private static final Map<String, Object> partialUpdateFalse = new HashMap<>();
 	static{
@@ -38,7 +37,7 @@ class RuleRecheckWorker implements Runnable{
 	}
 
 	private RuleChangeUpdateManager manager;
-	private BambooRestrictionService service;
+	private CdxRestrictionService service;
 	private String id;
 	private String url;
 	private Date capture;
@@ -47,8 +46,8 @@ class RuleRecheckWorker implements Runnable{
 	private float boost = 1.0f;
 	
 	RuleRecheckWorker(String id, String url, Date capture,
-			String site, SearchCategory searchCategory, 
-			RuleChangeUpdateManager manager, BambooRestrictionService service){
+                    String site, SearchCategory searchCategory,
+                    RuleChangeUpdateManager manager, CdxRestrictionService service){
 		this.manager = manager;
 		this.service = service;
 		this.id = id;
@@ -67,13 +66,13 @@ class RuleRecheckWorker implements Runnable{
 	}
 	
 	private SolrInputDocument processResultsRecheckRule(){ 
-		Rule r = service.filterDocument(url, capture);
+		CdxRule rule = service.filterDocument(url, capture);
 		SolrInputDocument update = new SolrInputDocument();
 		update.addField(SolrEnum.ID.toString(), id);
 		Map<String, Object> partialUpdate = new HashMap<>();
-		partialUpdate.put("set", r.getId());
+		partialUpdate.put("set", rule.getId());
 		update.addField(SolrEnum.RULE.toString(), partialUpdate);
-		switch (r.getPolicy()) {
+		switch (rule.getIndexerPolicy()) {
 			case RESTRICTED_FOR_BOTH:
 				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdateFalse);				
 				update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdateFalse);

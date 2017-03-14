@@ -19,7 +19,7 @@ import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.IndexerDocument;
-import bamboo.trove.common.Rule;
+import bamboo.trove.common.cdx.CdxRule;
 import bamboo.util.SurtFilter;
 import bamboo.util.Urls;
 import com.codahale.metrics.Histogram;
@@ -48,7 +48,7 @@ public class FilteringCoordinationService {
   private boolean collectMetrics = true;
 
   @Autowired
-  private BambooRestrictionService bambooRestrictionService;
+  private CdxRestrictionService cdxRestrictionService;
 
   @Autowired
   private QualityControlService qualityControlService;
@@ -107,13 +107,13 @@ public class FilteringCoordinationService {
     this.collectMetrics = collectMetrics;
   }
 
-  public void filterDocument(IndexerDocument document) {
+  public void filterDocument(IndexerDocument document) throws CdxRestrictionService.RulesOutOfDateException {
     ContentThreshold threshold = qualityControlService.filterDocument(document.getBambooDocument());
     DocumentStatus status = DocumentStatus.NOT_APPLICABLE;
-    Rule rule = null;
+    CdxRule rule = null;
     if (!threshold.equals(ContentThreshold.NONE)) {
-      rule = bambooRestrictionService.filterDocument(document.getBambooDocument());
-      status = rule.getPolicy();
+      rule = cdxRestrictionService.filterDocument(document.getBambooDocument());
+      status = rule.getIndexerPolicy();
     }
     document.applyFiltering(rule, threshold);
 
@@ -149,7 +149,7 @@ public class FilteringCoordinationService {
 
   private void collectMetrics(IndexerDocument document, DocumentStatus status) {
     lazyLoadChecks(document, status);
-    recordSizeByKey(thresholdSizes, document.getTheshold(), document);
+    recordSizeByKey(thresholdSizes, document.getThreshold(), document);
     // Cutout here if we aren't going to index it
     //if (document.getTheshold().equals(ContentThreshold.NONE)) return;
 
@@ -194,7 +194,7 @@ public class FilteringCoordinationService {
 
   private void lazyLoadChecks(IndexerDocument document, DocumentStatus status) {
     lazyLoadByKey(statusSizes,    status,   "size.status.");
-    lazyLoadByKey(thresholdSizes, document.getTheshold(), "size.threshold.");
+    lazyLoadByKey(thresholdSizes, document.getThreshold(), "size.threshold.");
     lazyLoadByKey(typeSizes,      cleanType(document),    "size.type.");
     lazyLoadByKey(codeSizes, "" + document.getBambooDocument().getStatusCode(), "size.code.");
   }

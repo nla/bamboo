@@ -16,12 +16,8 @@
 package bamboo.trove;
 
 import bamboo.task.Document;
-import bamboo.trove.common.ContentThreshold;
-import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.FilenameFinder;
 import bamboo.trove.common.IndexerDocument;
-import bamboo.trove.common.Rule;
-import bamboo.trove.services.BambooRestrictionService.FilterSegments;
 import bamboo.util.SurtFilter;
 import bamboo.util.Urls;
 import com.codahale.metrics.Timer;
@@ -35,7 +31,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Date;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -145,14 +140,6 @@ public class TroveIndexerTest {
   }
 
   @Test
-  public void filterSegmentsTest() throws IOException {
-    // TODO parsing and util testing on segments
-    // We might not even do this... it is for the nightly process to
-    // find content that should match a new incoming restriction segment
-    FilterSegments segment;
-  }
-
-  @Test
   public void iCanParseDocumentLists() throws IOException {
     // Example 1
     assertEquals("Document list length is not correct", 224, warc79.size());
@@ -224,14 +211,13 @@ public class TroveIndexerTest {
 
     // Filtering
     startWithAssertions(document.filter, timer);
-    Rule rule = new Rule(1, DocumentStatus.RESTRICTED_FOR_BOTH, new Date(), 0, null, null, null, null, "(", false);
-    document.applyFiltering(rule, ContentThreshold.DOCUMENT_START_ONLY);
+    // We don't really test this step here anymore. See CdxRestrictionServiceTest
     document.filter.finish();
 
     // Working
     startWithAssertions(document.transform, timer);
     document.transform.finish();
-    
+
     // Writing
     startWithAssertions(document.index, timer);
     document.index.finish();
@@ -245,8 +231,9 @@ public class TroveIndexerTest {
     assertFileNameCorrect("http://random.file.com/filename", "filename");
     assertFileNameCorrect("http://random.file.com/path/filename", "filename");
     assertFileNameCorrect("http://random.file.com/path/filename#anchor", "filename");
-    assertFileNameCorrect("http://random.file.com/path/filename?param", "filename");
+    assertFileNameCorrect("http://random.file.com/path/filename?param=bob", "filename");
     assertFileNameCorrect("http://random.file.com/path/filename#/param", "filename");
+    assertFileNameCorrect("http://random.file.com;unusualQueryParameter=bob/path/filename#/param", "filename");
   }
 
   private void assertFileNameCorrect(String input, String expected) {
@@ -268,14 +255,14 @@ public class TroveIndexerTest {
     try {
       state.finish();
       fail("IllegalStateException should have been thrown by trying to stop");
-    } catch (IllegalStateException ex) {
+    } catch (IllegalStateException ignored) {
     }
   }
   private void confirmIllegalStateToStart(IndexerDocument.StateTracker state) {
     try {
       state.start(null);
       fail("IllegalStateException should have been thrown by trying to start");
-    } catch (IllegalStateException ex) {
+    } catch (IllegalStateException ignored) {
     }
   }
 }

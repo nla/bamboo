@@ -15,31 +15,115 @@
  */
 package bamboo.trove.common;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class LastRun{
-	private Date date;
-	private Boolean finished;
-	
-	public LastRun(Date date, Boolean finished){
-		this.date = date;
-		this.finished = finished;
-	}
-	public Date getDate(){
-		return date;
-	}
-	public void setDate(Date date){
-		this.date = date;
-	}
-	public Boolean isFinished(){
-		return finished;
-	}
-	public void setFinished(Boolean finished){
-		this.finished = finished;
-	}
-	
-	@Override
-	public String toString(){
-		return date + (finished?"":" not")+ " finished.";
-	}
+public class LastRun {
+  // Tracking data
+  private long id;
+  private Date started;
+  private Date dateCompleted;
+  private Date allCompleted;
+  private long progressRuleId;
+  // Stats
+  private long workRules;
+  private long workSearches;
+  private long workDocuments;
+  private long workWritten;
+  private long workMsElapsed;
+
+  public long getId() {
+    return id;
+  }
+
+  public void setId(long id) {
+    this.id = id;
+  }
+
+  public Date getStarted() {
+    return started;
+  }
+
+  public void setStarted(Date started) {
+    this.started = started;
+  }
+
+  public Date getDateCompleted() {
+    return dateCompleted;
+  }
+
+  public void setDateCompleted(Date dateCompleted) {
+    this.dateCompleted = dateCompleted;
+  }
+
+  public Date getAllCompleted() {
+    return allCompleted;
+  }
+
+  public void setAllCompleted(Date allCompleted) {
+    this.allCompleted = allCompleted;
+  }
+
+  public long getProgressRuleId() {
+    return progressRuleId;
+  }
+
+  public void setProgressRuleId(long progressRuleId) {
+    this.progressRuleId = progressRuleId;
+  }
+
+  public long getWorkRules() {
+    return workRules;
+  }
+
+  public void setWorkRules(long workRules) {
+    this.workRules = workRules;
+  }
+
+  public long getWorkSearches() {
+    return workSearches;
+  }
+
+  public void setWorkSearches(long workSearches) {
+    this.workSearches = workSearches;
+  }
+
+  public long getWorkDocuments() {
+    return workDocuments;
+  }
+
+  public void setWorkDocuments(long workDocuments) {
+    this.workDocuments = workDocuments;
+  }
+
+  public long getWorkWritten() {
+    return workWritten;
+  }
+
+  public void setWorkWritten(long workWritten) {
+    this.workWritten = workWritten;
+  }
+
+  public long getWorkMsElapsed() {
+    return workMsElapsed;
+  }
+
+  public void setWorkMsElapsed(long workMsElapsed) {
+    this.workMsElapsed = workMsElapsed;
+  }
+
+  // HTML here might look funny, but it goes into the dashboard... A more graceful way of handling this would be nice
+  @Override
+  public String toString() {
+    SimpleDateFormat sdf = new SimpleDateFormat("dd MMM HH:mm Z");
+    return "<br/>Start:" + date(sdf, started) + ",<br/>Dates:" + date(sdf, dateCompleted) + ",<br/>Finish:" + date(sdf, allCompleted)
+            + ",<br/>Rules:(" + workRules + "),<br/>Elapsed:(" + workMsElapsed + ")";
+  }
+
+  private String date(SimpleDateFormat sdf, Date date) {
+    if (date == null) {
+      return "(NULL)";
+    }
+    return sdf.format(date);
+  }
 }
