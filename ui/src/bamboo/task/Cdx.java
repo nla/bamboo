@@ -40,33 +40,49 @@ public class Cdx {
     static class CdxRecordProducer {
         final static Pattern PANDORA_URL_MAP = Pattern.compile("^http://pandora.nla.gov.au/pan/([0-9]+/[0-9-]+)/url.map$");
 
-        private final ArchiveReader warc;
         private final PeekingIterator<ArchiveRecord> iterator;
         private final String filename;
         private final long warcLength;
         private Iterator<Alias> urlMapIterator = null;
+        private boolean pandoraHacks;
+        private Queue<String> panIndexPages = new ArrayDeque<>();
 
         CdxRecordProducer(ArchiveReader warc, String filename, long warcLength) {
-            this.warc = warc;
             iterator = Iterators.peekingIterator(warc.iterator());
             this.filename = filename;
             this.warcLength = warcLength;
+
+            if (filename.startsWith("nla.arc-")) {
+                pandoraHacks = true;
+            }
         }
 
         public CdxRecord next() {
             try {
-                if (urlMapIterator != null && urlMapIterator.hasNext()) {
-                    return urlMapIterator.next();
+                if (pandoraHacks) {
+                    if (urlMapIterator != null && urlMapIterator.hasNext()) {
+                        return urlMapIterator.next();
+                    }
                 }
+
                 while (iterator.hasNext()) {
                     ArchiveRecord record = iterator.next();
 
-                    String url = record.getHeader().getUrl();
-                    if (url != null) {
-                        Matcher m = PANDORA_URL_MAP.matcher(url);
-                        if (m.matches()) {
-                            urlMapIterator = parseUrlMap(record, m.group(1)).iterator();
-                            return next();
+                    if (pandoraHacks) {
+                        String url = record.getHeader().getUrl();
+
+                        // Generate alias records from PANDORA url.map if we encounter it.
+                        if (url != null) {
+                            Matcher m = PANDORA_URL_MAP.matcher(url);
+                            if (m.matches()) {
+                                urlMapIterator = parseUrlMap(record, m.group(1)).iterator();
+                                return next();
+                            }
+                        }
+
+                        // Save PANDORA index pages for extra aliasing at the end.
+                        if (urlMapIterator == null && url.endsWith("/index.html")) {
+                            panIndexPages.add(url);
                         }
                     }
 
@@ -77,6 +93,22 @@ public class Cdx {
                         return capture;
                     }
                 }
+
+                if (pandoraHacks) {
+                    /*
+                     * XXX: PANDORA used to be served as static files and so relies
+                     * on a web server automatically resolving /foo/ to /foo/index.html
+                     * Sometimes url.map will take care of this mapping but early
+                     * instances have no url.map. So if there's no url.map generate
+                     * an alias records for every .../index.html to .../
+                     */
+                    if (urlMapIterator == null && !panIndexPages.isEmpty()) {
+                        String url = panIndexPages.remove();
+                        String dirname = url.substring(0, url.length() - "index.html".length());
+                        return new Alias(dirname, url);
+                    }
+                }
+
                 return null;
             } catch (IOException e) {
                 throw new UncheckedIOException(e);

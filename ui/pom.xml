@@ -283,6 +283,11 @@
             <version>1.13</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.github.iipc</groupId>
+            <artifactId>urlcanon</artifactId>
+            <version>84d997a</version>
+        </dependency>
     </dependencies>
 
     <repositories>
@@ -293,6 +298,10 @@
         <repository>
             <id>nla-public-snapshots</id>
             <url>http://maven.nla.gov.au/snapshots</url>
+        </repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
         </repository>
     </repositories>
 

@@ -104,7 +104,9 @@ public class CdxIndexer implements Runnable {
         List<CdxBuffer> buffers = new ArrayList<>();
         Crawl crawl = crawls.get(warc.getCrawlId());
         for (CollectionWithFilters collection: collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())) {
-            buffers.add(new CdxBuffer(collection));
+            if (collection.getCdxUrl() != null && !collection.getCdxUrl().isEmpty()) {
+                buffers.add(new CdxBuffer(collection));
+            }
         }
 
         RecordStats stats;

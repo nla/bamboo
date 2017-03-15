@@ -123,7 +123,10 @@ public class TransformWorker implements Runnable {
     if (!url.equals(strippedUrl)) {
       solr.addField(SolrEnum.PROTOCOL.toString(), url.substring(0, url.indexOf(":")));
     }
-    solr.addField(SolrEnum.URL.toString(), strippedUrl);
+    solr.addField(SolrEnum.DISPLAY_URL.toString(), strippedUrl);
+    solr.addField(SolrEnum.DELIVERY_URL.toString(), document.getBambooDocument().getDeliveryUrl());
+    solr.addField(SolrEnum.PANDORA_URL.toString(), document.getBambooDocument().getPandoraUrl());
+
     String filename = FilenameFinder.getFilename(document.getBambooDocument().getUrl());
     if (filename != null) {
       solr.addField(SolrEnum.FILENAME.toString(), filename);

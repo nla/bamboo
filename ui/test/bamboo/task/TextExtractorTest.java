@@ -54,4 +54,14 @@ public class TextExtractorTest {
         assertEquals("this is a description", doc.getDescription());
         assertEquals("this is keywords", doc.getKeywords());
     }
+
+    @Test
+    public void testHackOffPandoraUrl() {
+        Document doc = new Document();
+        doc.setUrl("http://pandora.nla.gov.au/pan/160553/20161116-1000/www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html");
+        TextExtractor.hackOffPandoraUrl(doc);
+        assertEquals("http://www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html", doc.getUrl());
+        assertEquals("http://www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html", doc.getDeliveryUrl());
+        assertEquals("http://pandora.nla.gov.au/pan/160553/20161116-1000/www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html", doc.getPandoraUrl());
+    }
 }
