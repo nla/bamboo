@@ -56,7 +56,7 @@ class RuleRecheckWorker implements Runnable {
 		this.site = site;
 		this.searchCategory = searchCategory;
 	}
-	
+
 	@Override
 	public void run(){
 		Timer.Context context = manager.getTimer(manager.getName() + ".worker").time();
@@ -72,6 +72,7 @@ class RuleRecheckWorker implements Runnable {
 		Map<String, Object> partialUpdate = new HashMap<>();
 		partialUpdate.put("set", rule.getId());
 		update.addField(SolrEnum.RULE.toString(), partialUpdate);
+
 		switch (rule.getIndexerPolicy()) {
 			case RESTRICTED_FOR_BOTH:
 				update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdateFalse);				

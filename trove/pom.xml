@@ -155,7 +155,7 @@
     <dependency>
       <groupId>com.github.iipc</groupId>
       <artifactId>urlcanon</artifactId>
-      <version>84d997a</version>
+      <version>66b854d</version>
     </dependency>
 
     <dependency>

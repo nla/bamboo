@@ -60,13 +60,15 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker {
   private static final Logger log = LoggerFactory.getLogger(RuleChangeUpdateManager.class);
 
-  private static final String[] SOLR_FIELDS = new String[] {SolrEnum.ID.toString(), SolrEnum.URL.toString(),
-          SolrEnum.DATE.toString(), SolrEnum.SEARCH_CATEGORY.toString(), SolrEnum.SITE.toString()};
+  private static final String[] SOLR_FIELDS = new String[] {SolrEnum.ID.toString(), SolrEnum.DISPLAY_URL.toString(),
+          SolrEnum.DELIVERY_URL.toString(), SolrEnum.DATE.toString(), SolrEnum.SEARCH_CATEGORY.toString(),
+          SolrEnum.SITE.toString(), SolrEnum.RULE.toString()};
   private static final SimpleDateFormat format = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss'Z'");
   private static int NUMBER_OF_WORKERS = 5;
   private static final ZoneId TZ = ZoneId.systemDefault();
@@ -262,7 +264,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       }
     }
 
-    // TODO - This is redundant right now, but see comments above the other call, deeper in the stack.
     // Stop here and wait for any pending workers to finish processing stuff we just queue'd up
     // We are about to (maybe) change the live rule set and (definitely) update the 'TODAY' context
     waitUntilCaughtUp();
@@ -329,7 +330,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       return;
     }
 
-    // TODO - This is redundant right now, but see comments above the other call, deeper in the stack.
     // Stop here and wait for any pending workers to finish processing stuff we just queue'd up
     // We are about to (maybe) change the live rule set and (definitely) update the 'TODAY' context
     waitUntilCaughtUp();
@@ -559,16 +559,17 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
         more = false;
       }
       distributeResponse(results, workLog);
-//    	log.debug("work size {}", workProcessor.processingWaiting());
-//    	log.debug("dist size {}", workDistributor.processingWaiting());
       cursor = nextCursor;
       contextQuery.stop();
     }
 
-    // TODO - Do we really need to wait here? It would cause some mildly
-    // redundant processing, but overall will slow down progress
-    // Have added a second call at a higher level that is (for now) redundant,
-    // but makes this safe to remove in the context of nightly logic.
+    // We do this at a higher level too, so this would seem redundant. There is a trade-off. Allowing parallelism
+    // between rules means rules can sometimes be re-processed redundantly. The higher level waitUntilCaughtUp() will
+    // ensure we never process rules at the same time rules are being changed.
+    // By doing a wait here as well however, we can collect accurate statistics about how much actual write activity we
+    // are really generating by passing the workLog into the work pool.
+    // When we have a better awareness of the typical work patterns it might be worth disabling this method call and
+    // then stop collecting the metrics to improve throughput.
     waitUntilCaughtUp();
     context.stop();
   }
@@ -597,7 +598,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       synchronized (documents) {
         documents.add(id);
       }
-      String url = (String) doc.getFieldValue(SolrEnum.URL.toString());
+      String deliveryUrl = (String) doc.getFieldValue(SolrEnum.DELIVERY_URL.toString());
       Date capture = (Date) doc.getFieldValue(SolrEnum.DATE.toString());
       String site = (String) doc.getFieldValue(SolrEnum.SITE.toString());
       String sc = (String) doc.getFieldValue(SolrEnum.SEARCH_CATEGORY.toString());
@@ -608,7 +609,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       }
 
       RuleRecheckWorker worker =
-              new RuleRecheckWorker(id, url, capture, site, searchCategory, manager, restrictionsService);
+              new RuleRecheckWorker(id, deliveryUrl, capture, site, searchCategory, manager, restrictionsService);
       // TODO... we do write activity on every document we receive... some way of checking whether
       // the write activity is required would be desirable
       workLog.wroteDocument();
@@ -772,7 +773,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     private final long ruleId;
     private long searches = 0;
     private long documents = 0;
-    private long written = 0;
+    private AtomicLong written = new AtomicLong(0);
     private long msElapsed = 0;
     private final long started;
 
@@ -788,7 +789,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       documents++;
     }
     void wroteDocument() {
-      written++;
+      written.incrementAndGet();
     }
     public void completed() {
       msElapsed = System.currentTimeMillis() - started;
@@ -807,7 +808,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     }
 
     public long getWritten() {
-      return written;
+      return written.get();
     }
 
     public long getMsElapsed() {

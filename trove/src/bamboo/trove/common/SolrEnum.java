@@ -33,7 +33,6 @@ public enum SolrEnum {
   LAST_INDEXED("lastIndexed"),
   METADATA("metadata"),
   PANDORA_URL("pandoraUrl"),
-  PROTOCOL("protocol"),
   RULE("ruleId"),
   SEARCH_CATEGORY("searchCategory"),
   SITE("site"),

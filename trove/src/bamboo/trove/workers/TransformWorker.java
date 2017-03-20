@@ -22,9 +22,10 @@ import bamboo.trove.common.FilenameFinder;
 import bamboo.trove.common.IndexerDocument;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
-import bamboo.util.Urls;
 import com.codahale.metrics.Timer;
 import org.apache.solr.common.SolrInputDocument;
+import org.netpreserve.urlcanon.Canonicalizer;
+import org.netpreserve.urlcanon.ParsedUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +41,8 @@ public class TransformWorker implements Runnable {
   public static final float BONUS_EDU_SITE = 1.1f;
   public static final float MALUS_SEARCH_CATEGORY = 0.9f;
   public static final float MALUS_UNDELIVERABLE = 0.8f;
-  
+
+  private final Canonicalizer CANON = Canonicalizer.AGGRESSIVE;
   private final boolean indexFullText;
 
   private Timer timer;
@@ -116,18 +118,27 @@ public class TransformWorker implements Runnable {
   private SimpleDateFormat dateYear = new SimpleDateFormat("yyyy");
   private void basicMetadata(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.ID.toString(), document.getDocId());
-    // Remove the protocol for Solr. Search clients get fuzzy matches
-    String url = document.getBambooDocument().getUrl();
-    String strippedUrl = Urls.removeScheme(url);
-    // But we need to store the protocol (if there was one) to render an accurate delivery URL.
-    if (!url.equals(strippedUrl)) {
-      solr.addField(SolrEnum.PROTOCOL.toString(), url.substring(0, url.indexOf(":")));
-    }
-    solr.addField(SolrEnum.DISPLAY_URL.toString(), strippedUrl);
-    solr.addField(SolrEnum.DELIVERY_URL.toString(), document.getBambooDocument().getDeliveryUrl());
-    solr.addField(SolrEnum.PANDORA_URL.toString(), document.getBambooDocument().getPandoraUrl());
 
-    String filename = FilenameFinder.getFilename(document.getBambooDocument().getUrl());
+    // Display URL is the original provided by Bamboo
+    String url = document.getBambooDocument().getUrl();
+    solr.addField(SolrEnum.DISPLAY_URL.toString(), url);
+    String deliveryUrl = document.getBambooDocument().getDeliveryUrl();
+    if (deliveryUrl == null || "".equals(deliveryUrl)) {
+      throw new IllegalArgumentException("Delivery URL is empty for document " + document.getDocId());
+    }
+    solr.addField(SolrEnum.DELIVERY_URL.toString(), deliveryUrl);
+
+    // In the vast majority of cases DELIVERY_URL == canon(DISPLAY_URL)
+    // But we test for that because Pandora can throw a spanner in the works
+    ParsedUrl parsedUrl = ParsedUrl.parseUrl(url);
+    CANON.canonicalize(parsedUrl);
+    if (!parsedUrl.toString().equals(url)) {
+      // This is a pandora URL. To support exact match on both DISPLAY_URL and DELIVERY_URL
+      // we need to store a canonicalized version of DISPLAY_URL
+      solr.addField(SolrEnum.PANDORA_URL.toString(), parsedUrl.toString());
+    }
+
+    String filename = FilenameFinder.getFilename(url);
     if (filename != null) {
       solr.addField(SolrEnum.FILENAME.toString(), filename);
     }

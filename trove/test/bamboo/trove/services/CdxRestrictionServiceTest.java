@@ -30,6 +30,8 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.netpreserve.urlcanon.Canonicalizer;
+import org.netpreserve.urlcanon.ParsedUrl;
 import org.springframework.http.converter.json.Jackson2ObjectMapperFactoryBean;
 
 import java.io.IOException;
@@ -77,7 +79,7 @@ public class CdxRestrictionServiceTest {
     List<CdxRule> rules = getCdxObjectList("rules.json", CdxRule.class);
     List<CdxAccessPolicy> policies = getCdxObjectList("policies.json", CdxAccessPolicy.class);
     ruleSet = new CdxAccessControl(policies, rules);
-    assertEquals("Basic parse error reading jdk8 Period object", 70, ruleSet.getRules().get(1144l).getPeriod().getYears());
+    assertEquals("Basic parse error reading jdk8 Period object", 70, ruleSet.getRules().get(1144L).getPeriod().getYears());
     service = new CdxRestrictionService();
     service.overwriteRulesForTesting(ruleSet, testingDate);
   }
@@ -100,15 +102,15 @@ public class CdxRestrictionServiceTest {
     Date MATCH_DATE = sdf.parse("2013-01-01T00:00:00+1100");
     Date NOT_MATCH_DATE = sdf.parse("2011-01-01T00:00:00+1100");
 
-    doc.setUrl(MATCH_URL);
+    setUrl(doc, MATCH_URL);
     doc.setDate(MATCH_DATE);
     assertEquals(DocumentStatus.RESTRICTED_FOR_BOTH, service.filterDocument(doc).getIndexerPolicy());
 
-    doc.setUrl(NOT_MATCH_URL);
+    setUrl(doc, NOT_MATCH_URL);
     doc.setDate(MATCH_DATE);
     assertEquals(DocumentStatus.ACCEPTED, service.filterDocument(doc).getIndexerPolicy());
 
-    doc.setUrl(MATCH_URL);
+    setUrl(doc, MATCH_URL);
     doc.setDate(NOT_MATCH_DATE);
     assertEquals(DocumentStatus.ACCEPTED, service.filterDocument(doc).getIndexerPolicy());
 
@@ -120,25 +122,24 @@ public class CdxRestrictionServiceTest {
     Date EMARGOED_DATE    = sdf.parse("2013-06-01T00:00:00+1100");
     Date NO_EMARGOED_DATE = sdf.parse("2012-06-01T00:00:00+1100");
 
-    doc.setUrl(MATCH_URL);
+    setUrl(doc, MATCH_URL);
     doc.setDate(EMARGOED_DATE);
     assertEquals(DocumentStatus.RESTRICTED_FOR_BOTH, service.filterDocument(doc).getIndexerPolicy());
 
-    doc.setUrl(MATCH_URL);
+    setUrl(doc, MATCH_URL);
     doc.setDate(NO_EMARGOED_DATE);
     assertEquals(DocumentStatus.ACCEPTED, service.filterDocument(doc).getIndexerPolicy());
 
-    doc.setUrl(NOT_MATCH_URL);
+    setUrl(doc, NOT_MATCH_URL);
     doc.setDate(EMARGOED_DATE);
     assertEquals(DocumentStatus.ACCEPTED, service.filterDocument(doc).getIndexerPolicy());
 
     // Rule 18) Further evolves rule 17 by adding access dates between 2014-2015...
     // it is a stupid rule you wouldn't typically see in practice
     MATCH_URL = BASE + "STUPID/d0841534generalsubmission-ajlester/test.html";
-    NOT_MATCH_URL = BASE + "STUPID/NOT/d0841534generalsubmission-ajlester/test.html";
     // Fake 'today' is still "2014-01-01T00:00:00+1100", so this rule will not apply
     // (access is outside the window) despite every other condition being applicable.
-    doc.setUrl(MATCH_URL);
+    setUrl(doc, MATCH_URL);
     doc.setDate(EMARGOED_DATE);
     assertEquals(DocumentStatus.ACCEPTED, service.filterDocument(doc).getIndexerPolicy());
     // Now nudge it over the line by 1 day and it should be blocked
@@ -155,10 +156,11 @@ public class CdxRestrictionServiceTest {
     Document doc = new Document();
     doc.setDate(sdf.parse("2013-01-01T00:00:00+1100"));
 
-    doc.setUrl("http://www.garnautreview.org.au/ca25734e0016a131/webobj/d0841534generalsubmission-ajlester/test.html");
+
+    setUrl(doc, "http://www.garnautreview.org.au/ca25734e0016a131/webobj/d0841534generalsubmission-ajlester/test.html");
     assertEquals(DocumentStatus.RESTRICTED_FOR_BOTH, service.filterDocument(doc).getIndexerPolicy());
 
-    doc.setUrl("https://www.garnautreview.org.au/ca25734e0016a131/webobj/d0841534generalsubmission-ajlester/test.html");
+    setUrl(doc, "https://www.garnautreview.org.au/ca25734e0016a131/webobj/d0841534generalsubmission-ajlester/test.html");
     assertEquals(DocumentStatus.RESTRICTED_FOR_BOTH, service.filterDocument(doc).getIndexerPolicy());
   }
 
@@ -167,7 +169,7 @@ public class CdxRestrictionServiceTest {
     SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
 
     Document doc = new Document();
-    doc.setUrl("http://www.smh.com.au/randomstuff");
+    setUrl(doc, "http://www.smh.com.au/randomstuff");
 
     // Rule 953) Multiple URL patterns from a Pandora conversion. 2nd is a broad wildcard for a whole domain
     // http://www.smh.com.au/*
@@ -189,7 +191,7 @@ public class CdxRestrictionServiceTest {
     SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
 
     Document doc = new Document();
-    doc.setUrl("http://blocked.adultshop.com.au");
+    setUrl(doc, "http://blocked.adultshop.com.au");
 
     // Rule 953) Multiple URL patterns from a Pandora conversion. 2nd is a broad wildcard for a whole domain
     // *.adultshop.com.au
@@ -206,7 +208,7 @@ public class CdxRestrictionServiceTest {
 
     // Let's eyeball what that empty String will do
     RuleChangeUpdateManager manager = new RuleChangeUpdateManager();
-    SolrQuery query = manager.convertRuleToSearch(ruleSet.getRules().get(1144l), "");
+    SolrQuery query = manager.convertRuleToSearch(ruleSet.getRules().get(1144L), "");
     boolean found = false;
     // We do not want to see *:* on the end
     String target = "(" + SolrEnum.URL_TOKENIZED + ":\"pandora.nla.gov.au/pan/35531/*\") OR ("
@@ -248,6 +250,17 @@ public class CdxRestrictionServiceTest {
     //assertRestricted(doc, "/losch.bob.au/favicon.ico");
   }
 
+  private void setUrl(Document doc, String url) {
+    doc.setUrl(url);
+    doc.setDeliveryUrl(canonUrl(url));
+  }
+
+  private String canonUrl(String input) {
+    ParsedUrl url = ParsedUrl.parseUrl(input);
+    Canonicalizer.AGGRESSIVE.canonicalize(url);
+    return url.toString();
+  }
+
   private void assertAccepted(Document doc, String url) throws CdxRestrictionService.RulesOutOfDateException {
     assertBlockRule(doc, url, DocumentStatus.ACCEPTED);
   }
@@ -255,7 +268,7 @@ public class CdxRestrictionServiceTest {
     assertBlockRule(doc, url, DocumentStatus.RESTRICTED_FOR_BOTH);
   }
   private void assertBlockRule(Document doc, String url, DocumentStatus status) throws CdxRestrictionService.RulesOutOfDateException {
-    doc.setUrl(url);
+    setUrl(doc, url);
     assertEquals(status, service.filterDocument(doc).getIndexerPolicy());
   }
 }

@@ -209,7 +209,7 @@ public class CdxRestrictionService {
     if (inLockdown) {
       throw new RulesOutOfDateException("RestrictionService is in lockdown because of a rules failure.");
     }
-    return filterDocument(doc.getUrl(), doc.getDate());
+    return filterDocument(doc.getDeliveryUrl(), doc.getDate());
   }
 
   public CdxRule filterDocument(String url, Date capture) {
