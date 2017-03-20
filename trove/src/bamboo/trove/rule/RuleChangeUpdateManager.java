@@ -113,6 +113,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private boolean nightlyRunInProgress = false;
   private boolean earlyAbortNightlyRun = false;
 
+  private boolean minimizeWriteTraffic = true;
+
   @SuppressWarnings("unused")
   public void setUseAsyncSolrClient(boolean useAsyncSolrClient) {
     this.useAsyncSolrClient = useAsyncSolrClient;
@@ -141,6 +143,14 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   @Required
   public void setMaxIndexWorkers(int maxIndexWorkers) {
     this.maxIndexWorkers = maxIndexWorkers;
+  }
+
+  public boolean isMinimizingWriteTraffic() {
+    return minimizeWriteTraffic;
+  }
+
+  public void setMinimizeWriteTraffic(boolean minimizeWriteTraffic) {
+    this.minimizeWriteTraffic = minimizeWriteTraffic;
   }
 
   @PostConstruct
@@ -607,12 +617,11 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
         log.warn("Invalid Search Category : " + sc + " for record id : " + id);
         searchCategory = SearchCategory.NONE;
       }
+      long ruleId = (Long) doc.getFieldValue(SolrEnum.RULE.toString());
 
-      RuleRecheckWorker worker =
-              new RuleRecheckWorker(id, deliveryUrl, capture, site, searchCategory, manager, restrictionsService);
-      // TODO... we do write activity on every document we receive... some way of checking whether
-      // the write activity is required would be desirable
-      workLog.wroteDocument();
+      RuleRecheckWorker worker = new RuleRecheckWorker(id, deliveryUrl, capture, site, searchCategory, ruleId,
+              workLog, manager, restrictionsService);
+
       workProcessor.process(worker);
     }
   }
