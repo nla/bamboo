@@ -132,7 +132,7 @@ public class TransformWorker implements Runnable {
     // But we test for that because Pandora can throw a spanner in the works
     ParsedUrl parsedUrl = ParsedUrl.parseUrl(url);
     CANON.canonicalize(parsedUrl);
-    if (!parsedUrl.toString().equals(url)) {
+    if (!parsedUrl.toString().equals(deliveryUrl)) {
       // This is a pandora URL. To support exact match on both DISPLAY_URL and DELIVERY_URL
       // we need to store a canonicalized version of DISPLAY_URL
       solr.addField(SolrEnum.PANDORA_URL.toString(), parsedUrl.toString());
