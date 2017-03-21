@@ -17,6 +17,8 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
+import org.netpreserve.urlcanon.Canonicalizer;
+import org.netpreserve.urlcanon.ParsedUrl;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
@@ -45,15 +47,24 @@ public class TextExtractor {
     private boolean useTika = false;
 
     public static final Pattern PANDORA_REGEX = Pattern.compile("http://pandora.nla.gov.au/pan/[0-9]+/[0-9-]+/([^/.]+\\.[^/]+/.*)");
-    public static void hackOffPandoraUrl(Document doc) {
-        String url = doc.getUrl();
+    public static void setUrls(Document doc, String url) throws TextExtractionException {
+        String deliveryUrl = url;
         Matcher m = PANDORA_REGEX.matcher(url);
         if (m.matches()) {
             // TODO: consult url.map
-            doc.setPandoraUrl(url);
             String hackedOffUrl = "http://" + m.group(1);
-            doc.setUrl(hackedOffUrl);
-            doc.setDeliveryUrl(hackedOffUrl);
+            url = hackedOffUrl;
+        }
+        doc.setUrl(url);
+        ParsedUrl parse = ParsedUrl.parseUrl(deliveryUrl);
+        Canonicalizer.AGGRESSIVE.canonicalize(parse);
+        doc.setDeliveryUrl(parse.toString());
+
+        try {
+            doc.setHost(new URL(url).getHost());
+            doc.setSite(topPrivateDomain(url));
+        } catch (MalformedURLException e) {
+            throw new TextExtractionException(e);
         }
     }
 
@@ -83,19 +94,11 @@ public class TextExtractor {
         }
 
         String arcDate = WarcUtils.getArcDate(warcHeader);
-        doc.setUrl(url);
-        hackOffPandoraUrl(doc);
+        setUrls(doc, url);
         doc.setContentLength(warcHeader.getContentLength());
         Instant instant = LocalDateTime.parse(arcDate, WarcUtils.arcDateFormat).atOffset(ZoneOffset.UTC).toInstant();
         doc.setDate(Date.from(instant));
         doc.setWarcOffset(warcHeader.getOffset());
-
-        try {
-            doc.setHost(new URL(url).getHost());
-            doc.setSite(topPrivateDomain(url));
-        } catch (MalformedURLException e) {
-            throw new TextExtractionException(e);
-        }
 
         String digest = (String) warcHeader.getHeaderValue("WARC-Payload-Digest");
         if (digest != null) {

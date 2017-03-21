@@ -1,12 +1,12 @@
 package bamboo.task;
 
-import static org.junit.Assert.assertEquals;
+import com.lowagie.text.pdf.PdfReader;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
 
-import com.lowagie.text.pdf.PdfReader;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
 
 public class TextExtractorTest {
 
@@ -56,12 +56,10 @@ public class TextExtractorTest {
     }
 
     @Test
-    public void testHackOffPandoraUrl() {
+    public void testHackOffPandoraUrl() throws TextExtractionException {
         Document doc = new Document();
-        doc.setUrl("http://pandora.nla.gov.au/pan/160553/20161116-1000/www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html");
-        TextExtractor.hackOffPandoraUrl(doc);
+        TextExtractor.setUrls(doc, "http://pandora.nla.gov.au/pan/160553/20161116-1000/www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html");
         assertEquals("http://www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html", doc.getUrl());
-        assertEquals("http://www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html", doc.getDeliveryUrl());
-        assertEquals("http://pandora.nla.gov.au/pan/160553/20161116-1000/www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html", doc.getPandoraUrl());
+        assertEquals("http://pandora.nla.gov.au/pan/160553/20161116-1000/www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html", doc.getDeliveryUrl());
     }
 }
