@@ -52,8 +52,8 @@ public interface FullPersistenceDAO {
   class OldErrorMapper implements ResultSetMapper<OldError> {
     @Override
     public OldError map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
-      return new OldError(resultSet.getLong(1), new Pair<>(resultSet.getTimestamp(2), resultSet.getInt(3))
-      		, resultSet.getString(4));
+      return new OldError(resultSet.getLong(1), new Pair<>(resultSet.getTimestamp(2), resultSet.getInt(3)),
+              resultSet.getString(4));
     }
   }
 
@@ -79,9 +79,8 @@ public interface FullPersistenceDAO {
   @SqlUpdate("DELETE FROM " + ERROR_TABLE + " WHERE " + ERROR_ID_COLUMN + " = :warcId")
   void removeError(@Bind("warcId") long warcId);
 
-  @SqlQuery("SELECT " + ERROR_TIME_COLUMN + ", " + ERROR_RETRY_COLUMN + ", " + ERROR_DOMAIN_COLUMN+ ", " + ERROR_DOMAIN_COLUMN
-      + " FROM " + ERROR_TABLE
-      + " WHERE " +  ERROR_ID_COLUMN + " = :warcId")
+  @SqlQuery("SELECT " + ERROR_ID_COLUMN + ", " + ERROR_TIME_COLUMN + ", " + ERROR_RETRY_COLUMN + ", "
+          + ERROR_DOMAIN_COLUMN + " FROM " + ERROR_TABLE + " WHERE " +  ERROR_ID_COLUMN + " = :warcId")
   OldError checkError(@Bind("warcId") long warcId);
 
   @SqlQuery("SELECT " + ERROR_ID_COLUMN + ", " + ERROR_TIME_COLUMN + ", " + ERROR_RETRY_COLUMN + ", " + ERROR_DOMAIN_COLUMN
