@@ -35,15 +35,19 @@ public class WarcsControllerTest {
         Date date = sdfIn.parse(utcString);
 
         // Round trip test... sanity checking test logic has correctly understood timezones
-        SimpleDateFormat sdfOut = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
+        SimpleDateFormat sdfOut = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
         sdfOut.setTimeZone(TimeZone.getTimeZone("Australia/ACT"));
         String output = sdfOut.format(date);
-        String actTime = "2004-08-22T01:30:36+1000";
+        String actTime = "2004-08-22T01:30:36+10:00";
         assertEquals("Basic parse test failed. Test is wrong", actTime, output);
+
+        // Now reset for Locale that the test is being run in the context of (because that is what GSON will do)
+        sdfOut.setTimeZone(TimeZone.getDefault());
+        String expected = sdfOut.format(date);
 
         // Now confirm GSON is using the correct time. It should include a timezone
         // Before fixing WA-7 it was labelling the string as UTC, but it was really local time.
         String gsonDate = WarcsController.gson.toJson(date);
-        assertEquals("GSON date parsing is not configured correctly", "\"2004-08-22T01:30:36+10:00\"", gsonDate);
+        assertEquals("GSON date parsing is not configured correctly", "\"" + expected + "\"", gsonDate);
     }
 }
