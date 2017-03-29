@@ -38,8 +38,8 @@ public class TextExtractorTest {
         try (InputStream stream = getClass().getResourceAsStream("example.odt")) {
             TextExtractor.extractTika(stream, doc);
         }
-        assertEquals("Visible title" + System.lineSeparator()  +
-                "This is an example." + System.lineSeparator(), doc.getText());
+        assertEquals("Visible title\n" +
+                "This is an example.\n", doc.getText());
         assertEquals("Metadata title", doc.getTitle());
     }
 
