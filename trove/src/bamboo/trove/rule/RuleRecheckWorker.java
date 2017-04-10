@@ -15,11 +15,9 @@
  */
 package bamboo.trove.rule;
 
-import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.common.cdx.CdxRule;
 import bamboo.trove.services.CdxRestrictionService;
-import bamboo.trove.workers.TransformWorker;
 import com.codahale.metrics.Timer;
 import org.apache.solr.common.SolrInputDocument;
 
@@ -42,23 +40,20 @@ class RuleRecheckWorker implements Runnable {
   private String id;
   private String url;
   private Date capture;
-  private String site;
-  private SearchCategory searchCategory;
-  private long existingRuleId;
+  private int existingRuleId;
   private RuleChangeUpdateManager.WorkLog workLog;
-  private float boost = 1.0f;
+  private float solrBoost = 1.0f;
 
-  RuleRecheckWorker(String id, String url, Date capture, String site, SearchCategory searchCategory,
-                    long existingRuleId, RuleChangeUpdateManager.WorkLog workLog, RuleChangeUpdateManager manager,
+  RuleRecheckWorker(String id, String url, Date capture, int existingRuleId, float solrBoost,
+                    RuleChangeUpdateManager.WorkLog workLog, RuleChangeUpdateManager manager,
                     CdxRestrictionService service) {
     this.manager = manager;
     this.service = service;
     this.id = id;
     this.url = url;
     this.capture = capture;
-    this.site = site;
-    this.searchCategory = searchCategory;
     this.existingRuleId = existingRuleId;
+    this.solrBoost = solrBoost;
     this.workLog = workLog;
   }
 
@@ -90,12 +85,10 @@ class RuleRecheckWorker implements Runnable {
       case RESTRICTED_FOR_BOTH:
         update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdateFalse);
         update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdateFalse);
-        modifyBoost(TransformWorker.MALUS_UNDELIVERABLE);
         break;
       case RESTRICTED_FOR_DELIVERY:
         update.addField(SolrEnum.DISCOVERABLE.toString(), partialUpdateNull);
         update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdateFalse);
-        modifyBoost(TransformWorker.MALUS_UNDELIVERABLE);
         break;
       case RESTRICTED_FOR_DISCOVERY:
         update.addField(SolrEnum.DELIVERABLE.toString(), partialUpdateFalse);
@@ -108,39 +101,19 @@ class RuleRecheckWorker implements Runnable {
         break;
     }
 
-    if (searchCategory == null) {
-      modifyBoost(TransformWorker.MALUS_SEARCH_CATEGORY);
-    } else {
-      switch (searchCategory) {
-        case NONE:
-        case DOCUMENT:
-        case PRESENTATION:
-        case SPREADSHEET:
-          modifyBoost(TransformWorker.MALUS_SEARCH_CATEGORY);
-          break;
-
-        default:
-          break;
-      }
-    }
-
-    if (site != null) {
-      if (site.endsWith(".gov.au")) {
-        modifyBoost(TransformWorker.BONUS_GOV_SITE);
-      } else if (site.endsWith(".edu.au")) {
-        modifyBoost(TransformWorker.BONUS_EDU_SITE);
-      }
-    }
-
     partialUpdate = new HashMap<>();
     partialUpdate.put("set", new Date());
     update.addField(SolrEnum.LAST_INDEXED.toString(), partialUpdate);
-    update.setDocumentBoost(boost);
+    // TODO: See note beside boost in the rule manager. This IF test is temp code only.
+    if (solrBoost == 0F) {
+      // It has become unrestricted
+      if (rule.getId() == -1) {
+        solrBoost = 1F;
+      } else {
+        solrBoost = 0.1F;
+      }
+    }
+    update.setDocumentBoost(solrBoost);
     return update;
-  }
-
-  private float modifyBoost(float modifier) {
-    boost *= modifier;
-    return boost;
   }
 }

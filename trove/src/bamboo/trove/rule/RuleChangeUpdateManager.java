@@ -21,7 +21,6 @@ import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.EndPointRotator;
 import bamboo.trove.common.LastRun;
-import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.common.cdx.CdxDateRange;
 import bamboo.trove.common.cdx.CdxRule;
@@ -67,8 +66,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private static final Logger log = LoggerFactory.getLogger(RuleChangeUpdateManager.class);
 
   private static final String[] SOLR_FIELDS = new String[] {SolrEnum.ID.toString(), SolrEnum.DISPLAY_URL.toString(),
-          SolrEnum.DELIVERY_URL.toString(), SolrEnum.DATE.toString(), SolrEnum.SEARCH_CATEGORY.toString(),
-          SolrEnum.SITE.toString(), SolrEnum.RULE.toString()};
+          SolrEnum.DELIVERY_URL.toString(), SolrEnum.DATE.toString(), SolrEnum.BOOST.toString(),
+          SolrEnum.RULE.toString()};
   private static final SimpleDateFormat format = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss'Z'");
   private static int NUMBER_OF_WORKERS = 5;
   private static final ZoneId TZ = ZoneId.systemDefault();
@@ -114,6 +113,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private boolean earlyAbortNightlyRun = false;
 
   private boolean minimizeWriteTraffic = true;
+  private boolean disableRulesUpdates = false;
 
   @SuppressWarnings("unused")
   public void setUseAsyncSolrClient(boolean useAsyncSolrClient) {
@@ -153,6 +153,14 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     this.minimizeWriteTraffic = minimizeWriteTraffic;
   }
 
+  public void setDisableRulesUpdates(boolean disableRulesUpdates) {
+    this.disableRulesUpdates = disableRulesUpdates;
+  }
+
+  public boolean isDisableRulesUpdates() {
+    return disableRulesUpdates;
+  }
+
   @PostConstruct
   public void init() {
     log.info("***** RuleChangeUpdateManager *****");
@@ -166,6 +174,9 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     log.info("Solr zk path          : {}", zookeeperConfig);
     log.info("Collection            : {}", collection);
     log.info("Number of workers     : {}", NUMBER_OF_WORKERS);
+    if (disableRulesUpdates) {
+      log.warn("!!! Rule updating is currently disabled by configuration");
+    }
 
     client = new CloudSolrClient(zookeeperConfig);
     client.setDefaultCollection(collection);
@@ -173,11 +184,21 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     workProcessor = new WorkProcessor(NUMBER_OF_WORKERS);
     lastProcessed = restrictionsService.getLastProcessed();
 
+    // Typically this doesn't change, but the 'throughput' domain is experimental
+    if (useAsyncSolrClient) {
+      EndPointRotator.registerNewEndPoint(solrThroughputDomainManager);
+    } else {
+      EndPointRotator.registerNewEndPoint(solrManager);
+    }
+
     // Find our initial run state
     boolean runNow = false;
     if (restrictionsService.isInRecovery()) {
-      log.info("Restart into Rule recovery mode.");
-      runNow = true;
+      // Nest the if test... we are disabled, but we don't want to go down the 'else' branch
+      if (!disableRulesUpdates) {
+        log.info("Restart into Rule recovery mode.");
+        runNow = true;
+      }
 
     } else {
       long oneDayAgo = System.currentTimeMillis() - (24 * 60 * 60 * 1000);
@@ -192,7 +213,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     }
 
     // Start running?
-    if (runNow) {
+    if (runNow && !disableRulesUpdates) {
       startProcessing();
       // wait until the recovery process has had a chance to get the lock
       while (!hasPassedLock) {
@@ -205,19 +226,17 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       }
     }
 
-    // Typically this doesn't change, but the 'throughput' domain is experimental
-    if (useAsyncSolrClient) {
-      EndPointRotator.registerNewEndPoint(solrThroughputDomainManager);
-    } else {
-      EndPointRotator.registerNewEndPoint(solrManager);
-    }
-
     // Never start this until all the end points are registered
     startMe(filteringService, indexFullText);
   }
 
   @Override
   public void run() {
+    if (disableRulesUpdates) {
+      log.warn("Rule updating is currently disabled by configuration");
+      return;
+    }
+
     acquireDomainStartLock();
     hasPassedLock = true;
     try {
@@ -610,16 +629,17 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       }
       String deliveryUrl = (String) doc.getFieldValue(SolrEnum.DELIVERY_URL.toString());
       Date capture = (Date) doc.getFieldValue(SolrEnum.DATE.toString());
-      String site = (String) doc.getFieldValue(SolrEnum.SITE.toString());
-      String sc = (String) doc.getFieldValue(SolrEnum.SEARCH_CATEGORY.toString());
-      SearchCategory searchCategory = SearchCategory.fromValue(sc);
-      if (searchCategory == null) {
-        log.warn("Invalid Search Category : " + sc + " for record id : " + id);
-        searchCategory = SearchCategory.NONE;
+      // TODO: This was only required because of a mismatch in deployment times between the indexer and the new schema
+      Object boostRaw = doc.getFieldValue(SolrEnum.BOOST.toString());
+      float boost;
+      if (boostRaw == null) {
+        boost = 0F;
+      } else {
+        boost = (Float) doc.getFieldValue(SolrEnum.BOOST.toString());
       }
-      long ruleId = (Long) doc.getFieldValue(SolrEnum.RULE.toString());
+      int ruleId = (Integer) doc.getFieldValue(SolrEnum.RULE.toString());
 
-      RuleRecheckWorker worker = new RuleRecheckWorker(id, deliveryUrl, capture, site, searchCategory, ruleId,
+      RuleRecheckWorker worker = new RuleRecheckWorker(id, deliveryUrl, capture, ruleId, boost,
               workLog, manager, restrictionsService);
 
       workProcessor.process(worker);

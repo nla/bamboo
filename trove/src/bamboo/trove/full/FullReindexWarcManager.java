@@ -127,16 +127,21 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   @SuppressWarnings("unused")
   public void setModuloDivisor(int moduloDivisor) {
-    // TODO - Cannot use this when the restrictions update code and/or periodic domain are working
-    // comment out the call to RuleChangeUpdateManager::runInsideLock() if you are doing this...
-    // or code a graceful way to have them all co-exist... good luck
     this.moduloDivisor = moduloDivisor;
-    throw new IllegalArgumentException("Cannot set moduloDivisor. Distributed indexing requires dev hax!");
+    // If this is set to anything other than -1 (ie. has been explicitly turned off)
+    // make sure we have not been asked to also managed rules.
+    log.info("Distributed indexing! Divisor = {}", moduloDivisor);
+    log.info("Distributed indexing! Rules updating = {}", ruleChangeUpdateManager.isDisableRulesUpdates());
+    if (this.moduloDivisor != -1 && !ruleChangeUpdateManager.isDisableRulesUpdates()) {
+      throw new IllegalArgumentException("Cannot set moduloDivisor (for distributed indexing)" +
+              " because the 'disableRulesUpdates' flag has not been set.");
+    }
   }
 
   @SuppressWarnings("unused")
   public void setModuloRemainder(int moduloRemainder) {
     this.moduloRemainder = moduloRemainder;
+    log.info("Distributed indexing! Remainder = {}", moduloRemainder);
   }
 
   @SuppressWarnings("unused")

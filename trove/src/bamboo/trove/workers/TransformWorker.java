@@ -22,6 +22,7 @@ import bamboo.trove.common.FilenameFinder;
 import bamboo.trove.common.IndexerDocument;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
+import bamboo.trove.common.TitleTools;
 import com.codahale.metrics.Timer;
 import org.apache.solr.common.SolrInputDocument;
 import org.netpreserve.urlcanon.Canonicalizer;
@@ -110,6 +111,10 @@ public class TransformWorker implements Runnable {
     fullText(solr, document);
 
     solr.setDocumentBoost(document.getBoost());
+    // We store the boost in the index too. It lets us look at it for debugging, but also restrictions
+    // rules don't need to reprocess boost constantly, they can just read it from Solr.
+    solr.addField(SolrEnum.BOOST.toString(), document.getBoost());
+
     document.converted(solr);
   }
 
@@ -147,9 +152,8 @@ public class TransformWorker implements Runnable {
     String year = dateYear.format(document.getBambooDocument().getDate());
     solr.addField(SolrEnum.DECADE.toString(), year.substring(0, 3));
     solr.addField(SolrEnum.YEAR.toString(), year);
-    solr.addField(SolrEnum.TITLE.toString(), document.getBambooDocument().getTitle());
 
-    domainMetadata(solr, document);
+    domainAndTitleMetadata(solr, document);
 
     // Optional metadata we _might_ get from html
     optionalMetadata(solr, document.getBambooDocument().getDescription());
@@ -160,20 +164,36 @@ public class TransformWorker implements Runnable {
     optionalMetadata(solr, document.getBambooDocument().getCoverage());
   }
 
-  private void domainMetadata(SolrInputDocument solr, IndexerDocument document) {
+  private void domainAndTitleMetadata(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
     solr.addField(SolrEnum.HOST.toString(), document.getBambooDocument().getHost());
     // We reverse the hostname (which is site + sub-domain) for efficient sub-domain wildcarding in Solr
     solr.addField(SolrEnum.HOST_REVERSED.toString(),
             (new StringBuffer(document.getBambooDocument().getHost())).reverse().toString());
+
+    boolean softenSeoMalus = false;
     // If it is an AU gov website we index this
     if (document.getBambooDocument().getSite().endsWith(".gov.au")) {
       solr.addField(SolrEnum.AU_GOV.toString(), true);
       document.modifyBoost(BONUS_GOV_SITE);
+      softenSeoMalus = true;
     }
     if (document.getBambooDocument().getSite().endsWith(".edu.au")) {
       document.modifyBoost(BONUS_EDU_SITE);
+      softenSeoMalus = true;
     }
+
+    String title = document.getBambooDocument().getTitle();
+    solr.addField(SolrEnum.TITLE.toString(), title);
+    document.modifyBoost(TitleTools.lengthMalus(title));
+
+    float seoMalus = TitleTools.seoMalus(title);
+    if (softenSeoMalus) {
+      // We only apply 30% of the SEO malus to .gov and .edu sites
+      seoMalus = (1.0F - (1.0F - seoMalus) * 0.3F);
+      document.modifyBoost(TitleTools.seoMalus(title));
+    }
+    document.modifyBoost(seoMalus);
   }
 
   private void optionalMetadata(SolrInputDocument solr, String optionalData) {
@@ -191,7 +211,7 @@ public class TransformWorker implements Runnable {
       solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
     }
     if (DocumentStatus.RESTRICTED_FOR_DELIVERY.equals(document.getStatus())) {
-      //document.modifyBoost(MALUS_UNDELIVERABLE);
+      document.modifyBoost(MALUS_UNDELIVERABLE);
       solr.addField(SolrEnum.DELIVERABLE.toString(), false);
       //solr.addField(SolrEnum.DISCOVERABLE.toString(), true);
     }

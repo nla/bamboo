@@ -19,6 +19,7 @@ public enum SolrEnum {
   // Keeping them in alphabetical order just
   // to help readability as the schema grows
   AU_GOV("auGov"),
+  BOOST("boost"),
   DATE("date"),
   DECADE("decade"),
   DELIVERABLE("deliverable"),
