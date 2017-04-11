@@ -72,6 +72,8 @@ public class TitleTools {
   }
 
   public static float lengthMalus(String input) {
+  	if(input == null) return NO_MALUS;
+  	
     int i = input.length();
     if (i < 100) return NO_MALUS;
 
