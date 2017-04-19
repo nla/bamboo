@@ -22,6 +22,7 @@ public class TitleTools {
 
   // Don't even look at very short titles where the duplication could be legitimate
   private static final int SEO_MINIMUM_WORD_COUNT = 5;
+  private static final int SEO_MINIMUM_DUPE_COUNT = 3;
   // The 'forced' dupe height will bypass the dupe minimum (% based) that would normally
   // protect a natural language title. We force it to apply to absurdly long documents.
   // ie. If a single word appears over 1000 times in the title it will wreck tf-idf scores
@@ -44,6 +45,10 @@ public class TitleTools {
     Histogram histogram = makeHistogram(input);
     // For short strings this is all we do
     if (histogram == null || histogram.size() <= SEO_MINIMUM_WORD_COUNT) {
+      return NO_MALUS;
+    }
+    // Slightly longer strings (5 * minimum size) also need a decent amount of duplication before we bother
+    if (histogram.size() < (SEO_MINIMUM_WORD_COUNT * 5) && histogram.height() < SEO_MINIMUM_DUPE_COUNT) {
       return NO_MALUS;
     }
 

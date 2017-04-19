@@ -30,6 +30,7 @@ import bamboo.task.TextExtractionException;
 import bamboo.task.TextExtractor;
 import bamboo.task.WarcUtils;
 import bamboo.util.Parsing;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -194,9 +195,10 @@ public class WarcsController {
         }).withHeader("Content-Type", "text/plain");
     }
 
-    private static final Gson gson;
+    @VisibleForTesting
+    static final Gson gson;
     static {
-        GsonBuilder builder = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        GsonBuilder builder = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
         String indent = System.getProperty("disableJsonIndent");
         if (indent != null && "true".equals(indent)) {
             gson = builder.create();
