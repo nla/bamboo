@@ -191,7 +191,6 @@ public class TransformWorker implements Runnable {
     if (softenSeoMalus) {
       // We only apply 30% of the SEO malus to .gov and .edu sites
       seoMalus = (1.0F - (1.0F - seoMalus) * 0.3F);
-      document.modifyBoost(TitleTools.seoMalus(title));
     }
     document.modifyBoost(seoMalus);
   }
