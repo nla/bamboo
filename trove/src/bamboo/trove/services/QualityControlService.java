@@ -45,6 +45,9 @@ public class QualityControlService {
 
     // Content Type
     if (isSearchableContentType(document)) {
+    	if(!isFullTextSite(document) && HTML_CONTENT_TYPES.contains(document.getContentType())){
+    		return ContentThreshold.DOCUMENT_START_ONLY;
+    	}
       return ContentThreshold.FULL_TEXT;
     }
 
@@ -58,5 +61,14 @@ public class QualityControlService {
             || PRESENTATION_CONTENT_TYPES.contains(document.getContentType())
             || SPREADSHEET_CONTENT_TYPES.contains(document.getContentType())
             || DOCUMENT_CONTENT_TYPES.contains(document.getContentType());
+  }
+  
+  /**
+   * We need to reduce the size of the index so we don't store all the full text for some sites.  
+   * @param document
+   * @return
+   */
+  private boolean isFullTextSite(Document document){
+  	return !(document.getSite().endsWith(".com.au") || document.getSite().endsWith(".com"));
   }
 }

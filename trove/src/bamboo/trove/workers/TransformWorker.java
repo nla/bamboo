@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.SimpleDateFormat;
+import java.util.regex.Pattern;
 
 import static bamboo.trove.services.QualityControlService.*;
 
@@ -42,8 +43,13 @@ public class TransformWorker implements Runnable {
   public static final float BONUS_EDU_SITE = 1.1f;
   public static final float MALUS_SEARCH_CATEGORY = 0.9f;
   public static final float MALUS_UNDELIVERABLE = 0.8f;
+  
+  public static final int TEXT_LIMIT = 3000;
 
-  private final Canonicalizer CANON = Canonicalizer.AGGRESSIVE;
+	private static final Pattern PATTERN_WHITE_SPACE = Pattern.compile("\\s");
+	private static final Pattern PATTERN_MULTI_SPACE = Pattern.compile(" +");
+
+	private final Canonicalizer CANON = Canonicalizer.AGGRESSIVE;
   private final boolean indexFullText;
 
   private Timer timer;
@@ -236,25 +242,57 @@ public class TransformWorker implements Runnable {
 
     searchCategory(solr, document);
 
-    //if (ContentThreshold.DOCUMENT_START_ONLY.equals(document.getTheshold())) {
-      // TODO: Full text == First X words
-    //}
+    String text = "";
+    if (ContentThreshold.DOCUMENT_START_ONLY.equals(document.getThreshold())) {
+      text = document.getBambooDocument().getText();
+      if (text == null) return;
+      
+      text = removeExtraSpaces(text);
+      text = text.trim();
+      text = shortenText(text, TEXT_LIMIT);
+    }
+    
     //if (ContentThreshold.UNIQUE_TERMS_ONLY.equals(document.getTheshold())) {
       // TODO: Full text == Only unique terms
     //}
+    
     if (ContentThreshold.FULL_TEXT.equals(document.getThreshold())) {
-      String text = document.getBambooDocument().getText();
+      text = document.getBambooDocument().getText();
       if (text == null) return;
-      text = text.trim();
 
-      if (!"".equals(text)) {
-        if (indexFullText) {
-          solr.addField(SolrEnum.FULL_TEXT.toString(), text);
-        }
+      text = removeExtraSpaces(text);
+      text = text.trim();
+    }
+
+    if (!"".equals(text)) {
+      if (indexFullText) {
+        solr.addField(SolrEnum.FULL_TEXT.toString(), text);
       }
     }
   }
+  
+  protected static String removeExtraSpaces(String text){
+  	String txt = PATTERN_WHITE_SPACE.matcher(text).replaceAll(" ");
+  	return PATTERN_MULTI_SPACE.matcher(txt).replaceAll(" ");
+  }
 
+  /**
+   * Shorten the text to the size but keep full word. 
+   * @param text
+   * @param size
+   * @return
+   */
+  protected static String shortenText(String text, int size){
+  	if(text.length() <= size){
+  		return text;
+  	}
+  	int pos = text.substring(0, size+1).lastIndexOf(" ");
+  	if(pos < 0){
+  		return "";
+  	}
+  	return text.substring(0, pos);
+  }
+  
   private void searchCategory(SolrInputDocument solr, IndexerDocument document) {
     SearchCategory category = SearchCategory.NONE;
     String type = document.getBambooDocument().getContentType();
