@@ -105,6 +105,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   private Queue<ToIndex> warcIdQueue = new ConcurrentLinkedQueue<>();
   // Queue of batches we know are coming, but have not got full details yet
   private Queue<ToIndex> currentBatch;
+  private boolean hasFinishedErrors = false;
 
   // We keep track of all batches until every object is either error'd or complete
   // This one is for persisting back to the database
@@ -212,15 +213,20 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     }
     
     List<FullPersistenceDAO.OldError> oldErrors = dao.oldErrors();
+    LinkedList<ToIndex> errorList = new LinkedList<>();
+
     for (FullPersistenceDAO.OldError e : oldErrors) {
       if (e.error.getSecond() < ERROR_LIMIT) {
         WarcToIndex warc = new WarcToIndex();
         warc.setId(e.warcId);
         log.info("Old error for warc {} found. Marking for retry.", e.warcId);
-        warcIdQueue.offer(new ToIndex(warc));
+        errorList.offer(new ToIndex(warc));
       } else {
         ignoredErrors.put(e.warcId, e);
       }
+    }
+    if(!errorList.isEmpty()){
+    	currentBatch = errorList;
     }
 
     readPool = new WorkProcessor(bambooReadThreads);
@@ -401,6 +407,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   private boolean checkWorkComplete() throws InterruptedException, IOException {
      if (currentBatch == null || currentBatch.isEmpty()) {
+    	 hasFinishedErrors = true;
        // Get a new batch
        LinkedList<ToIndex> newBatch = getNextBatchWithRetry();
        if (newBatch == null || newBatch.isEmpty()) {
@@ -444,6 +451,11 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
       return;
     }
 
+    // greg said We should log this
+    // as is not in the dash board.
+    if(!hasFinishedErrors){
+    	log.info("Still have {} error warcs to process.", currentBatch.size());
+    }
     warcIdQueue.offer(currentBatch.poll());
   }
 
