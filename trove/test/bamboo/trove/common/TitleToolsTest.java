@@ -1,6 +1,7 @@
 package bamboo.trove.common;
 
 import bamboo.trove.services.CdxRestrictionServiceTest;
+import bamboo.trove.workers.TransformWorker;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -66,26 +67,34 @@ public class TitleToolsTest {
   public void seoMalusTest() throws IOException {
     // Stupid long title. > 445k characters
     // https://smallbusiness.yahoo.com...
-    assertSeoResource("836661.58478340.txt", 445249, 0.3F, 0.065F);
+    assertSeoResource("836661.58478340.txt", 445249, 0.3F, 0.151F);
 
     // Small SEO spam... heavy 'apple' duplication
     // http://dailykitty.com...
-    assertSeoResource("699448.216761488.txt", 727, 0.8F, 0.152F);
+    assertSeoResource("699448.216761488.txt", 727, 0.8F, 0.287F);
 
     // Long duplicate spam... 'istanbul'
     // http://www.oldistanbul.com/
-    assertSeoResource("701270.784689232.txt", 53976, 0.5F, 0.059F);
+    assertSeoResource("701270.784689232.txt", 53976, 0.5F, 0.183F);
 
     // Confirm safety of tiny titles... even with duplicates
     assertSeo("spam spam spam spam spam", 24, 1.0F, 1.0F);
-    assertSeo("spam spam spam spam spam spam", 29, 1.0F, 0.011F);
+    assertSeo("spam spam spam spam spam spam", 29, 1.0F, 0.026F);
   }
 
-  private void assertSeoResource(String document, int length, float lengthMalus, float seoMalus) throws IOException {
+  @Test
+  public void junkWhitespaceTest() throws IOException {
+    String title = assertSeoResource("5843.74468343.txt", 508846, 0.3f, 0.230f);
+    // Most of this title is crap
+    String cleanTitle  = TransformWorker.removeExtraSpaces(title);
+    System.out.println(cleanTitle);
+    assertSeo(cleanTitle, 210, 0.9f, 0.690f);
+  }
+
+  private String assertSeoResource(String document, int length, float lengthMalus, float seoMalus) throws IOException {
     String title = getResource(document);
-    assertEquals("Title was not expected length", length, title.length());
-    assertEquals("Length malus was incorrect", lengthMalus, TitleTools.lengthMalus(title), VERY_PRECISE_FLOAT);
-    assertEquals("SEO malus was incorrect", seoMalus, TitleTools.seoMalus(title), BALLPARK_FLOAT);
+    assertSeo(title, length, lengthMalus, seoMalus);
+    return title;
   }
 
   private void assertSeo(String title, int length, float lengthMalus, float seoMalus) throws IOException {

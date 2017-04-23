@@ -33,7 +33,7 @@ public class TitleTools {
   private static final float SEO_BASE_MALUS = 0.9F;
   // We use this to massage how much impact the width of histograms and dupes will have.
   // NOTE: Don't use 1.0 (it causes zeroes in the math);
-  private static final float HISTOGRAM_WEIGHT = 0.9F;
+  private static final float HISTOGRAM_WEIGHT = 0.5F;
   private static final float DUPE_WEIGHT = 0.95F;
   private static final float NO_MALUS = 1.0F;
   // You could try 'Punct' but we are going to be even harsher
@@ -154,6 +154,13 @@ public class TitleTools {
 
     public float heightRatio() {
       return ((float) height()) / ((float) size());
+    }
+
+    @Override
+    public String toString() {
+      return "Histogram: " + count + " entries, "
+              + "width: " + width() + " (" + widthRatio() + "), "
+              + "height: " + height() + "(" + heightRatio() + ")";
     }
   }
 }

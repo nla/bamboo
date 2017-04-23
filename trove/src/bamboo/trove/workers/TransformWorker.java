@@ -24,6 +24,7 @@ import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.common.TitleTools;
 import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.solr.common.SolrInputDocument;
 import org.netpreserve.urlcanon.Canonicalizer;
 import org.netpreserve.urlcanon.ParsedUrl;
@@ -42,8 +43,7 @@ public class TransformWorker implements Runnable {
   public static final float BONUS_GOV_SITE = 1.35f;
   public static final float BONUS_EDU_SITE = 1.1f;
   public static final float MALUS_SEARCH_CATEGORY = 0.9f;
-  public static final float MALUS_UNDELIVERABLE = 0.8f;
-  
+
   public static final int TEXT_LIMIT = 3000;
 
 	private static final Pattern PATTERN_WHITE_SPACE = Pattern.compile("\\s");
@@ -189,7 +189,7 @@ public class TransformWorker implements Runnable {
       softenSeoMalus = true;
     }
 
-    String title = document.getBambooDocument().getTitle();
+    String title = removeExtraSpaces(document.getBambooDocument().getTitle());
     solr.addField(SolrEnum.TITLE.toString(), title);
     document.modifyBoost(TitleTools.lengthMalus(title));
 
@@ -203,7 +203,8 @@ public class TransformWorker implements Runnable {
 
   private void optionalMetadata(SolrInputDocument solr, String optionalData) {
     if (optionalData != null && !"".equals(optionalData)) {
-      solr.addField(SolrEnum.METADATA.toString(), optionalData);
+      String cleaned = removeExtraSpaces(optionalData).trim();
+      solr.addField(SolrEnum.METADATA.toString(), cleaned);
     }
   }
 
@@ -211,12 +212,10 @@ public class TransformWorker implements Runnable {
     solr.addField(SolrEnum.RULE.toString(), document.getRuleId());
     // Don't populate if false
     if (DocumentStatus.RESTRICTED_FOR_BOTH.equals(document.getStatus())) {
-      document.modifyBoost(MALUS_UNDELIVERABLE);
       solr.addField(SolrEnum.DELIVERABLE.toString(), false);
       solr.addField(SolrEnum.DISCOVERABLE.toString(), false);
     }
     if (DocumentStatus.RESTRICTED_FOR_DELIVERY.equals(document.getStatus())) {
-      document.modifyBoost(MALUS_UNDELIVERABLE);
       solr.addField(SolrEnum.DELIVERABLE.toString(), false);
       //solr.addField(SolrEnum.DISCOVERABLE.toString(), true);
     }
@@ -269,8 +268,9 @@ public class TransformWorker implements Runnable {
       }
     }
   }
-  
-  protected static String removeExtraSpaces(String text){
+
+  @VisibleForTesting
+  public static String removeExtraSpaces(String text){
   	String txt = PATTERN_WHITE_SPACE.matcher(text).replaceAll(" ");
   	return PATTERN_MULTI_SPACE.matcher(txt).replaceAll(" ");
   }
