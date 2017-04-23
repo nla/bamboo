@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -43,6 +45,8 @@ import java.util.stream.Stream;
  */
 @SuppressWarnings("unused")
 public class CdxRule {
+  private static final Logger log = LoggerFactory.getLogger(CdxRule.class);
+
   private Long id;
   private Long policyId;
   private DocumentStatus indexerPolicy;
@@ -182,44 +186,30 @@ public class CdxRule {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
 
-    CdxRule that = (CdxRule) o;
+    CdxRule cdxRule = (CdxRule) o;
 
-    if (enabled != that.enabled) return false;
-    if (id != null ? !id.equals(that.id) : that.id != null) return false;
-    // Note that in the indexer the policy ID is not part of equality
-    //if (policyId != null ? !policyId.equals(that.policyId) : that.policyId != null)
-    //  return false;
-    // We instead use a resolved 'indexerPolicy' behind the ID
-    if (indexerPolicy != null ? !indexerPolicy.equals(that.indexerPolicy) : that.indexerPolicy != null)
-      return false;
-    if (urlPatterns != null ? !urlPatterns.equals(that.urlPatterns) : that.urlPatterns != null)
-      return false;
-    if (captured != null ? !captured.equals(that.captured) : that.captured != null)
-      return false;
-    if (accessed != null ? !accessed.equals(that.accessed) : that.accessed != null)
-      return false;
-    if (period != null ? !period.equals(that.period) : that.period != null)
-      return false;
-    if (privateComment != null ? !privateComment.equals(that.privateComment) : that.privateComment != null)
-      return false;
-    return publicMessage != null ? publicMessage.equals(that.publicMessage) : that.publicMessage == null;
-
+    if (enabled != cdxRule.enabled) return false;
+    if (id != null ? !id.equals(cdxRule.id) : cdxRule.id != null) return false;
+    if (indexerPolicy != cdxRule.indexerPolicy) return false;
+    if (urlPatterns != null ? !urlPatterns.equals(cdxRule.urlPatterns) : cdxRule.urlPatterns != null) return false;
+    if (captured != null ? !captured.equals(cdxRule.captured) : cdxRule.captured != null) return false;
+    if (accessed != null ? !accessed.equals(cdxRule.accessed) : cdxRule.accessed != null) return false;
+    if (period != null ? !period.equals(cdxRule.period) : cdxRule.period != null) return false;
+    if (created != null ? !created.equals(cdxRule.created) : cdxRule.created != null) return false;
+    return modified != null ? modified.equals(cdxRule.modified) : cdxRule.modified == null;
   }
 
   @Override
   public int hashCode() {
     int result = id != null ? id.hashCode() : 0;
-    // Note that in the indexer the policy ID is not part of equality
-    //result = 31 * result + (policyId != null ? policyId.hashCode() : 0);
-    // We instead use a resolved 'indexerPolicy' behind the ID
     result = 31 * result + (indexerPolicy != null ? indexerPolicy.hashCode() : 0);
     result = 31 * result + (urlPatterns != null ? urlPatterns.hashCode() : 0);
     result = 31 * result + (captured != null ? captured.hashCode() : 0);
     result = 31 * result + (accessed != null ? accessed.hashCode() : 0);
     result = 31 * result + (period != null ? period.hashCode() : 0);
-    result = 31 * result + (privateComment != null ? privateComment.hashCode() : 0);
-    result = 31 * result + (publicMessage != null ? publicMessage.hashCode() : 0);
     result = 31 * result + (enabled ? 1 : 0);
+    result = 31 * result + (created != null ? created.hashCode() : 0);
+    result = 31 * result + (modified != null ? modified.hashCode() : 0);
     return result;
   }
 

@@ -20,13 +20,15 @@ import bamboo.trove.common.cdx.CdxRule;
 import bamboo.trove.services.CdxRestrictionService;
 import com.codahale.metrics.Timer;
 import org.apache.solr.common.SolrInputDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 class RuleRecheckWorker implements Runnable {
-  //  private static final Logger log = LoggerFactory.getLogger(RuleRecheckWorker.class);
+  private static final Logger log = LoggerFactory.getLogger(RuleRecheckWorker.class);
   private static final Map<String, Object> partialUpdateNull = new HashMap<>();
   private static final Map<String, Object> partialUpdateFalse = new HashMap<>();
 
@@ -64,6 +66,11 @@ class RuleRecheckWorker implements Runnable {
     if (update != null) {
       manager.update(update);
       workLog.wroteDocument();
+    } else {
+      // No write activity... but we still acknowledge it
+      update = new SolrInputDocument();
+      update.addField(SolrEnum.ID.toString(), id);
+      manager.acknowledge(update);
     }
     context.stop();
   }

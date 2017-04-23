@@ -310,6 +310,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     // Go to the server for an update (maybe... we could be in recovery)
     RulesDiff diff = restrictionsService.checkForChangedRules();
     if (!diff.hasWorkLeft()) {
+      log.info("No rules have changed. Finishing run.");
       // We are done. Awesome sauce
       restrictionsService.finishNightlyRun();
       running = false;
@@ -364,6 +365,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     waitUntilCaughtUp();
 
     // Graceful completion
+    log.info("All rules processing complete. Finishing run.");
     restrictionsService.finishNightlyRun();
     running = false;
     stopping = false;
@@ -511,9 +513,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       // TODAY +/- embargo period
       ZonedDateTime today = ZonedDateTime.ofInstant(CdxRestrictionService.TODAY.toInstant(), TZ);
       Date embargoStart = Date.from(today.minus(rule.getPeriod()).toInstant());
-      Date embargoEnd = Date.from(today.plus(rule.getPeriod()).toInstant());
-      query.addFilterQuery(SolrEnum.DATE + ":[" + format.format(embargoStart)
-              + " TO " + format.format(embargoEnd) + "]");
+      query.addFilterQuery(SolrEnum.DATE + ":[" + format.format(embargoStart) + " TO *]");
     }
     // Filter for Capture date
     if (rule.getCaptured() != null && rule.getCaptured().hasData()) {
@@ -584,7 +584,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       SolrDocumentList results = response.getResults();
       log.debug("Found {} (of {} docs) in QT = {} ms", results.size(), results.getNumFound(), response.getQTime());
       String nextCursor = response.getNextCursorMark();
-      if (cursor.equals(nextCursor)) {
+      if (nextCursor == null || cursor.equals(nextCursor)) {
         more = false;
       }
       distributeResponse(results, workLog);

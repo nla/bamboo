@@ -21,6 +21,7 @@ import bamboo.trove.common.SolrEnum;
 import bamboo.trove.common.cdx.CdxAccessControl;
 import bamboo.trove.common.cdx.CdxAccessPolicy;
 import bamboo.trove.common.cdx.CdxRule;
+import bamboo.trove.common.cdx.RulesDiff;
 import bamboo.trove.rule.RuleChangeUpdateManager;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +33,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.netpreserve.urlcanon.Canonicalizer;
 import org.netpreserve.urlcanon.ParsedUrl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.converter.json.Jackson2ObjectMapperFactoryBean;
 
 import java.io.IOException;
@@ -40,13 +43,21 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class CdxRestrictionServiceTest {
+  private static final Logger log = LoggerFactory.getLogger(CdxRestrictionServiceTest.class);
+
   private static ObjectMapper jsonMapper;
   private static CdxAccessControl ruleSet;
+  private static CdxAccessControl ruleSetSecondCopy;
   private static CdxRestrictionService service;
   private static final String BEGINNING_OF_INPUT_TOKEN = "\\A";
   private static final String DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZ";
@@ -79,7 +90,13 @@ public class CdxRestrictionServiceTest {
     List<CdxRule> rules = getCdxObjectList("rules.json", CdxRule.class);
     List<CdxAccessPolicy> policies = getCdxObjectList("policies.json", CdxAccessPolicy.class);
     ruleSet = new CdxAccessControl(policies, rules);
-    assertEquals("Basic parse error reading jdk8 Period object", 70, ruleSet.getRules().get(1144L).getPeriod().getYears());
+    assertEquals("Basic parse error reading jdk8 Period object", 70,
+            ruleSet.getRules().get(1144L).getPeriod().getYears());
+
+    List<CdxRule> rules2 = getCdxObjectList("rules.json", CdxRule.class);
+    List<CdxAccessPolicy> policies2 = getCdxObjectList("policies.json", CdxAccessPolicy.class);
+    ruleSetSecondCopy = new CdxAccessControl(policies2, rules2);
+
     service = new CdxRestrictionService();
     service.overwriteRulesForTesting(ruleSet, testingDate);
   }
@@ -248,6 +265,28 @@ public class CdxRestrictionServiceTest {
     // This is not working. Discussed with Alex and his opinion is that it shouldn't
     // be considered valid anyway (the short summary version anyway)
     //assertRestricted(doc, "/losch.bob.au/favicon.ico");
+  }
+
+  @Test
+  public void testRuleDiffs() {
+    // Nothing should be different yet
+    RulesDiff diff = ruleSet.checkForRulesChanges(ruleSetSecondCopy);
+    assertFalse("No rules should need work", diff.hasWorkLeft());
+
+    RulesDiff.RulesWrapper changeRule = null;
+    try {
+      changeRule = diff.nextRule();
+      fail("Should have thrown a NoSuchElementException");
+    } catch (NoSuchElementException ex) {
+      assertNull("Rule should still be null", changeRule);
+    }
+
+    // New we are going to change something
+    CdxRule rule = ruleSetSecondCopy.getRules().get(1144L);
+    rule.setPeriod(rule.getPeriod().minusYears(1));
+    // And re-test
+    diff = ruleSet.checkForRulesChanges(ruleSetSecondCopy);
+    assertTrue("Rules should need work", diff.hasWorkLeft());
   }
 
   private void setUrl(Document doc, String url) {

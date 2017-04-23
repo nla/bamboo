@@ -180,10 +180,10 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
                                          @Bind("workWritten") long workWritten,
                                          @Bind("workMsElapsed") long workMsElapsed);
 
-  @SqlUpdate("UPDATE " + TABLE_RUN + " SET progressRuleId = 0, dateCompleted = NOW()")
+  @SqlUpdate("UPDATE " + TABLE_RUN + " SET progressRuleId = 0, dateCompleted = NOW() WHERE id = :runId")
   public abstract void finishDateBasedRun(@Bind("runId") long runId);
 
-  @SqlUpdate("UPDATE " + TABLE_RUN + " SET allCompleted = NOW()")
+  @SqlUpdate("UPDATE " + TABLE_RUN + " SET allCompleted = NOW() WHERE id = :runId")
   public abstract void finishNightyRun(@Bind("runId") long runId);
 
   @SqlUpdate("INSERT INTO " + TABLE_RULESET + " (received) VALUES (NOW())")
