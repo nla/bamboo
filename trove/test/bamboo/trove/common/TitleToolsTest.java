@@ -87,7 +87,6 @@ public class TitleToolsTest {
     String title = assertSeoResource("5843.74468343.txt", 508846, 0.3f, 0.230f);
     // Most of this title is crap
     String cleanTitle  = TransformWorker.removeExtraSpaces(title);
-    System.out.println(cleanTitle);
     assertSeo(cleanTitle, 210, 0.9f, 0.690f);
   }
 
