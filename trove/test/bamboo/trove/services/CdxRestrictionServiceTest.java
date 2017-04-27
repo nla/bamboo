@@ -22,10 +22,10 @@ import bamboo.trove.common.cdx.CdxAccessControl;
 import bamboo.trove.common.cdx.CdxAccessPolicy;
 import bamboo.trove.common.cdx.CdxRule;
 import bamboo.trove.common.cdx.RulesDiff;
+import bamboo.trove.db.RestrictionsDAO;
 import bamboo.trove.rule.RuleChangeUpdateManager;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -35,7 +35,6 @@ import org.netpreserve.urlcanon.Canonicalizer;
 import org.netpreserve.urlcanon.ParsedUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.converter.json.Jackson2ObjectMapperFactoryBean;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,24 +42,20 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 public class CdxRestrictionServiceTest {
   private static final Logger log = LoggerFactory.getLogger(CdxRestrictionServiceTest.class);
 
-  private static ObjectMapper jsonMapper;
+  private static ObjectMapper jsonMapper = RestrictionsDAO.makeJsonMapper();
   private static CdxAccessControl ruleSet;
   private static CdxAccessControl ruleSetSecondCopy;
   private static CdxRestrictionService service;
   private static final String BEGINNING_OF_INPUT_TOKEN = "\\A";
-  private static final String DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZ";
 
   private static String getResource(String resourceName) throws IOException {
     try (InputStream is = CdxRestrictionServiceTest.class.getResourceAsStream("/restrictions/" + resourceName)) {
@@ -76,15 +71,9 @@ public class CdxRestrictionServiceTest {
 
   @BeforeClass
   public static void setUpBeforeClass() throws Exception {
-    Jackson2ObjectMapperFactoryBean factoryBean = new Jackson2ObjectMapperFactoryBean();
-    factoryBean.setSimpleDateFormat(DATE_FORMAT);
-    factoryBean.setFeaturesToDisable(SerializationFeature.WRITE_NULL_MAP_VALUES);
-    factoryBean.afterPropertiesSet();
-    jsonMapper = factoryBean.getObject();
-
     // Need a testing date that makes sense in the context of the rules in the JSON file
     // Using rule 16 (2011-2016) has a wildcard URL
-    SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
+    SimpleDateFormat sdf = new SimpleDateFormat(RestrictionsDAO.DATE_FORMAT);
     Date testingDate = sdf.parse("2014-01-01T00:00:00+1100");
 
     List<CdxRule> rules = getCdxObjectList("rules.json", CdxRule.class);
@@ -107,7 +96,7 @@ public class CdxRestrictionServiceTest {
 
   @Test
   public void testFilterDocument() throws CdxRestrictionService.RulesOutOfDateException, ParseException {
-    SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
+    SimpleDateFormat sdf = new SimpleDateFormat(RestrictionsDAO.DATE_FORMAT);
 
     Document doc = new Document();
     String BASE = "http://www.garnautreview.org.au/ca25734e0016a131/webobj/";
@@ -167,7 +156,7 @@ public class CdxRestrictionServiceTest {
 
   @Test
   public void testSchemaDoesNotMatter() throws CdxRestrictionService.RulesOutOfDateException, ParseException {
-    SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
+    SimpleDateFormat sdf = new SimpleDateFormat(RestrictionsDAO.DATE_FORMAT);
 
     // Use Rule 16 again
     Document doc = new Document();
@@ -183,7 +172,7 @@ public class CdxRestrictionServiceTest {
 
   @Test
   public void testMultiPatternMatches() throws CdxRestrictionService.RulesOutOfDateException, ParseException {
-    SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
+    SimpleDateFormat sdf = new SimpleDateFormat(RestrictionsDAO.DATE_FORMAT);
 
     Document doc = new Document();
     setUrl(doc, "http://www.smh.com.au/randomstuff");
@@ -205,7 +194,7 @@ public class CdxRestrictionServiceTest {
   @Test
   public void testRule1144() throws CdxRestrictionService.RulesOutOfDateException, ParseException {
     // Rule 1144 was just odd. has a left-anchored wildcard plus an empty string.
-    SimpleDateFormat sdf = new SimpleDateFormat(DATE_FORMAT);
+    SimpleDateFormat sdf = new SimpleDateFormat(RestrictionsDAO.DATE_FORMAT);
 
     Document doc = new Document();
     setUrl(doc, "http://blocked.adultshop.com.au");
@@ -268,11 +257,22 @@ public class CdxRestrictionServiceTest {
   }
 
   @Test
-  public void testRuleDiffs() {
+  public void testRuleDiffs() throws IOException {
     // Nothing should be different yet
     RulesDiff diff = ruleSet.checkForRulesChanges(ruleSetSecondCopy);
     assertFalse("No rules should need work", diff.hasWorkLeft());
 
+    // We need to know that we can roundtrip an unchanged rule in to and out of the the database
+    // without introducing false positive changes.
+    Map<Long, CdxRule> rules = ruleSet.getRules();
+    for (CdxRule rule : rules.values()) {
+      String ruleJson = jsonMapper.writeValueAsString(rule);
+      CdxRule ruleReParsed = jsonMapper.readValue(ruleJson, CdxRule.class);
+      // Round trips should not change anything
+      assertTrue("Round trip changed a rule", rule.equals(ruleReParsed));
+    }
+
+    // Now let's change something
     RulesDiff.RulesWrapper changeRule = null;
     try {
       changeRule = diff.nextRule();

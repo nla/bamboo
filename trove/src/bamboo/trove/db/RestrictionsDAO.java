@@ -62,14 +62,20 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
           + COLUMN_STAT_ELAPSED  + " = " + COLUMN_STAT_ELAPSED  + " + :" + COLUMN_STAT_ELAPSED;
 
   private static ObjectMapper jsonMapper;
+  public static final String DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ssZ";
 
-  public RestrictionsDAO() {
+  public static ObjectMapper makeJsonMapper() {
     Jackson2ObjectMapperFactoryBean factoryBean = new Jackson2ObjectMapperFactoryBean();
-    factoryBean.setSimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
+    factoryBean.setSimpleDateFormat(DATE_FORMAT);
     factoryBean.setFeaturesToDisable(SerializationFeature.WRITE_NULL_MAP_VALUES);
     factoryBean.afterPropertiesSet();
-    jsonMapper = factoryBean.getObject();
+    return factoryBean.getObject();
   }
+
+  public RestrictionsDAO() {
+    jsonMapper = makeJsonMapper();
+  }
+
   public ObjectMapper getJsonMapper() {
     return jsonMapper;
   }

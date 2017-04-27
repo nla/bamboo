@@ -134,7 +134,7 @@ public class CdxRule {
     this.publicMessage = publicMessage;
   }
 
-  boolean isEnabled() {
+  public boolean isEnabled() {
     return enabled;
   }
 
