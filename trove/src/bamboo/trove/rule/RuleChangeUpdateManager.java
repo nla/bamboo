@@ -260,6 +260,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
     } finally {
       releaseDomainStartLock();
+      Schedule.nextRun(this, nextRunDate());
     }
   }
 
@@ -309,7 +310,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
     // Go to the server for an update (maybe... we could be in recovery)
     RulesDiff diff = restrictionsService.checkForChangedRules();
-    if (!diff.hasWorkLeft()) {
+    if (diff == null || !diff.hasWorkLeft()) {
       log.info("No rules have changed. Finishing run.");
       // We are done. Awesome sauce
       restrictionsService.finishNightlyRun();
@@ -371,8 +372,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     stopping = false;
     progress = null;
     lastProcessed = restrictionsService.getLastProcessed();
-
-    Schedule.nextRun(this, nextRunDate());
   }
 
   private final List<String> documents = new ArrayList<>();
@@ -791,9 +790,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
         }
       }
       log.info("Scheduler start Rule Check.");
-      // TODO - There have been changes to DISCOVERABLE/DELIVERABLE because we no longer add lucene segment data
-      // when 'false' is the desired value. Writes originating elsewhere need to mirror this and reads need to
-      // search for 'NOT true' when 'false' is desired.
       manager.startProcessing();
     }
   }
