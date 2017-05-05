@@ -271,6 +271,10 @@ public class TransformWorker implements Runnable {
 
   @VisibleForTesting
   public static String removeExtraSpaces(String text){
+  	if(text == null){
+  		return "";
+  	}
+  	
   	String txt = PATTERN_WHITE_SPACE.matcher(text).replaceAll(" ");
   	return PATTERN_MULTI_SPACE.matcher(txt).replaceAll(" ");
   }
