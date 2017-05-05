@@ -15,12 +15,13 @@
  */
 package bamboo.trove.db;
 
-import bamboo.trove.common.LastRun;
-import bamboo.trove.common.cdx.CdxAccessControl;
-import bamboo.trove.common.cdx.CdxRule;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import java.io.IOException;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.Date;
+import java.util.List;
+
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.Bind;
 import org.skife.jdbi.v2.sqlobject.GetGeneratedKeys;
@@ -32,12 +33,13 @@ import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.springframework.http.converter.json.Jackson2ObjectMapperFactoryBean;
 
-import java.io.IOException;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.util.Date;
-import java.util.List;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
+import bamboo.trove.common.LastRun;
+import bamboo.trove.common.cdx.CdxAccessControl;
+import bamboo.trove.common.cdx.CdxRule;
 
 @RegisterMapper({RestrictionsDAO.CdxRuleMapper.class, RestrictionsDAO.LastRunMapper.class})
 public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> {
@@ -189,8 +191,8 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   @SqlUpdate("UPDATE " + TABLE_RUN + " SET progressRuleId = 0, dateCompleted = NOW() WHERE id = :runId")
   public abstract void finishDateBasedRun(@Bind("runId") long runId);
 
-  @SqlUpdate("UPDATE " + TABLE_RUN + " SET allCompleted = NOW() WHERE id = :runId")
-  public abstract void finishNightyRun(@Bind("runId") long runId);
+  @SqlUpdate("UPDATE " + TABLE_RUN + " SET allCompleted = :activationTime WHERE id = :runId")
+  public abstract void finishNightyRunForId(@Bind("runId") long runId, @Bind("activationTime") Date activationTime);
 
   @SqlUpdate("INSERT INTO " + TABLE_RULESET + " (received) VALUES (NOW())")
   @GetGeneratedKeys
@@ -216,9 +218,12 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   abstract void activateNewRules(@Bind("activationTime") Date activationTime);
 
   @Transaction
-  public CdxAccessControl makeNewRuleSetCurrent(Date activationTime) {
-    retireCurrentRules(activationTime);
-    activateNewRules(activationTime);
-    return getCurrentRules();
+  public void finishNightyRun(long id, CdxAccessControl newRules) {
+  	Date activationTime = new Date();
+  	finishNightyRunForId(id, activationTime);
+  	if(newRules != null){
+  		retireCurrentRules(activationTime);
+  		activateNewRules(activationTime);
+  	}
   }
 }

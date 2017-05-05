@@ -15,20 +15,23 @@
  */
 package bamboo.trove.rule;
 
-import bamboo.trove.common.SolrEnum;
-import bamboo.trove.common.cdx.CdxRule;
-import bamboo.trove.services.CdxRestrictionService;
-import com.codahale.metrics.Timer;
-import org.apache.solr.common.SolrInputDocument;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.solr.common.SolrInputDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.codahale.metrics.Timer;
+
+import bamboo.trove.common.SolrEnum;
+import bamboo.trove.common.cdx.CdxRule;
+import bamboo.trove.services.CdxRestrictionService;
+
 class RuleRecheckWorker implements Runnable {
-  private static final Logger log = LoggerFactory.getLogger(RuleRecheckWorker.class);
+  @SuppressWarnings("unused")
+	private static final Logger log = LoggerFactory.getLogger(RuleRecheckWorker.class);
   private static final Map<String, Object> partialUpdateNull = new HashMap<>();
   private static final Map<String, Object> partialUpdateFalse = new HashMap<>();
 
@@ -111,15 +114,6 @@ class RuleRecheckWorker implements Runnable {
     partialUpdate = new HashMap<>();
     partialUpdate.put("set", new Date());
     update.addField(SolrEnum.LAST_INDEXED.toString(), partialUpdate);
-    // TODO: See note beside boost in the rule manager. This IF test is temp code only.
-    if (solrBoost == 0F) {
-      // It has become unrestricted
-      if (rule.getId() == -1) {
-        solrBoost = 1F;
-      } else {
-        solrBoost = 0.1F;
-      }
-    }
     update.setDocumentBoost(solrBoost);
     return update;
   }

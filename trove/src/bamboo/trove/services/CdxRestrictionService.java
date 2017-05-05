@@ -15,24 +15,6 @@
  */
 package bamboo.trove.services;
 
-import bamboo.task.Document;
-import bamboo.trove.common.LastRun;
-import bamboo.trove.common.cdx.CdxAccessControl;
-import bamboo.trove.common.cdx.CdxAccessPolicy;
-import bamboo.trove.common.cdx.CdxRule;
-import bamboo.trove.common.cdx.RulesDiff;
-import bamboo.trove.db.RestrictionsDAO;
-import bamboo.trove.rule.RuleChangeUpdateManager;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JavaType;
-import com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Required;
-import org.springframework.stereotype.Service;
-
-import javax.annotation.PostConstruct;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,6 +25,27 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import javax.annotation.PostConstruct;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Required;
+import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
+import com.google.common.annotations.VisibleForTesting;
+
+import bamboo.task.Document;
+import bamboo.trove.common.LastRun;
+import bamboo.trove.common.cdx.CdxAccessControl;
+import bamboo.trove.common.cdx.CdxAccessPolicy;
+import bamboo.trove.common.cdx.CdxRule;
+import bamboo.trove.common.cdx.RulesDiff;
+import bamboo.trove.db.RestrictionsDAO;
+import bamboo.trove.rule.RuleChangeUpdateManager;
 
 /******
  * When requesting warc files from Bamboo there will be no awareness of restrictions carried with them.
@@ -200,7 +203,9 @@ public class CdxRestrictionService {
         throw new RulesOutOfDateException("Error processing nightly rules.", e);
       }
       newRules = freshRules;
-      return currentRules.checkForRulesChanges(newRules);
+      currentRules = newRules;
+      rulesInUse = newRules;
+      return diff;
     }
     return null;
   }
@@ -251,7 +256,7 @@ public class CdxRestrictionService {
     Long progressId = dao.getLastRunProgress(updateRun.getId());
 
     return dateBasedRules.stream()
-            .filter(rule -> rule.getId() <= progressId)
+            .filter(rule -> rule.getId() >= progressId)
             .collect(Collectors.toList());
   }
 
@@ -278,13 +283,15 @@ public class CdxRestrictionService {
   public void finishNightlyRun() {
     // Update run metadata
     if (updateRun.getAllCompleted() == null) {
-      dao.finishNightyRun(updateRun.getId());
+      dao.finishNightyRun(updateRun.getId(), newRules);
       updateRun = dao.getRunById(updateRun.getId());
     }
-    // Handle ruleset swap
-    currentRules = dao.makeNewRuleSetCurrent(updateRun.getDateCompleted());
-    rulesInUse = currentRules;
-    newRules = null;
+    if(newRules != null){
+    	// Handle ruleset swap
+    	currentRules = dao.getCurrentRules();
+    	rulesInUse = currentRules;
+    	newRules = null;
+    }
 
     // This will often be redundant, but just in case we were in recovery, reset the flag now
     recovery = false;

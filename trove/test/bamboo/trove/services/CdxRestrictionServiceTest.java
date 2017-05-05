@@ -15,26 +15,11 @@
  */
 package bamboo.trove.services;
 
-import bamboo.task.Document;
-import bamboo.trove.common.DocumentStatus;
-import bamboo.trove.common.SolrEnum;
-import bamboo.trove.common.cdx.CdxAccessControl;
-import bamboo.trove.common.cdx.CdxAccessPolicy;
-import bamboo.trove.common.cdx.CdxRule;
-import bamboo.trove.common.cdx.RulesDiff;
-import bamboo.trove.db.RestrictionsDAO;
-import bamboo.trove.rule.RuleChangeUpdateManager;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.solr.client.solrj.SolrQuery;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.netpreserve.urlcanon.Canonicalizer;
-import org.netpreserve.urlcanon.ParsedUrl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,7 +31,28 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
-import static org.junit.Assert.*;
+import org.apache.solr.client.solrj.SolrQuery;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.netpreserve.urlcanon.Canonicalizer;
+import org.netpreserve.urlcanon.ParsedUrl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import bamboo.task.Document;
+import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.SolrEnum;
+import bamboo.trove.common.cdx.CdxAccessControl;
+import bamboo.trove.common.cdx.CdxAccessPolicy;
+import bamboo.trove.common.cdx.CdxRule;
+import bamboo.trove.common.cdx.RulesDiff;
+import bamboo.trove.db.RestrictionsDAO;
+import bamboo.trove.rule.RuleChangeUpdateManager;
 
 public class CdxRestrictionServiceTest {
   private static final Logger log = LoggerFactory.getLogger(CdxRestrictionServiceTest.class);
@@ -217,8 +223,8 @@ public class CdxRestrictionServiceTest {
     SolrQuery query = manager.convertRuleToSearch(ruleSet.getRules().get(1144L), "");
     boolean found = false;
     // We do not want to see *:* on the end
-    String target = "(" + SolrEnum.URL_TOKENIZED + ":\"pandora.nla.gov.au/pan/35531/*\") OR ("
-            + SolrEnum.URL_TOKENIZED + ":\"*.adultshop.com.au\")";
+    String target = "(" + SolrEnum.URL_TOKENIZED + ":\"pandora.nla.gov.au/pan/35531/\") OR ("
+            + SolrEnum.URL_TOKENIZED + ":\"adultshop.com.au\")";
     for (String fq : query.getFilterQueries()) {
       if (target.equals(fq)) {
         found = true;

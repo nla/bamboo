@@ -15,21 +15,20 @@
  */
 package bamboo.trove.rule;
 
-import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
-import au.gov.nla.trove.indexer.api.EndPointDomainManager;
-import au.gov.nla.trove.indexer.api.WorkProcessor;
-import bamboo.trove.common.BaseWarcDomainManager;
-import bamboo.trove.common.EndPointRotator;
-import bamboo.trove.common.LastRun;
-import bamboo.trove.common.SolrEnum;
-import bamboo.trove.common.cdx.CdxDateRange;
-import bamboo.trove.common.cdx.CdxRule;
-import bamboo.trove.common.cdx.RulesDiff;
-import bamboo.trove.services.CdxRestrictionService;
-import bamboo.trove.services.FilteringCoordinationService;
-import bamboo.util.Urls;
-import com.codahale.metrics.Timer;
-import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicLong;
+
+import javax.annotation.PostConstruct;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrQuery.SortClause;
@@ -47,19 +46,22 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.TimeZone;
-import java.util.concurrent.atomic.AtomicLong;
+import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
+
+import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
+import au.gov.nla.trove.indexer.api.EndPointDomainManager;
+import au.gov.nla.trove.indexer.api.WorkProcessor;
+import bamboo.trove.common.BaseWarcDomainManager;
+import bamboo.trove.common.EndPointRotator;
+import bamboo.trove.common.LastRun;
+import bamboo.trove.common.SolrEnum;
+import bamboo.trove.common.cdx.CdxDateRange;
+import bamboo.trove.common.cdx.CdxRule;
+import bamboo.trove.common.cdx.RulesDiff;
+import bamboo.trove.services.CdxRestrictionService;
+import bamboo.trove.services.FilteringCoordinationService;
+import bamboo.util.Urls;
 
 @Service
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker {
@@ -225,7 +227,6 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
         }
       }
     }
-
     // Never start this until all the end points are registered
     startMe(filteringService, indexFullText);
   }
@@ -471,15 +472,17 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
     // *******************
     // Embargoes
-    if (dateBasedRule.getPeriod() != null) {
+    if (dateBasedRule.getPeriod() != null && !dateBasedRule.getPeriod().isZero()) {
       // Any capture dates older than TODAY - embargo period should be checked for possible release
-      Instant embargoStart = CdxRestrictionService.TODAY.toInstant().minus(dateBasedRule.getPeriod());
+    	Calendar c = Calendar.getInstance();
+    	c.setTime(CdxRestrictionService.TODAY);
+    	c.add(Calendar.YEAR, - dateBasedRule.getPeriod().getYears());
+    	c.add(Calendar.MONTH, - dateBasedRule.getPeriod().getMonths());
+    	c.add(Calendar.DAY_OF_YEAR, - dateBasedRule.getPeriod().getDays());
       SolrQuery query = createQuery(SolrEnum.RULE + ":" + dateBasedRule.getId());
-      query.addFilterQuery(SolrEnum.DATE + ":[* TO " + format.format(Date.from(embargoStart)) + "]");
+      query.addFilterQuery(SolrEnum.DATE + ":[* TO " + format.format(c.getTime()) + "]");
       query.addFilterQuery(notLastIndexed);
       processQuery(query, workLog);
-      // Still need a URL search to find stuff coming in to restriction
-      urlSearchNeeded = true;
     }
 
     // *******************
@@ -525,6 +528,26 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   }
 
   private String urlSearch(String url) {
+  	if (url.startsWith("*.")) {
+  		if (url.contains("/")) {
+  			throw new IllegalArgumentException("can't use a domain wildcard with a path");
+  		}
+  		url = url.substring(2);
+  	}
+  	else{
+  		if(url.endsWith("*")){
+  			// remove the *
+  			url = url.substring(0, url.length()-1);
+  		}
+  		if(url.contains("?")){
+  			// remove query params
+  			url = url.substring(0, url.indexOf("?"));
+  		}
+  		if(url.contains("#")){
+  			// remove anchor
+  			url = url.substring(0, url.indexOf("#"));
+  		}
+  	}
     return SolrEnum.URL_TOKENIZED + ":\"" + Urls.removeScheme(url) + "\"";
   }
 
@@ -628,14 +651,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       }
       String deliveryUrl = (String) doc.getFieldValue(SolrEnum.DELIVERY_URL.toString());
       Date capture = (Date) doc.getFieldValue(SolrEnum.DATE.toString());
-      // TODO: This was only required because of a mismatch in deployment times between the indexer and the new schema
-      Object boostRaw = doc.getFieldValue(SolrEnum.BOOST.toString());
-      float boost;
-      if (boostRaw == null) {
-        boost = 0F;
-      } else {
-        boost = (Float) doc.getFieldValue(SolrEnum.BOOST.toString());
-      }
+      float boost = (Float) doc.getFieldValue(SolrEnum.BOOST.toString());
       int ruleId = (Integer) doc.getFieldValue(SolrEnum.RULE.toString());
 
       RuleRecheckWorker worker = new RuleRecheckWorker(id, deliveryUrl, capture, ruleId, boost,
@@ -657,7 +673,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
   @Override
   public void start() {
-    startProcessing();
+    throw new IllegalArgumentException(); //startProcessing();
   }
 
   private void startProcessing() {
