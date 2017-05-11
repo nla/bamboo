@@ -15,16 +15,6 @@
  */
 package bamboo.trove.common.cdx;
 
-import bamboo.trove.common.DocumentStatus;
-import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
-import com.googlecode.concurrenttrees.radixinverted.ConcurrentInvertedRadixTree;
-import com.googlecode.concurrenttrees.radixinverted.InvertedRadixTree;
-import org.netpreserve.urlcanon.ByteString;
-import org.netpreserve.urlcanon.Canonicalizer;
-import org.netpreserve.urlcanon.ParsedUrl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,6 +24,18 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import org.netpreserve.urlcanon.ByteString;
+import org.netpreserve.urlcanon.Canonicalizer;
+import org.netpreserve.urlcanon.ParsedUrl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
+import com.googlecode.concurrenttrees.radixinverted.ConcurrentInvertedRadixTree;
+import com.googlecode.concurrenttrees.radixinverted.InvertedRadixTree;
+
+import bamboo.trove.common.DocumentStatus;
 
 public class CdxAccessControl {
   private static Logger log = LoggerFactory.getLogger(CdxAccessControl.class);
@@ -138,6 +140,25 @@ public class CdxAccessControl {
   public Map<Long, CdxRule> getRules() {
     return rules;
   }
+
+  /**
+   * For a url convert into a search url that should match with the way it is normalised for delivery.
+   * @param url
+   * @return
+   */
+  public static String getSearchUrl(String url){
+  	ParsedUrl parsed = ParsedUrl.parseUrl(url);
+  	if(parsed.getScheme().isEmpty()){
+  		// default to http as this is needed to force the host to be detected
+  		parsed = ParsedUrl.parseUrl("http://"+url);
+  	}
+  	Canonicalizer.WHATWG.canonicalize(parsed);
+  	parsed.setPath(parsed.getPath().asciiLowerCase());
+  	parsed.setHost(parsed.getHost().replaceAll(WWW_PREFIX, ""));
+  	String ret = parsed.getHost().toString() + parsed.getPath().toString();
+  	return ret;
+  }
+
 
   /**
    * Find all rules that may apply to the given URL.

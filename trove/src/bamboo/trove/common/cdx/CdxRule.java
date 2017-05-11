@@ -15,7 +15,17 @@
  */
 package bamboo.trove.common.cdx;
 
-import bamboo.trove.common.DocumentStatus;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.Period;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Stream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -25,16 +35,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.Period;
-import java.time.ZoneId;
-import java.util.Date;
-import java.util.List;
-import java.util.stream.Stream;
+import bamboo.trove.common.DocumentStatus;
 
 /**
  * This (and other classes in this package) are essentially mirroring the classes in the tinycdxserver/outbackcdx with
@@ -161,7 +163,7 @@ public class CdxRule {
   boolean matchesDates(Date captureTime, Date accessTime) {
     return (captured == null || captured.contains(captureTime)) &&
             (accessed == null || accessed.contains(accessTime)) &&
-            (period == null || isWithinPeriod(captureTime, accessTime));
+            (period == null || period.isZero() || isWithinPeriod(captureTime, accessTime));
   }
 
   private boolean isWithinPeriod(Date captureTime, Date accessTime) {

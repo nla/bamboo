@@ -56,12 +56,12 @@ import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.EndPointRotator;
 import bamboo.trove.common.LastRun;
 import bamboo.trove.common.SolrEnum;
+import bamboo.trove.common.cdx.CdxAccessControl;
 import bamboo.trove.common.cdx.CdxDateRange;
 import bamboo.trove.common.cdx.CdxRule;
 import bamboo.trove.common.cdx.RulesDiff;
 import bamboo.trove.services.CdxRestrictionService;
 import bamboo.trove.services.FilteringCoordinationService;
-import bamboo.util.Urls;
 
 @Service
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker {
@@ -539,16 +539,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   			// remove the *
   			url = url.substring(0, url.length()-1);
   		}
-  		if(url.contains("?")){
-  			// remove query params
-  			url = url.substring(0, url.indexOf("?"));
-  		}
-  		if(url.contains("#")){
-  			// remove anchor
-  			url = url.substring(0, url.indexOf("#"));
-  		}
   	}
-    return SolrEnum.URL_TOKENIZED + ":\"" + Urls.removeScheme(url) + "\"";
+    return SolrEnum.URL_TOKENIZED + ":" + CdxAccessControl.getSearchUrl(url);
   }
 
   private WorkLog findDocumentsNewRule(CdxRule newRule, String notLastIndexed) throws SolrServerException, IOException {

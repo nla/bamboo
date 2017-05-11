@@ -145,7 +145,7 @@ public class CdxRestrictionServiceTest {
     setUrl(doc, NOT_MATCH_URL);
     doc.setDate(EMARGOED_DATE);
     assertEquals(DocumentStatus.ACCEPTED, service.filterDocument(doc).getIndexerPolicy());
-
+    
     // Rule 18) Further evolves rule 17 by adding access dates between 2014-2015...
     // it is a stupid rule you wouldn't typically see in practice
     MATCH_URL = BASE + "STUPID/d0841534generalsubmission-ajlester/test.html";
@@ -158,6 +158,29 @@ public class CdxRestrictionServiceTest {
     Date testingDate = sdf.parse("2014-01-02T00:00:00+1100");
     service.overwriteRulesForTesting(null, testingDate);
     assertEquals(DocumentStatus.RESTRICTED_FOR_BOTH, service.filterDocument(doc).getIndexerPolicy());
+
+    // Rule 46 this rule has a 0 embargo date
+    setUrl(doc, "http://naa.gov.au/index.htm");
+    doc.setDate(sdf.parse("2014-02-26T18:59:31+0000"));
+    assertEquals(46, service.filterDocument(doc).getId());
+    
+    setUrl(doc, "http://naa.gov.au/publications/fact_sheets/fs112.html");
+    doc.setDate(sdf.parse("2001-01-30T05:40:00+0000"));
+    assertEquals(47, service.filterDocument(doc).getId());
+
+    setUrl(doc, "http://aa10.naa.gov.au/the_collection/defence.html");
+    doc.setDate(sdf.parse("2001-03-09T17:15:22+0000"));
+    assertEquals(47, service.filterDocument(doc).getId());
+    
+    // Rule 1085  because the rule ends in enquiry/* we are only restricting when there is more in the path.
+    setUrl(doc, "http://press.anu.edu.au/titles/craftdesign-enquiry/fred");
+    doc.setDate(sdf.parse("2014-02-26T18:59:31+0000"));
+    assertEquals(1085, service.filterDocument(doc).getId());
+    setUrl(doc, "http://press.anu.edu.au/titles/craftdesign-enquiry");
+    doc.setDate(sdf.parse("2014-02-26T18:59:31+0000"));
+    assertEquals(-1, service.filterDocument(doc).getId());
+    
+    
   }
 
   @Test
@@ -223,8 +246,8 @@ public class CdxRestrictionServiceTest {
     SolrQuery query = manager.convertRuleToSearch(ruleSet.getRules().get(1144L), "");
     boolean found = false;
     // We do not want to see *:* on the end
-    String target = "(" + SolrEnum.URL_TOKENIZED + ":\"pandora.nla.gov.au/pan/35531/\") OR ("
-            + SolrEnum.URL_TOKENIZED + ":\"adultshop.com.au\")";
+    String target = "(" + SolrEnum.URL_TOKENIZED + ":pandora.nla.gov.au/pan/35531/) OR ("
+            + SolrEnum.URL_TOKENIZED + ":adultshop.com.au/)";
     for (String fq : query.getFilterQueries()) {
       if (target.equals(fq)) {
         found = true;
