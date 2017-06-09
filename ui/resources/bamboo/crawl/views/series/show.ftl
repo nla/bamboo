@@ -62,7 +62,7 @@
     </tr>
     </thead>
     <tbody>
-    [#list crawls as crawl]
+    [#list crawlList as crawl]
     <tr>
         <td><a href="crawls/${crawl.id?c}">${crawl.name}</a></td>
         <td>${si(crawl.recordBytes)}B</td>
@@ -71,5 +71,6 @@
     [/#list]
     </tbody>
 </table>
+[@pagination crawlPager.currentPage crawlPager.lastPage /]
 
 [/@page]

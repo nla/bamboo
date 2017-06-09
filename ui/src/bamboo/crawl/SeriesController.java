@@ -70,10 +70,13 @@ public class SeriesController {
     Response show(Request request) {
         long id = Long.parseLong(request.urlParam("id"));
         Series series = wa.serieses.get(id);
+        long page = Parsing.parseLongOrDefault(request.queryParam("page"), 1);
+        Pager<Crawl> crawlPager = wa.crawls.paginateWithSeriesId(page, id);
         return render("series/show.ftl",
                 "series", series,
                 "descriptionHtml", Markdown.render(series.getDescription(), request.uri()),
-                "crawls", wa.crawls.listBySeriesId(id),
+                "crawlList", crawlPager.items,
+                "crawlPager", crawlPager,
                 "collections", wa.collections.listWhereSeriesId(id));
     }
 

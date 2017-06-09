@@ -74,6 +74,12 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     @SqlQuery("SELECT COUNT(*) FROM crawl")
     long countCrawls();
 
+    @SqlQuery("SELECT * FROM crawl LEFT JOIN crawl_series ON crawl.crawl_series_id = crawl_series.id WHERE crawl_series_id = :seriesId ORDER BY crawl.end_time DESC, crawl.id DESC LIMIT :limit OFFSET :offset")
+    List<Crawl> paginateCrawlsWithSeriesId(@Bind("seriesId") long seriesId, @Bind("limit") long limit, @Bind("offset") long offset);
+
+    @SqlQuery("SELECT COUNT(*) FROM crawl WHERE crawl_series_id = :seriesId")
+    long countCrawlsWithSeriesId(@Bind("seriesId") long seriesId);
+
     @SqlUpdate("UPDATE crawl SET warc_files = (SELECT COALESCE(COUNT(*), 0) FROM warc WHERE warc.crawl_id = crawl.id), warc_size = (SELECT COALESCE(SUM(size), 0) FROM warc WHERE warc.crawl_id = crawl.id), records = (SELECT COALESCE(SUM(records), 0) FROM warc WHERE warc.crawl_id = crawl.id), record_bytes = (SELECT COALESCE(SUM(record_bytes), 0) FROM warc WHERE warc.crawl_id = crawl.id)")
     int refreshWarcStatsOnCrawls();
 

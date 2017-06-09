@@ -104,6 +104,11 @@ public class Crawls {
             return new Pager<>(page, dao.countCrawls(), dao::paginateCrawlsWithSeriesName);
     }
 
+    public Pager<Crawl> paginateWithSeriesId(long page, long seriesId) {
+        return new Pager<>(page, dao.countCrawlsWithSeriesId(seriesId),
+                (limit, offset) -> dao.paginateCrawlsWithSeriesId(seriesId, limit, offset));
+    }
+
     public List<Crawl> listBySeriesId(long seriesId) {
             return dao.findCrawlsByCrawlSeriesId(seriesId);
     }
