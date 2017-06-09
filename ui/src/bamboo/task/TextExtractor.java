@@ -25,8 +25,6 @@ import org.xml.sax.SAXException;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.BufferOverflowException;
-import java.nio.CharBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -229,19 +227,21 @@ public class TextExtractor {
     static void extractPdfContent(PdfReader pdfReader, Document doc) throws TextExtractionException, IOException {
         try {
             long deadline = System.currentTimeMillis() + timeLimitMillis;
-            CharBuffer buf = CharBuffer.allocate(maxDocSize);
+            StringWriter sw = new StringWriter();
+            TruncatingWriter tw = new TruncatingWriter(sw, maxDocSize, deadline);
             PdfTextExtractor extractor = new PdfTextExtractor(pdfReader);
             try {
-                for (int i = 1; i <= pdfReader.getNumberOfPages() && System.currentTimeMillis() < deadline; ++i) {
+                for (int i = 1; i <= pdfReader.getNumberOfPages(); ++i) {
                     String text = extractor.getTextFromPage(i);
-                    buf.append(text.replace("\uFFFF", ""));
-                    buf.append(' ');
+                    tw.append(text.replace("\uFFFF", ""));
+                    tw.append(' ');
                 }
-            } catch (BufferOverflowException e) {
-                // reached maxDocSize amount of content
+                doc.setText(sw.toString());
+            } catch (TruncatedException e) {
+                // reached limits, stop early and save what we got
+                doc.setText(sw.toString());
+                doc.setTextError("truncatedPdf " + e.getMessage());
             }
-            buf.flip();
-            doc.setText(buf.toString());
 
             // extract the title from the metadata if it has one
             Object metadataTitle = pdfReader.getInfo().get("Title");
@@ -260,6 +260,7 @@ public class TextExtractor {
     }
 
     static void extractPdfBox(InputStream stream, Document doc) throws TextExtractionException {
+        long deadline = System.currentTimeMillis() + timeLimitMillis;
         StringWriter sw = new StringWriter();
         try (PDDocument pdf = PDDocument.load(stream, MemoryUsageSetting.setupTempFileOnly())) {
             String title = pdf.getDocumentInformation().getTitle();
@@ -272,17 +273,25 @@ public class TextExtractor {
             doc.setCoverage(pdf.getDocumentInformation().getSubject());
 
             PDFTextStripper stripper = new PDFTextStripper();
-            stripper.writeText(pdf, new TruncatingWriter(sw, maxDocSize, System.currentTimeMillis() + timeLimitMillis));
-        } catch (BufferOverflowException e) {
-            // reached maxDocSize, just stop early
+            stripper.writeText(pdf, new TruncatingWriter(sw, maxDocSize, deadline));
+            doc.setText(sw.toString());
+        } catch (TruncatedException e) {
+            // reached limits, write what we got and then stop early
+            doc.setText(sw.toString());
+            doc.setTextError("truncatedPdf " + e.getMessage());
         } catch (Exception e) {
             throw new TextExtractionException(e);
         }
-        doc.setText(sw.toString());
     }
 
     public void setUsePdfBox(boolean usePdfBox) {
         this.usePdfBox = usePdfBox;
+    }
+
+    static class TruncatedException extends RuntimeException {
+        public TruncatedException(String message) {
+            super(message);
+        }
     }
 
     public void setUseTika(boolean useTika) {
@@ -302,19 +311,14 @@ public class TextExtractor {
 
         @Override
         public void write(int i) throws IOException {
-            if (remaining() > 0 && System.currentTimeMillis() < deadline) {
-                super.write(i);
-                written++;
-            } else {
-                throw new BufferOverflowException();
-            }
+            checkLimits();
+            super.write(i);
+            written++;
         }
 
         @Override
         public void write(String s, int off, int len) throws IOException {
-            if (remaining() <= 0 || System.currentTimeMillis() >= deadline) {
-                throw new BufferOverflowException();
-            }
+            checkLimits();
             int clamped = (int)Math.min(len, remaining());
             super.write(s, off, clamped);
             written += clamped;
@@ -322,12 +326,18 @@ public class TextExtractor {
 
         @Override
         public void write(char[] chars, int off, int len) throws IOException {
-            if (remaining() <= 0 || System.currentTimeMillis() >= deadline) {
-                throw new BufferOverflowException();
-            }
+            checkLimits();
             int clamped = (int)Math.min(len, remaining());
             super.write(chars, off, clamped);
             written += clamped;
+        }
+
+        private void checkLimits() {
+            if (remaining() <= 0) {
+                throw new TruncatedException("space");
+            } else if (System.currentTimeMillis() >= deadline) {
+                throw new TruncatedException("time");
+            }
         }
 
         private long remaining() {
