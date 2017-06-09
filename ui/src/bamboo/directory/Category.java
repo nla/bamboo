@@ -5,6 +5,8 @@ public class Category {
     private Long parentId;
     private String name;
     private String description;
+    private Integer legacyTypeId;
+    private Long legacyId;
 
     public void setParentId(Long parentId) {
         this.parentId = parentId;
@@ -37,4 +39,26 @@ public class Category {
     public void setId(Long id) {
         this.id = id;
     }
+
+    public Integer getLegacyTypeId() {
+        return legacyTypeId;
+    }
+
+    public void setLegacyTypeId(Integer legacyTypeId) {
+        this.legacyTypeId = legacyTypeId;
+    }
+
+    public Long getLegacyId() {
+        return legacyId;
+    }
+
+    public void setLegacyId(Long legacyId) {
+        this.legacyId = legacyId;
+    }
+
+    public void setLegacyId(Integer legacyTypeId, Long legacyId) {
+        this.legacyTypeId = legacyTypeId;
+        this.legacyId = legacyId;
+    }
+
 }

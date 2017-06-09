@@ -1,5 +1,5 @@
-/**
- * Copyright 2016 National Library of Australia
+/*
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,11 @@
  */
 package bamboo.trove.services;
 
-import java.text.SimpleDateFormat;
-import java.util.HashMap;
-import java.util.Map;
-import javax.annotation.PostConstruct;
-
 import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.IndexerDocument;
+import bamboo.trove.common.cdx.CdxRule;
 import bamboo.util.SurtFilter;
 import bamboo.util.Urls;
 import com.codahale.metrics.Histogram;
@@ -37,13 +33,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 @Service
 public class FilteringCoordinationService {
   private static Logger log = LoggerFactory.getLogger(FilteringCoordinationService.class);
   private boolean collectMetrics = true;
 
   @Autowired
-  private BambooRestrictionService bambooRestrictionService;
+  private CdxRestrictionService cdxRestrictionService;
 
   @Autowired
   private QualityControlService qualityControlService;
@@ -61,35 +66,61 @@ public class FilteringCoordinationService {
   }
 
   // Things we don't want to see in stat keys when lazy loading dirty data
-  private String[] excludedCharacters = {"\\", "/", ",", ".", ":", ";", "?", "\""};
-  private String cleanKeyPattern = "";
-  @PostConstruct
-  public void init() {
+  private static final String[] EXCLUDED_CHARACTERS = {"\\", "/", ",", ".", ":", ";", "?", "\""};
+  private static final List<String> ALLOWED_TYPES;
+  private static String cleanKeyPattern = "";
+  static {
     cleanKeyPattern += "[";
-    for (String c : excludedCharacters) {
+    for (String c : EXCLUDED_CHARACTERS) {
       cleanKeyPattern += "\\" + c;
     }
     cleanKeyPattern += "]*";
+
+    // Baseline. Collect data on common things we ignore
+    List<String> allowedTypes = new ArrayList<>();
+    allowedTypes.addAll(Arrays.asList("imagejpeg", "imagegif", "imagepng", "textplain", "textcss", "textxml"));
+    // Then add all the things we index
+    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.HTML_CONTENT_TYPES));
+    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.PDF_CONTENT_TYPES));
+    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.DOCUMENT_CONTENT_TYPES));
+    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.PRESENTATION_CONTENT_TYPES));
+    allowedTypes.addAll(cleanTypesDuringStartup(QualityControlService.SPREADSHEET_CONTENT_TYPES));
+    ALLOWED_TYPES = allowedTypes;
+  }
+  private static String cleanType(String type) {
+    return type.replaceAll(cleanKeyPattern, "");
+  }
+  private static List<String> cleanTypesDuringStartup(List<String> input) {
+    return input.stream()
+            .map(FilteringCoordinationService::cleanType)
+            .collect(Collectors.toList());
+  }
+
+  @PostConstruct
+  public void init() {
     metrics = SharedMetricRegistries.getOrCreate(metricsRegistryName);
     loadDomainMetrics();
   }
 
+  @SuppressWarnings("unused")
   public void setCollectMetrics(boolean collectMetrics) {
     this.collectMetrics = collectMetrics;
   }
 
-  public void filterDocument(IndexerDocument document) {
+  public void filterDocument(IndexerDocument document) throws CdxRestrictionService.RulesOutOfDateException {
     ContentThreshold threshold = qualityControlService.filterDocument(document.getBambooDocument());
-    DocumentStatus status = DocumentStatus.REJECTED;
+    DocumentStatus status = DocumentStatus.NOT_APPLICABLE;
+    CdxRule rule = null;
     if (!threshold.equals(ContentThreshold.NONE)) {
-      status = bambooRestrictionService.filterDocument(document.getBambooDocument());
+      rule = cdxRestrictionService.filterDocument(document.getBambooDocument());
+      status = rule.getIndexerPolicy();
     }
-    document.applyFiltering(status, threshold);
+    document.applyFiltering(rule, threshold);
 
     if (collectMetrics) {
       // Never fail because of this secondary stuff
       try {
-        collectMetrics(document);
+        collectMetrics(document, status);
 
       } catch (Exception ex) {
         log.error("Metrics failed on document: {}", document.getDocId(), ex);
@@ -116,14 +147,14 @@ public class FilteringCoordinationService {
     return document.getText().length();
   }
 
-  private void collectMetrics(IndexerDocument document) {
-    lazyLoadChecks(document);
-    recordSizeByKey(thresholdSizes, document.getTheshold(), document);
+  private void collectMetrics(IndexerDocument document, DocumentStatus status) {
+    lazyLoadChecks(document, status);
+    recordSizeByKey(thresholdSizes, document.getThreshold(), document);
     // Cutout here if we aren't going to index it
     //if (document.getTheshold().equals(ContentThreshold.NONE)) return;
 
     recordSizeByDomain(document);
-    recordSizeByKey(statusSizes,    document.getStatus(),   document);
+    recordSizeByKey(statusSizes,    status,   document);
     recordSizeByKey(typeSizes,      cleanType(document), document);
     recordSizeByKey(codeSizes, "" + document.getBambooDocument().getStatusCode(), document);
     recordYear(document.getBambooDocument());
@@ -157,17 +188,19 @@ public class FilteringCoordinationService {
             .forEach(thisFilter -> domainSizes.get(thisFilter).update(contentLength(doc)));
   }
   private void recordSizeByKey(Map<?, Histogram> map, Object key, IndexerDocument document) {
+    if (key == null) return;
     map.get(key).update(contentLength(document.getBambooDocument()));
   }
 
-  private void lazyLoadChecks(IndexerDocument document) {
-    lazyLoadByKey(statusSizes,    document.getStatus(),   "size.status.");
-    lazyLoadByKey(thresholdSizes, document.getTheshold(), "size.threshold.");
+  private void lazyLoadChecks(IndexerDocument document, DocumentStatus status) {
+    lazyLoadByKey(statusSizes,    status,   "size.status.");
+    lazyLoadByKey(thresholdSizes, document.getThreshold(), "size.threshold.");
     lazyLoadByKey(typeSizes,      cleanType(document),    "size.type.");
     lazyLoadByKey(codeSizes, "" + document.getBambooDocument().getStatusCode(), "size.code.");
   }
 
   private void lazyLoadByKey(Map map, Object key, String prefix) {
+    if (key == null) return;
     if (!map.containsKey(key)) {
       synchronized (map) {
         if (!map.containsKey(key)) {
@@ -216,6 +249,10 @@ public class FilteringCoordinationService {
   }
 
   private String cleanType(IndexerDocument document) {
-    return document.getBambooDocument().getContentType().replaceAll(cleanKeyPattern, "");
+    String type = cleanType(document.getBambooDocument().getContentType());
+    if (ALLOWED_TYPES.contains(type)) {
+      return type;
+    }
+    return "other";
   }
 }

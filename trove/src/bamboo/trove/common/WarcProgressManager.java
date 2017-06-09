@@ -1,5 +1,5 @@
-/**
- * Copyright 2016 National Library of Australia
+/*
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,11 @@
  */
 package bamboo.trove.common;
 
+import bamboo.task.Document;
+import org.apache.commons.math3.util.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.LinkedList;
@@ -23,11 +28,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-
-import bamboo.task.Document;
-import org.apache.commons.math3.util.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class WarcProgressManager {
   private static final Logger log = LoggerFactory.getLogger(WarcProgressManager.class);
@@ -43,8 +43,8 @@ public class WarcProgressManager {
   private Queue<IndexerDocument> indexProgress = new LinkedList<>();
   private int countIndexCompleted = 0;
   // Error queue
-  protected BlockingQueue<IndexerDocument> errorQ = new ArrayBlockingQueue<>(5);
-  protected int discardedErrors = 0;
+  BlockingQueue<IndexerDocument> errorQ = new ArrayBlockingQueue<>(5);
+  int discardedErrors = 0;
   private boolean trackedError = false;
   private Pair<Timestamp, Integer> errorTracking = null;
 
@@ -104,11 +104,11 @@ public class WarcProgressManager {
     return trackedDocument;
   }
 
-  public boolean isLoadingComplete() {
+  boolean isLoadingComplete() {
     return loadingComplete;
   }
 
-  public void setLoadComplete() {
+  void setLoadComplete() {
     loadingComplete = true;
   }
 
@@ -116,7 +116,7 @@ public class WarcProgressManager {
     return loadingFailed;
   }
 
-  public void setLoadFailed() {
+  void setLoadFailed() {
     loadingFailed = true;
   }
 
@@ -174,6 +174,14 @@ public class WarcProgressManager {
       }
     }
 
+    // Except for the first time...
+    if (timer != null) {
+      // Force the timer to de-reference its own thread
+      // and don't hold on to a reference to the timer
+      timer.cancel();
+      timer = null;
+    }
+
     if (!mothballed && !(filterComplete && transformComplete && indexComplete)) {
       setTick();
     }
@@ -221,7 +229,7 @@ public class WarcProgressManager {
     errorTracking = errorData;
   }
 
-  public Pair<Timestamp, Integer> getErrorTracking() {
+  Pair<Timestamp, Integer> getErrorTracking() {
     return errorTracking;
   }
 
@@ -273,11 +281,11 @@ public class WarcProgressManager {
     return batchSize;
   }
 
-  public long getBatchBytes() {
+  long getBatchBytes() {
     return batchBytes;
   }
 
-  public void setBatchBytes(long batchBytes) {
+  void setBatchBytes(long batchBytes) {
     this.batchBytes = batchBytes;
   }
 }

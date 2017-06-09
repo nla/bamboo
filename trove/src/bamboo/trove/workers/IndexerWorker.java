@@ -1,5 +1,5 @@
-/**
- * Copyright 2016 National Library of Australia
+/*
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
  */
 package bamboo.trove.workers;
 
-import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.ContentThreshold;
+import bamboo.trove.common.EndPointRotator;
 import bamboo.trove.common.IndexerDocument;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
@@ -27,14 +27,12 @@ import org.slf4j.LoggerFactory;
 public class IndexerWorker implements Runnable {
   private static Logger log = LoggerFactory.getLogger(IndexerWorker.class);
 
-  private EndPointDomainManager solrManager;
   private Timer timer;
   private Timer dqTimer;
   private IndexerDocument lastJob = null;
   private IndexerDocument thisJob = null;
 
-  public IndexerWorker(EndPointDomainManager solrManager, Timer timer) {
-    this.solrManager = solrManager;
+  public IndexerWorker(Timer timer) {
     this.timer = timer;
     // TODO: Remove dqTimer. it has no long term usefulness. It is just being used during development
     // to keep an eye on thread backlogs (or the possibility thereof) around the solr.add() method at
@@ -51,7 +49,7 @@ public class IndexerWorker implements Runnable {
     while (loop()) {}
   }
 
-  public boolean loop() {
+  private boolean loop() {
     try {
       findJob();
       doJob();
@@ -84,13 +82,13 @@ public class IndexerWorker implements Runnable {
     Timer.Context ctx = dqTimer.time();
     try {
       thisJob.index.start(timer);
-      if (thisJob.getTheshold() == null || thisJob.getSolrDocument() == null
-              || thisJob.getTheshold().equals(ContentThreshold.NONE)) {
+      if (thisJob.getThreshold() == null || thisJob.getSolrDocument() == null
+              || thisJob.getThreshold().equals(ContentThreshold.NONE)) {
         thisJob.index.finish();
         return;
       }
       // IndexerDocument implements AcknowledgeWorker so it will handle the timer.stop() and/or errors
-      solrManager.add(thisJob.getSolrDocument(), thisJob);
+      EndPointRotator.add(thisJob.getSolrDocument(), thisJob);
 
     } finally {
       ctx.stop();

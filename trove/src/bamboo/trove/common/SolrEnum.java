@@ -1,5 +1,5 @@
-/**
- * Copyright 2016 National Library of Australia
+/*
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,32 @@
 package bamboo.trove.common;
 
 public enum SolrEnum {
-  ID("id"),
-  URL("url"),
+  // Keeping them in alphabetical order just
+  // to help readability as the schema grows
+  AU_GOV("auGov"),
+  BOOST("boost"),
   DATE("date"),
-  TITLE("title"),
-  CONTENT_TYPE("contentType"),
-  SITE("site"),
+  DECADE("decade"),
   DELIVERABLE("deliverable"),
+  DELIVERY_URL("deliveryUrl"),
   DISCOVERABLE("discoverable"),
-  TEXT_ERROR("textError");
-
+  DISPLAY_URL("url"),
+  FILENAME("filename"),
+  FULL_TEXT("fulltext"),
+  HOST("host"),
+  HOST_REVERSED("hostReversed"),
+  ID("id"),
+  LAST_INDEXED("lastIndexed"),
+  METADATA("metadata"),
+  PANDORA_URL("pandoraUrl"),
+  RULE("ruleId"),
+  SEARCH_CATEGORY("searchCategory"),
+  SITE("site"),
+  TEXT_ERROR("textError"),
+  TITLE("title"),
+  URL_TOKENIZED("urlTokenized"),
+  YEAR("year");
+  
   private String value;
   SolrEnum(String value) {
     this.value = value;

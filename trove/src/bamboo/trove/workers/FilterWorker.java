@@ -1,5 +1,5 @@
-/**
- * Copyright 2016 National Library of Australia
+/*
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package bamboo.trove.workers;
 
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.IndexerDocument;
+import bamboo.trove.services.CdxRestrictionService;
 import bamboo.trove.services.FilteringCoordinationService;
 import com.codahale.metrics.Timer;
 import org.slf4j.Logger;
@@ -40,12 +41,16 @@ public class FilterWorker implements Runnable {
     while (loop()) {}
   }
 
-  public boolean loop() {
+  private boolean loop() {
     try {
       findJob();
       doJob();
       lastJob = thisJob;
       thisJob = null;
+
+    } catch (CdxRestrictionService.RulesOutOfDateException ex) {
+      log.error("Halting working. No further progress will be possible.", ex.getMessage());
+      return false;
 
     } catch (InterruptedException ex) {
       log.error("Thread.Sleep() interrupted on worker that cannot find job. Resuming. MSG:'{}'", ex.getMessage());
@@ -71,11 +76,8 @@ public class FilterWorker implements Runnable {
     }
   }
 
-  private void doJob() {
+  private void doJob() throws CdxRestrictionService.RulesOutOfDateException {
     thisJob.filter.start(timer);
-    if (thisJob.getDocId().equals("127536/2502")) {
-      throw new IllegalStateException("I was instructed to failed on object 127536/2502 for testing purposes");
-    }
     filteringService.filterDocument(thisJob);
     thisJob.filter.finish();
   }

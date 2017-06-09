@@ -32,12 +32,28 @@ interface PandasDAO extends Closeable {
     @SqlQuery("select INSTANCE_ID from (select INSTANCE_ID from INSTANCE where CURRENT_STATE_ID = 1 and INSTANCE_ID > :startingFrom and TYPE_NAME <> 'Legacy pandora cgi' order by INSTANCE_ID asc) where rownum <= :limit")
     List<Long> listArchivedInstanceIds(@Bind("startingFrom") long startingFrom, @Bind("limit") int limit);
 
-    @SqlQuery("select TITLE_ID titleId, PERIOD_MULTIPLIER periodMultiplier, PERIOD_TYPE_ID periodTypeId from PERIOD_RESTR")
-    @MapResultAsBean
-    List<PeriodRestr> listPeriodRestrictions();
-
     @SqlQuery("select INSTANCE_ID from (select INSTANCE_ID from INSTANCE where CURRENT_STATE_ID = 1 and INSTANCE_ID > :startingFrom and TYPE_NAME = :type order by INSTANCE_ID asc) where rownum <= :limit")
     List<Long> listArchivedInstanceIds(@Bind("type") String type, @Bind("startingFrom") long startingFrom, @Bind("limit") int limit);
+
+
+    String SELECT_SUBJECT = "select SUBJECT.SUBJECT_ID id, SUBJECT_NAME name, SUBJECT_PARENT_ID parentId from SUBJECT ";
+
+    @SqlQuery(SELECT_SUBJECT + "order by subject_parent_id asc")
+    @MapResultAsBean
+    List<PandasSubject> listSubjects();
+
+    @SqlQuery(SELECT_SUBJECT + "left join COL_SUBS on SUBJECT.SUBJECT_ID = COL_SUBS.SUBJECT_ID where COL_ID = :collectionId")
+    List<PandasSubject> listSubjectsForCollectionId(@Bind("collectionId") long collectionId);
+
+
+    @SqlQuery("select COL_ID id, DISPLAY_COMMENT displayComment, DISPLAY_ORDER displayOrder, IS_DISPLAYED displayed, NAME name, COL_PARENT_ID parentId from COL")
+    @MapResultAsBean
+    List<PandasCollection> listCollections();
+
+    @SqlQuery("select AGENCY_ID id, NAME name, LOGO logo, ORGANISATION.NAME name, ORGANISATION.URL url from agency left join organisation on ORGANISATION.ORGANISATION_ID = AGENCY.ORGANISATION_ID")
+    @MapResultAsBean
+    List<PandasAgency> listAgencies();
+
 
     class TitleMapper implements ResultSetMapper<PandasTitle> {
         @Override

@@ -2,10 +2,7 @@ package bamboo.app;
 
 import java.io.PrintWriter;
 
-import bamboo.core.Config;
-import bamboo.core.DAO;
-import bamboo.core.DbPool;
-import bamboo.core.Taskmaster;
+import bamboo.core.*;
 import bamboo.crawl.Collections;
 import bamboo.crawl.Crawls;
 import bamboo.crawl.Serieses;
@@ -33,6 +30,7 @@ public class Bamboo implements AutoCloseable {
     public final Taskmaster taskmaster;
     private final CdxIndexer cdxIndexer;
     private final SolrIndexer solrIndexer;
+    private final LockManager lockManager;
 
     public Bamboo() {
         this(new Config());
@@ -48,6 +46,7 @@ public class Bamboo implements AutoCloseable {
         DAO dao = dbPool.dao();
 
         this.taskmaster = new Taskmaster();
+        this.lockManager = new LockManager(dao.lockManager());
 
         // crawl package
         this.serieses = new Serieses(dao.serieses());
@@ -63,9 +62,9 @@ public class Bamboo implements AutoCloseable {
 
         // task package
         taskmaster.add(new Importer(config, crawls));
-        cdxIndexer = new CdxIndexer(warcs, crawls, serieses, collections);
+        cdxIndexer = new CdxIndexer(warcs, crawls, serieses, collections, lockManager);
         taskmaster.add(cdxIndexer);
-        solrIndexer = new SolrIndexer(collections, crawls, warcs);
+        solrIndexer = new SolrIndexer(collections, crawls, warcs, lockManager);
         taskmaster.add(solrIndexer);
         taskmaster.add(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
 
@@ -83,6 +82,7 @@ public class Bamboo implements AutoCloseable {
         taskmaster.close();
         dbPool.close();
         pandas.close();
+        lockManager.close();
     }
 
     public boolean healthcheck(PrintWriter out) {

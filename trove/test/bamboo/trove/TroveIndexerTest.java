@@ -1,5 +1,5 @@
-/**
- * Copyright 2016 National Library of Australia
+/*
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,21 +15,9 @@
  */
 package bamboo.trove;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
-
 import bamboo.task.Document;
-import bamboo.trove.common.ContentThreshold;
-import bamboo.trove.common.DocumentStatus;
+import bamboo.trove.common.FilenameFinder;
 import bamboo.trove.common.IndexerDocument;
-import bamboo.trove.services.BambooRestrictionService.FilterSegments;
 import bamboo.util.SurtFilter;
 import bamboo.util.Urls;
 import com.codahale.metrics.Timer;
@@ -40,6 +28,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.archive.url.SURT;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
+
+import static org.junit.Assert.*;
 
 /**
  * *
@@ -146,14 +140,6 @@ public class TroveIndexerTest {
   }
 
   @Test
-  public void filterSegmentsTest() throws IOException {
-    // TODO parsing and util testing on segments
-    // We might not even do this... it is for the nightly process to
-    // find content that should match a new incoming restriction segment
-    FilterSegments segment;
-  }
-
-  @Test
   public void iCanParseDocumentLists() throws IOException {
     // Example 1
     assertEquals("Document list length is not correct", 224, warc79.size());
@@ -225,16 +211,38 @@ public class TroveIndexerTest {
 
     // Filtering
     startWithAssertions(document.filter, timer);
-    document.applyFiltering(DocumentStatus.RESTRICTED_FOR_BOTH, ContentThreshold.DOCUMENT_START_ONLY);
+    // We don't really test this step here anymore. See CdxRestrictionServiceTest
     document.filter.finish();
 
     // Working
     startWithAssertions(document.transform, timer);
     document.transform.finish();
-    
+
     // Writing
     startWithAssertions(document.index, timer);
     document.index.finish();
+  }
+
+  @Test
+  public void filenameExtractionTest() {
+    assertFileNameCorrect("http://random.file.com", null);
+    assertFileNameCorrect("http://random.file.com/", null);
+    assertFileNameCorrect("http://random.file.com/file.name", "file.name");
+    assertFileNameCorrect("http://random.file.com/filename", "filename");
+    assertFileNameCorrect("http://random.file.com/path/filename", "filename");
+    assertFileNameCorrect("http://random.file.com/path/filename#anchor", "filename");
+    assertFileNameCorrect("http://random.file.com/path/filename?param=bob", "filename");
+    assertFileNameCorrect("http://random.file.com/path/filename#/param", "filename");
+    assertFileNameCorrect("http://random.file.com;unusualQueryParameter=bob/path/filename#/param", "filename");
+  }
+
+  private void assertFileNameCorrect(String input, String expected) {
+    String output = FilenameFinder.getFilename(input);
+    if (expected == null) {
+      assertNull("Filename should be null", output);
+    } else {
+      assertEquals("Invalid filename", expected, output);
+    }
   }
 
   private void startWithAssertions(IndexerDocument.StateTracker state, Timer timer) {
@@ -247,14 +255,14 @@ public class TroveIndexerTest {
     try {
       state.finish();
       fail("IllegalStateException should have been thrown by trying to stop");
-    } catch (IllegalStateException ex) {
+    } catch (IllegalStateException ignored) {
     }
   }
   private void confirmIllegalStateToStart(IndexerDocument.StateTracker state) {
     try {
       state.start(null);
       fail("IllegalStateException should have been thrown by trying to start");
-    } catch (IllegalStateException ex) {
+    } catch (IllegalStateException ignored) {
     }
   }
 }

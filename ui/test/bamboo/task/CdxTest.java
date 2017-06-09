@@ -1,17 +1,61 @@
 package bamboo.task;
 
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveReaderFactory;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class CdxTest {
+
+    @Test
+    public void test() throws IOException {
+        List<Cdx.CdxRecord> records;
+        URL resource = getClass().getResource("example.warc.gz");
+        try (ArchiveReader warc = ArchiveReaderFactory.get(resource)) {
+            records = Cdx.records(warc, "example.warc.gz", resource.openConnection().getContentLength()).collect(Collectors.toList());
+        }
+
+        assertEquals(2, records.size());
+
+        Cdx.Capture record = (Cdx.Capture)records.get(0);
+        assertEquals("text/html", record.contentType);
+        assertEquals(200, record.status);
+        assertEquals("20161116220655", record.date);
+        assertEquals("http://www-test.nla.gov.au/xinq/presentations/abstract.html", record.url);
+        assertEquals(2756, record.compressedLength);
+        assertEquals(339, record.offset);
+        assertEquals("387f5ef1511fe47bf91ca9fdcf6c41511fc3e480", record.digest);
+    }
+
+    @Test
+    public void test2() throws IOException {
+        List<Cdx.CdxRecord> records;
+        URL resource = getClass().getResource("notfound.warc.gz");
+        try (ArchiveReader warc = ArchiveReaderFactory.get(resource)) {
+            records = Cdx.records(warc, "notfound.warc.gz", resource.openConnection().getContentLength()).collect(Collectors.toList());
+        }
+
+        assertEquals(3, records.size());
+
+        Cdx.Capture record = (Cdx.Capture)records.get(0);
+        assertEquals("text/html", record.contentType);
+        assertEquals(302, record.status);
+        assertEquals("20161128015313", record.date);
+        assertEquals("http://nla.gov.au/foobar", record.url);
+        assertEquals(665, record.compressedLength);
+        assertEquals(830, record.offset);
+        assertEquals("WNT4SKWUNA5F4Q3HYKF5AMY2M5ZIPBYW", record.digest);
+        assertEquals("http://www.nla.gov.au/foobar", record.location);
+    }
+
 
     @Test
     public void testParseUrlMapLinePandas2() throws IOException {

@@ -9,11 +9,13 @@ import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.Iterator;
 import java.util.List;
 
-@RegisterMapper({WarcsDAO.WarcMapper.class, WarcsDAO.CollectionWarcMapper.class})
+@RegisterMapper({WarcsDAO.WarcMapper.class, WarcsDAO.CollectionWarcMapper.class, WarcsDAO.WarcResumptionTokenMapper.class})
 public interface WarcsDAO extends Transactional<WarcsDAO> {
+
     class WarcMapper implements ResultSetMapper<Warc> {
         @Override
         public Warc map(int i, ResultSet rs, StatementContext statementContext) throws SQLException {
@@ -154,4 +156,35 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
 
     @SqlQuery("SELECT w.* FROM warc w, collection_warc cw WHERE cw.warc_id = w.id AND cw.collection_id = :collectionId AND w.id >= :start ORDER BY w.id asc LIMIT :rows")
     List<Warc> findByCollectionId(@Bind("collectionId") long collectionId, @Bind("start") long start, @Bind("rows") long rows);
+
+
+    @SqlQuery("SELECT wh.time, wh.warc_id, w.records urlCount\n" +
+            "FROM warc_history wh\n" +
+            "  LEFT JOIN warc w ON w.id = wh.warc_id\n" +
+            "  LEFT JOIN warc_history more_recent\n" +
+            "    ON wh.warc_id = more_recent.warc_id\n" +
+            "       AND more_recent.id > wh.id\n" +
+            "  INNER JOIN collection_warc cw\n" +
+            "    ON cw.warc_id = wh.warc_id AND cw.collection_id = :collectionId\n" +
+            "WHERE more_recent.id IS NULL AND\n" +
+            "      (wh.time, wh.warc_id) > (:afterTime, :afterWarcId) AND\n" +
+            "      wh.warc_state_id = :stateId\n" +
+            "ORDER BY wh.time ASC, wh.warc_id ASC\n" +
+            "LIMIT :limit")
+    List<WarcResumptionToken> resumptionByCollectionIdAndStateId(
+            @Bind("collectionId") long collectionId,
+            @Bind("stateId") int stateId,
+            @Bind("afterTime") Timestamp afterTime,
+            @Bind("afterWarcId") long warcId,
+            @Bind("limit") int limit);
+
+    class WarcResumptionTokenMapper implements ResultSetMapper<WarcResumptionToken> {
+        @Override
+        public WarcResumptionToken map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+            return new WarcResumptionToken(resultSet.getTimestamp("time").toInstant(),
+                    resultSet.getLong("warc_id"),
+                    resultSet.getLong("urlCount"));
+        }
+    }
+
 }

@@ -1,5 +1,5 @@
-/**
- * Copyright 2016 National Library of Australia
+/*
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package bamboo.trove.common;
 
 public enum DocumentStatus {
   ACCEPTED,
-  REJECTED,
+  NOT_APPLICABLE,
   RESTRICTED_FOR_DELIVERY,
   RESTRICTED_FOR_DISCOVERY,
   RESTRICTED_FOR_BOTH

@@ -1,5 +1,5 @@
-/**
- * Copyright 2016 National Library of Australia
+/*
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,28 @@ package bamboo.trove.common;
 
 import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
 import bamboo.task.Document;
+import bamboo.trove.common.cdx.CdxRule;
 import com.codahale.metrics.Timer;
 import org.apache.solr.common.SolrInputDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class IndexerDocument implements AcknowledgeWorker {
+  @SuppressWarnings("unused")
   private static Logger log = LoggerFactory.getLogger(IndexerDocument.class);
 
   private String docId;
   public String getDocId() {
     return docId;
+  }
+
+  private float boost = 1.0f;
+  public float getBoost() {
+    return boost;
+  }
+  public float modifyBoost(float modifier) {
+    boost *= modifier;
+    return boost;
   }
 
   //***********************************
@@ -49,21 +60,25 @@ public class IndexerDocument implements AcknowledgeWorker {
 
   //***********************************
   // Step 2) Filtering
-  private DocumentStatus status = null;
-  private ContentThreshold theshold = null;
+  private CdxRule rule = null;
+  private ContentThreshold threshold = null;
   public StateTracker filter = new StateTracker("Filtering");
-  public void applyFiltering(DocumentStatus status, ContentThreshold theshold) {
-    this.status = status;
-    this.theshold = theshold;
+  public void applyFiltering(CdxRule rule, ContentThreshold threshold) {
+    this.rule = rule;
+    this.threshold = threshold;
   }
   public DocumentStatus getStatus() {
-    return status;
+    if (rule == null) return null; 
+    return rule.getIndexerPolicy();
   }
-  public ContentThreshold getTheshold() {
-    return theshold;
+  public ContentThreshold getThreshold() {
+    return threshold;
+  }
+  public long getRuleId(){
+    return rule.getId();
   }
   private Throwable filterError = null;
-  public Throwable getFilterError() {
+  Throwable getFilterError() {
     return filterError;
   }
   public void setFilterError(Throwable filterError) {
@@ -84,7 +99,7 @@ public class IndexerDocument implements AcknowledgeWorker {
   }
   public StateTracker transform = new StateTracker("Work");
   private Throwable transformError = null;
-  public Throwable getTransformError() {
+  Throwable getTransformError() {
     return transformError;
   }
   public void setTransformError(Throwable transformError) {
@@ -98,7 +113,7 @@ public class IndexerDocument implements AcknowledgeWorker {
   // Step 4) Write to Solr
   public StateTracker index = new StateTracker("Writing");
   private Throwable indexError = null;
-  public Throwable getIndexError() {
+  Throwable getIndexError() {
     return indexError;
   }
   public void setIndexError(Throwable indexError) {
@@ -118,7 +133,7 @@ public class IndexerDocument implements AcknowledgeWorker {
     this.setIndexError(throwable);
   }
 
-  public boolean isInError() {
+  boolean isInError() {
     return (filterError != null || transformError != null || indexError != null);
   }
 
@@ -128,7 +143,7 @@ public class IndexerDocument implements AcknowledgeWorker {
     private boolean finished = false;
     private Timer.Context timer = null;
 
-    public StateTracker(String name) {
+    StateTracker(String name) {
       this.name = name;
     }
     public void start(Timer timer) {
@@ -153,10 +168,10 @@ public class IndexerDocument implements AcknowledgeWorker {
       finished = true;
       timer.stop();
     }
-    public boolean hasStarted() {
+    boolean hasStarted() {
       return started;
     }
-    public boolean hasFinished() {
+    boolean hasFinished() {
       return finished;
     }
   }

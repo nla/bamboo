@@ -1,5 +1,5 @@
-/**
- * Copyright 2016 National Library of Australia
+/*
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,29 +15,60 @@
  */
 package bamboo.trove.services;
 
-import java.util.Arrays;
-import java.util.List;
-
 import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 @Service
 public class QualityControlService {
-  public static final List<String> TEXT_CONTENT_TYPES = Arrays.asList("text/html", "application/pdf");
+  public static final List<String> HTML_CONTENT_TYPES = Collections.singletonList("text/html");
+  public static final List<String> PDF_CONTENT_TYPES = Collections.singletonList("application/pdf");
+  public static final List<String> DOCUMENT_CONTENT_TYPES = Arrays.asList("application/rtf", "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.oasis.opendocument.text");
+  public static final List<String> PRESENTATION_CONTENT_TYPES = Arrays.asList("application/vnd.ms-powerpoint",
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          "application/vnd.oasis.opendocument.presentation");
+  public static final List<String> SPREADSHEET_CONTENT_TYPES = Arrays.asList("application/vnd.ms-excel",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/csv", "application/csv",
+          "application/vnd.oasis.opendocument.spreadsheet");
 
-  public ContentThreshold filterDocument(Document document) {
+  ContentThreshold filterDocument(Document document) {
     // Status code - Unless we actually harvested the content, don't index it
     if (document.getStatusCode() != 200) {
-      return ContentThreshold.NONE;
-    }
-
-    // Content Type
-    if (!TEXT_CONTENT_TYPES.contains(document.getContentType())) {
       return ContentThreshold.METADATA_ONLY;
     }
 
+    // Content Type
+    if (isSearchableContentType(document)) {
+    	if(!isFullTextSite(document) && HTML_CONTENT_TYPES.contains(document.getContentType())){
+    		return ContentThreshold.DOCUMENT_START_ONLY;
+    	}
+      return ContentThreshold.FULL_TEXT;
+    }
+
     // More rules will likely be added here
-    return ContentThreshold.FULL_TEXT;
+    return ContentThreshold.METADATA_ONLY;
+  }
+
+  private boolean isSearchableContentType(Document document) {
+    return HTML_CONTENT_TYPES.contains(document.getContentType())
+            || PDF_CONTENT_TYPES.contains(document.getContentType())
+            || PRESENTATION_CONTENT_TYPES.contains(document.getContentType())
+            || SPREADSHEET_CONTENT_TYPES.contains(document.getContentType())
+            || DOCUMENT_CONTENT_TYPES.contains(document.getContentType());
+  }
+  
+  /**
+   * We need to reduce the size of the index so we don't store all the full text for some sites.  
+   * @param document
+   * @return
+   */
+  private boolean isFullTextSite(Document document){
+  	return !(document.getSite().endsWith(".com.au") || document.getSite().endsWith(".com"));
   }
 }

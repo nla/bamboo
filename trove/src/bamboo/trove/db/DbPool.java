@@ -1,7 +1,19 @@
+/*
+ * Copyright 2016-2017 National Library of Australia
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *  
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package bamboo.trove.db;
-
-import java.io.Closeable;
-import java.nio.file.Path;
 
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -12,6 +24,9 @@ import org.skife.jdbi.v2.tweak.ArgumentFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vibur.dbcp.ViburDBCPDataSource;
+
+import java.io.Closeable;
+import java.nio.file.Path;
 
 public class DbPool implements Closeable {
   private static Logger log = LoggerFactory.getLogger(DbPool.class);
@@ -53,6 +68,7 @@ public class DbPool implements Closeable {
     return dao;
   }
 
+  @SuppressWarnings("unused")
   public TroveDaoRegistry take() {
     return dbi.open(TroveDaoRegistry.class);
   }
@@ -62,7 +78,7 @@ public class DbPool implements Closeable {
     ds.terminate();
   }
 
-  public static class PathArgumentFactory implements ArgumentFactory<Path> {
+  private static class PathArgumentFactory implements ArgumentFactory<Path> {
     @Override
     public boolean accepts(Class<?> aClass, Object o, StatementContext statementContext) {
       return o instanceof Path;

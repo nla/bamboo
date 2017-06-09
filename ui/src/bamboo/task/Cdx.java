@@ -2,6 +2,8 @@ package bamboo.task;
 
 import bamboo.util.Urls;
 import com.codepoetics.protonpack.StreamUtils;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.PeekingIterator;
 import org.apache.commons.lang.StringUtils;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
@@ -11,6 +13,7 @@ import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -19,13 +22,13 @@ import java.util.stream.Stream;
 
 public class Cdx {
 
-    public static Stream<CdxRecord> records(ArchiveReader warcReader, String filename) {
-        Stream<CdxRecord> stream = Stream.generate(new CdxRecordProducer(warcReader, filename)::next);
+    public static Stream<CdxRecord> records(ArchiveReader warcReader, String filename, long warcLength) {
+        Stream<CdxRecord> stream = Stream.generate(new CdxRecordProducer(warcReader, filename, warcLength)::next);
         return StreamUtils.takeWhile(stream, (record) -> record != null);
     }
 
     public static void writeCdx(Path warc, String filename, Writer out) throws IOException {
-        records(WarcUtils.open(warc), filename).forEach(record -> {
+        records(WarcUtils.open(warc), filename, Files.size(warc)).forEach(record -> {
             try {
                 out.write(record.toCdxLine() + "\n");
             } catch (IOException e) {
@@ -37,39 +40,75 @@ public class Cdx {
     static class CdxRecordProducer {
         final static Pattern PANDORA_URL_MAP = Pattern.compile("^http://pandora.nla.gov.au/pan/([0-9]+/[0-9-]+)/url.map$");
 
-        private final ArchiveReader warc;
-        private final Iterator<ArchiveRecord> iterator;
+        private final PeekingIterator<ArchiveRecord> iterator;
         private final String filename;
+        private final long warcLength;
         private Iterator<Alias> urlMapIterator = null;
+        private boolean pandoraHacks;
+        private Queue<String> panIndexPages = new ArrayDeque<>();
 
-        CdxRecordProducer(ArchiveReader warc, String filename) {
-            this.warc = warc;
-            iterator = warc.iterator();
+        CdxRecordProducer(ArchiveReader warc, String filename, long warcLength) {
+            iterator = Iterators.peekingIterator(warc.iterator());
             this.filename = filename;
+            this.warcLength = warcLength;
+
+            if (filename.startsWith("nla.arc-")) {
+                pandoraHacks = true;
+            }
         }
 
         public CdxRecord next() {
             try {
-                if (urlMapIterator != null && urlMapIterator.hasNext()) {
-                    return urlMapIterator.next();
+                if (pandoraHacks) {
+                    if (urlMapIterator != null && urlMapIterator.hasNext()) {
+                        return urlMapIterator.next();
+                    }
                 }
+
                 while (iterator.hasNext()) {
                     ArchiveRecord record = iterator.next();
 
-                    String url = record.getHeader().getUrl();
-                    if (url != null) {
-                        Matcher m = PANDORA_URL_MAP.matcher(url);
-                        if (m.matches()) {
-                            urlMapIterator = parseUrlMap(record, m.group(1)).iterator();
-                            return next();
+                    if (pandoraHacks) {
+                        String url = record.getHeader().getUrl();
+
+                        // Generate alias records from PANDORA url.map if we encounter it.
+                        if (url != null) {
+                            Matcher m = PANDORA_URL_MAP.matcher(url);
+                            if (m.matches()) {
+                                urlMapIterator = parseUrlMap(record, m.group(1)).iterator();
+                                return next();
+                            }
+                        }
+
+                        // Save PANDORA index pages for extra aliasing at the end.
+                        if (urlMapIterator == null && url.endsWith("/index.html")) {
+                            panIndexPages.add(url);
                         }
                     }
 
                     Capture capture = Capture.parseWarcRecord(filename, record);
                     if (capture != null) {
+                        long endOfRecord = iterator.hasNext() ? iterator.peek().getHeader().getOffset() : warcLength;
+                        capture.compressedLength = endOfRecord - capture.offset;
                         return capture;
                     }
                 }
+
+                if (pandoraHacks) {
+                    /*
+                     * XXX: PANDORA used to be served as static files and so relies
+                     * on a web server automatically resolving /foo/ to /foo/index.html
+                     * Sometimes url.map will take care of this mapping but early
+                     * instances have no url.map. So if there's no url.map generate
+                     * an alias records for every .../index.html to .../
+                     */
+                    if (urlMapIterator == null && !panIndexPages.isEmpty()) {
+                        String url = panIndexPages.remove();
+                        String dirname = url.substring(0, url.length() - "index.html".length());
+                        return new Alias(dirname, url);
+                    }
+                }
+
                 return null;
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -186,7 +225,7 @@ public class Cdx {
         public String location;
         public String date;
         public String url;
-        public long contentLength;
+        public long compressedLength;
         public long offset;
         public String filename;
         public String digest;
@@ -194,7 +233,7 @@ public class Cdx {
         public String toCdxLine() {
             return String.join(" ", "-", date, url, optional(contentType),
                     status == -1 ? "-" : Integer.toString(status), optional(digest),
-                    optional(location), "-", Long.toString(contentLength),
+                    optional(location), "-", Long.toString(compressedLength),
                     Long.toString(offset), filename);
         }
 
@@ -211,6 +250,7 @@ public class Cdx {
             Capture capture = new Capture();
 
             if (WarcUtils.isResponseRecord(header)) {
+                capture.url = WarcUtils.getCleanUrl(header);
                 HttpHeader http = HttpHeader.parse(record, capture.url);
                 if (http == null) {
                     return null;
@@ -219,6 +259,7 @@ public class Cdx {
                 capture.status = http.status;
                 capture.location = http.location;
             } else if (WarcUtils.isResourceRecord(header)) {
+                capture.url = WarcUtils.getCleanUrl(header);
                 capture.contentType = header.getMimetype();
                 capture.status = 200;
                 capture.location = null;
@@ -226,12 +267,11 @@ public class Cdx {
                 return null;
             }
 
-            capture.url = WarcUtils.getCleanUrl(header);
             capture.date = WarcUtils.getArcDate(header);
-            capture.contentLength = header.getContentLength();
             capture.offset = header.getOffset();
             capture.filename = filename;
             capture.digest = WarcUtils.getOrCalcDigest(record);
+
             return capture;
         }
     }

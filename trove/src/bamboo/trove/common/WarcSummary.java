@@ -1,5 +1,5 @@
-/**
- * Copyright 2016 National Library of Australia
+/*
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,19 @@
  */
 package bamboo.trove.common;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.math3.util.Pair;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class exists solely for ferrying data between the App server and the dashboard. We don't won't to be
  * serializing all of a Warc's data every time the UI ajax tick fires so this minimal summary object carries
  * only what is required. The heaviest work required is when errors exist... but we can accept that edge case.
  */
+@SuppressWarnings("unused")
 public class WarcSummary {
   @JsonIgnore
   private WarcProgressManager warc;

@@ -1,16 +1,5 @@
 package bamboo.crawl;
 
-import static droute.Response.response;
-import static droute.Response.seeOther;
-import static droute.Route.GET;
-import static droute.Route.POST;
-import static droute.Route.routes;
-
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-
 import bamboo.app.Bamboo;
 import bamboo.task.WarcToIndex;
 import bamboo.util.Markdown;
@@ -19,13 +8,19 @@ import bamboo.util.Parsing;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonWriter;
-import droute.Csrf;
-import droute.Handler;
-import droute.Request;
-import droute.Response;
-import droute.Streamable;
+import droute.*;
+
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+import static droute.Response.response;
+import static droute.Response.seeOther;
+import static droute.Route.*;
 
 public class CollectionsController {
+
     final Bamboo bamboo;
     public final Handler routes = routes(
             GET("/collections", this::index),
@@ -34,7 +29,8 @@ public class CollectionsController {
             GET("/collections/:id", this::show, "id", "[0-9]+"),
             GET("/collections/:id/edit", this::edit, "id", "[0-9]+"),
             POST("/collections/:id/edit", this::update, "id", "[0-9]+"),
-            GET("/collections/:id/warcs/json", this::warcs, "id", "[0-9]+"));
+            GET("/collections/:id/warcs/json", this::warcs, "id", "[0-9]+"),
+            GET("/collections/:id/warcs/sync", this::sync, "id", "[0-9]+"));
 
     private static final Gson gson;
     static {
@@ -117,6 +113,28 @@ public class CollectionsController {
             writer.endArray();
             writer.flush();
         }).withHeader("Content-Type", "application/json");
+    }
+
+    Response sync(Request request) {
+        long collectionId = Long.parseLong(request.urlParam("id"));
+        String afterParam = request.queryParam("after");
+        WarcResumptionToken after = afterParam == null ? WarcResumptionToken.MIN_VALUE : WarcResumptionToken.parse(afterParam);
+        int limit = Parsing.parseIntOrDefault(request.queryParam("limit"), 100);
+        List<WarcResumptionToken> results = bamboo.warcs.resumptionByCollectionIdAndStateId(collectionId, 2, after, limit);
+        return response(200, (Streamable) (OutputStream outStream) -> {
+            JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(outStream, StandardCharsets.UTF_8));
+            writer.beginArray();
+            for (WarcResumptionToken token: results) {
+                writer.beginObject();
+                writer.name("id").value(token.id);
+                writer.name("resumptionToken").value(token.toString());
+                writer.name("urlCount").value(token.urlCount);
+                writer.endObject();
+            }
+            writer.endArray();
+            writer.flush();
+        }).withHeader("Content-Type", "application/json");
+
     }
 
     class BambooWarcToIndex extends WarcToIndex {

@@ -1,5 +1,5 @@
-/**
- * Copyright 2016 National Library of Australia
+/*
+ * Copyright 2016-2017 National Library of Australia
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,22 +15,14 @@
  */
 package bamboo.trove.common;
 
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import au.gov.nla.trove.indexer.api.BaseDomainManager;
-import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.task.Document;
 import bamboo.trove.services.FilteringCoordinationService;
 import bamboo.trove.workers.FilterWorker;
 import bamboo.trove.workers.IndexerWorker;
 import bamboo.trove.workers.TransformWorker;
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
@@ -45,6 +37,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Required;
 
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.ReentrantLock;
+
 public abstract class BaseWarcDomainManager extends BaseDomainManager implements Runnable {
   private static Logger log = LoggerFactory.getLogger(BaseWarcDomainManager.class);
 
@@ -56,12 +59,18 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
 
   // Reading data from Bamboo
   private static Timer bambooReadTimer; 
-  private static Timer bambooParseTimer; 
+  private static Timer bambooParseTimer;
+  private static long bambooCacheNullLong = 0;
+  private static long bambooCacheHitLong = 0;
+  private static long bambooCacheMissLong = 0;
   private static Histogram warcDocCountHistogram;
   private static Histogram warcSizeHistogram;
   private static String bambooBaseUrl;
   private ObjectMapper objectMapper = new ObjectMapper();
   private JsonFactory jsonFactory = new JsonFactory();
+
+  // self registering list of domains
+  private static final List<BaseWarcDomainManager> domainsList = new ArrayList<>(); 
 
   // Managing pool tasks
   private static Queue<IndexerDocument> filterQueue = new ConcurrentLinkedQueue<>();
@@ -70,11 +79,8 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
 
   // Performing pool tasks
   private static int filterPoolLimit;
-  private static WorkProcessor filterPool;
   private static int transformPoolLimit;
-  private static WorkProcessor transformPool;
   private static int indexPoolLimit;
-  private static WorkProcessor indexPool;
 
   private static void notAlreadyStarted() {
     if (imStarted) {
@@ -84,6 +90,9 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   protected static void setBambooApiBaseUrl(String newBambooBaseUrl) {
     notAlreadyStarted();
     bambooBaseUrl = newBambooBaseUrl;
+  }
+  protected static String getBambooApiBaseUrl() {
+    return bambooBaseUrl;
   }
   protected static void setWorkerCounts(int filters, int transformers, int indexers) {
     notAlreadyStarted();
@@ -97,7 +106,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   // Trove indexer works. So here we want all domains to park and wait until after the 'full' domain has
   // started the shared worker pools.
   private static boolean imStarted = false;
-  protected static synchronized void startMe(EndPointDomainManager solr, FilteringCoordinationService filtering) {
+  protected static synchronized void startMe(FilteringCoordinationService filtering, boolean indexFullText) {
     if (imStarted) {
       throw new IllegalStateException("You started me twice!");
     }
@@ -113,6 +122,12 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     metrics.register("bambooReadTimer", bambooReadTimer);
     bambooParseTimer = new Timer();
     metrics.register("bambooParseTimer", bambooParseTimer);
+    Gauge<Long> bambooCacheNull = () -> bambooCacheNullLong;
+    metrics.register("bambooCacheNull", bambooCacheNull);
+    Gauge<Long> bambooCacheHit = () -> bambooCacheHitLong;
+    metrics.register("bambooCacheHit", bambooCacheHit);
+    Gauge<Long> bambooCacheMiss = () -> bambooCacheMissLong;
+    metrics.register("bambooCacheMiss", bambooCacheMiss);
     warcDocCountHistogram = new Histogram(new UniformReservoir());
     metrics.register("warcDocCountHistogram", warcDocCountHistogram);
     warcSizeHistogram = new Histogram(new UniformReservoir());
@@ -125,27 +140,38 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     metrics.register("indexTimer", indexTimer);
 
     // Filter workers
-    filterPool = new WorkProcessor(filterPoolLimit);
+    WorkProcessor filterPool = new WorkProcessor(filterPoolLimit);
     for (int i = 0; i < filterPoolLimit; i++) {
       filterPool.process(new FilterWorker(filtering, filterTimer));
     }
 
     // Transform workers
-    transformPool = new WorkProcessor(transformPoolLimit);
+    WorkProcessor transformPool = new WorkProcessor(transformPoolLimit);
     for (int i = 0; i < transformPoolLimit; i++) {
-      transformPool.process(new TransformWorker(transformTimer));
+      transformPool.process(new TransformWorker(transformTimer, indexFullText));
     }
 
     // Indexing workers
-    indexPool = new WorkProcessor(indexPoolLimit);
+    WorkProcessor indexPool = new WorkProcessor(indexPoolLimit);
     for (int i = 0; i < indexPoolLimit; i++) {
-      indexPool.process(new IndexerWorker(solr, indexTimer));
+      indexPool.process(new IndexerWorker(indexTimer));
     }
 
     imStarted = true;
   }
 
+  private static final ReentrantLock DOMAIN_START_LOCK = new ReentrantLock();
+  protected static void acquireDomainStartLock() {
+    DOMAIN_START_LOCK.lock();
+  }
+  protected static void releaseDomainStartLock() {
+    // Only the holding thread is allowed to call this,
+    // otherwise an IllegalMonitorStateException will be thrown
+    DOMAIN_START_LOCK.unlock();
+  }
+
   @VisibleForTesting
+  @SuppressWarnings("unused")
   public static void forTestSetMetricsRegistryName(String metricsRegistryName) {
     if (imStarted) {
       throw new IllegalStateException("Unit tests only!!!");
@@ -162,6 +188,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   }
 
   @VisibleForTesting
+  @SuppressWarnings("unused")
   public static void forTestSetBambooBaseUrl(String bambooBaseUrl) {
     if (imStarted) {
       throw new IllegalStateException("Unit tests only!!!");
@@ -169,7 +196,32 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     BaseWarcDomainManager.bambooBaseUrl = bambooBaseUrl;
   }
 
-  protected static void waitUntilStarted() throws InterruptedException {
+  protected static List<BaseWarcDomainManager> getDomainList(){
+  	// wait for domains to register
+  	// this code is needed to allow the domains to start but hide the circular dependency
+  	// and spring not able to control the start order.
+  	long timeoutSec = 20;
+  	long timeout = System.currentTimeMillis() + (timeoutSec*1000);
+  	while(domainsList.size()<3){
+      try{
+      	if(System.currentTimeMillis() > timeout){
+      		throw new IllegalStateException("Failed to register domains after "+timeoutSec+" secs.");
+      	}
+				Thread.sleep(1000);
+			}
+			catch (InterruptedException e){
+				// ignore
+			}
+      catch(IllegalStateException e){
+      	log.error("Error getting list of domains. Stop processing", e);
+      	System.exit(1);
+      }
+  	}
+  	return domainsList;
+  }
+
+  protected void waitUntilStarted() throws InterruptedException {
+  	domainsList.add(this);
     while (!imStarted) {
       Thread.sleep(1000);
     }
@@ -210,12 +262,9 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     return transformQueue.poll();
   }
 
+  @SuppressWarnings("unused")
   public static IndexerDocument getNextIndexJob(IndexerDocument lastJob) {
     return indexQueue.poll();
-  }
-
-  public WarcProgressManager getAndEnqueueWarc(long warcId, long urlCountEstimate) {
-    return getAndEnqueueWarc(warcId, -1, urlCountEstimate);
   }
 
   // Full domain overrides this
@@ -223,14 +272,40 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     return new WarcProgressManager(warcId, trackedOffset, urlCountEstimate);
   }
 
-  public WarcProgressManager getAndEnqueueWarc(long warcId, long trackedOffset, long urlCountEstimate) {
+  public WarcProgressManager getAndEnqueueWarc(ToIndex warcToIndex) {
     Timer.Context ctx = bambooReadTimer.time();
     HttpURLConnection connection = null;
-    WarcProgressManager warc = newWarc(warcId, trackedOffset, urlCountEstimate);
+    Long warcId = warcToIndex.getId();
+    WarcProgressManager warc = newWarc(warcId, warcToIndex.getTrackedOffset(), warcToIndex.getUrlCount());
 
     try {
-      URL url = new URL(bambooBaseUrl + "warcs/" + warcId + "/text");
+      String urlString = bambooBaseUrl + "warcs/" + warcId + "/text?tika=1&pdfbox=1";
+      if (warcToIndex.isRetryAttempt()) {
+        log.info("Forcing cache bypass for warc #{} because of error retry.", warcId);
+        urlString += "&bypass=1";
+      }
+      URL url = new URL(urlString);
       connection = (HttpURLConnection) url.openConnection();
+
+      String cacheStatus = connection.getHeaderField("X-Cache-Status");
+      // HIT is most likely when the cache is full and we are the bottleneck. test first
+      if ("HIT".equals(cacheStatus)) {
+        bambooCacheHitLong++;
+      } else {
+        // When the cache isn't full this will be normal. Bamboo will be the bottleneck
+        if ("MISS".equals(cacheStatus) || "BYPASS".equals(cacheStatus)) {
+          bambooCacheMissLong++;
+        } else {
+          // We don't really expect with of these.
+          if (cacheStatus == null) {
+            bambooCacheNullLong++;
+          } else {
+            log.error("Received unexpected cache header value: '{}'", cacheStatus);
+            throw new IllegalArgumentException("Unexpected response from Bamboo caching layer");
+          }
+        }
+      }
+
       InputStream in = new BufferedInputStream(connection.getInputStream());
       parseJson(warc, in);
       warc.setLoadComplete();
@@ -293,6 +368,18 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
 
     } finally {
       ctx.stop();
+    }
+  }
+
+  public void restartForRestrictionsDomain() {
+    if (isRunning()) {
+      log.info("restartForRestrictionsDomain() : Restarting '{}'", getName());
+      // By calling stop and then start we will 
+      // block behind the running restrictions domain that currently has the lock.
+      stop();
+      start();
+    } else {
+      log.info("restartForRestrictionsDomain() : Not running... '{}'", getName());
     }
   }
 

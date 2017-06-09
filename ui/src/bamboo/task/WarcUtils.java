@@ -6,6 +6,8 @@ import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.archive.io.warc.WARCReaderFactory;
 import org.archive.util.Base32;
+import org.netpreserve.urlcanon.Canonicalizer;
+import org.netpreserve.urlcanon.ParsedUrl;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -43,7 +45,9 @@ public class WarcUtils {
     }
 
     static String cleanUrl(String url) {
-        return url.replace(" ", "%20").replace("\r", "%0a").replace("\n", "%0d");
+        ParsedUrl parsedUrl = ParsedUrl.parseUrl(url);
+        Canonicalizer.WHATWG.canonicalize(parsedUrl);
+        return parsedUrl.toString().replace(" ", "%20").replace("\r", "%0a").replace("\n", "%0d");
     }
 
     static String getCleanUrl(ArchiveRecordHeader h) {

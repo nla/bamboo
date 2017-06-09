@@ -11,8 +11,14 @@ import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.pdfbox.io.MemoryUsageSetting;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.tika.Tika;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
+import org.netpreserve.urlcanon.Canonicalizer;
+import org.netpreserve.urlcanon.ParsedUrl;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
@@ -26,6 +32,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Date;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TextExtractor {
@@ -35,6 +42,29 @@ public class TextExtractor {
 
     private boolean boilingEnabled = false;
     private boolean usePdfBox = false;
+    private boolean useTika = false;
+
+    public static final Pattern PANDORA_REGEX = Pattern.compile("http://pandora.nla.gov.au/pan/[0-9]+/[0-9-]+/([^/.]+\\.[^/]+/.*)");
+    public static void setUrls(Document doc, String url) throws TextExtractionException {
+        String deliveryUrl = url;
+        Matcher m = PANDORA_REGEX.matcher(url);
+        if (m.matches()) {
+            // TODO: consult url.map
+            String hackedOffUrl = "http://" + m.group(1);
+            url = hackedOffUrl;
+        }
+        doc.setUrl(url);
+        ParsedUrl parse = ParsedUrl.parseUrl(deliveryUrl);
+        Canonicalizer.AGGRESSIVE.canonicalize(parse);
+        doc.setDeliveryUrl(parse.toString());
+
+        try {
+            doc.setHost(new URL(url).getHost());
+            doc.setSite(topPrivateDomain(url));
+        } catch (MalformedURLException e) {
+            throw new TextExtractionException(e);
+        }
+    }
 
     public Document extract(ArchiveRecord record) throws TextExtractionException {
         Document doc = new Document();
@@ -62,17 +92,11 @@ public class TextExtractor {
         }
 
         String arcDate = WarcUtils.getArcDate(warcHeader);
-        doc.setUrl(url);
+        setUrls(doc, url);
         doc.setContentLength(warcHeader.getContentLength());
         Instant instant = LocalDateTime.parse(arcDate, WarcUtils.arcDateFormat).atOffset(ZoneOffset.UTC).toInstant();
         doc.setDate(Date.from(instant));
         doc.setWarcOffset(warcHeader.getOffset());
-
-        try {
-            doc.setSite(topPrivateDomain(url));
-        } catch (MalformedURLException e) {
-            throw new TextExtractionException(e);
-        }
 
         String digest = (String) warcHeader.getHeaderValue("WARC-Payload-Digest");
         if (digest != null) {
@@ -89,13 +113,35 @@ public class TextExtractor {
         try {
             switch (doc.getContentType()) {
                 case "text/html":
-                    extractHtml(record, doc);
+                    if (useTika) {
+                        extractTika(record, doc);
+                    } else {
+                        extractHtml(record, doc);
+                    }
                     break;
                 case "application/pdf":
                     if (usePdfBox) {
                         extractPdfBox(record, doc);
                     } else {
                         extractPdf(record, doc);
+                    }
+                    break;
+                case "application/vnd.ms-excel":
+                case "text/csv":
+                case "application/csv":
+                case "application/vnd.ms-powerpoint":
+                case "application/msword":
+                case "application/vnd.ms-word.document.macroEnabled.12":
+                case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+                case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+                case "application/vnd.oasis.opendocument.presentation":
+                case "application/vnd.oasis.opendocument.text":
+                case "application/vnd.oasis.opendocument.spreadsheet":
+                    if (useTika) {
+                        extractTika(record, doc);
+                    } else {
+                        doc.setTextError("not implemented for content-type");
                     }
                     break;
                 default:
@@ -107,6 +153,34 @@ public class TextExtractor {
         }
 
         return doc;
+    }
+
+    public static void extractTika(InputStream record, Document doc) throws TextExtractionException {
+        Tika tika = new Tika();
+        Metadata metadata = new Metadata();
+        try {
+            String text = tika.parseToString(record, metadata, maxDocSize);
+            doc.setText(text);
+            doc.setTitle(metadata.get(TikaCoreProperties.TITLE));
+            doc.setDescription(getAny(metadata, "description", "DC.description", "DC.Description", "dcterms.description"));
+            doc.setKeywords(getAny(metadata, "keywords", "DC.keywords", "DC.Keywords", "dcterms.keywords"));
+            doc.setPublisher(getAny(metadata, "publisher", "DC.publisher", "DC.Publisher", "dcterms.publisher"));
+            doc.setCreator(getAny(metadata, "creator", "DC.creator", "DC.Creator", "dcterms.creator"));
+            doc.setContributor(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor", "dcterms.contributor"));
+            doc.setCoverage(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage"));
+        } catch (IOException | TikaException e) {
+            throw new TextExtractionException("Tika failed", e);
+        }
+    }
+
+    public static String getAny(Metadata metadata, String... keys) {
+        for (String key : keys) {
+            String value = metadata.get(key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private void extractHtml(ArchiveRecord record, Document doc) throws TextExtractionException {
@@ -194,6 +268,10 @@ public class TextExtractor {
                 doc.setTitle(title);
             }
 
+            doc.setKeywords(pdf.getDocumentInformation().getKeywords());
+            doc.setPublisher(pdf.getDocumentInformation().getAuthor());
+            doc.setCoverage(pdf.getDocumentInformation().getSubject());
+
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.writeText(pdf, new TruncatingWriter(sw, maxDocSize, deadline));
             doc.setText(sw.toString());
@@ -214,6 +292,10 @@ public class TextExtractor {
         public TruncatedException(String message) {
             super(message);
         }
+    }
+
+    public void setUseTika(boolean useTika) {
+        this.useTika = useTika;
     }
 
     static class TruncatingWriter extends FilterWriter {
