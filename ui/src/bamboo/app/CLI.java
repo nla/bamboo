@@ -22,6 +22,10 @@ public class CLI {
 
     public static void main(String[] args) throws IOException {
         Bamboo bamboo = new Bamboo();
+        if (args.length == 0) {
+            usage();
+            return;
+        }
         switch (args[0]) {
             case "import-pandas-all":
                 checkPandasIntegration(bamboo);
