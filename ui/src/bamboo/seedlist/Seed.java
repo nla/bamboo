@@ -40,7 +40,7 @@ public class Seed {
     public String topPrivateDomain() {
         try {
             return InternetDomainName.from(URLParser.parse(getUrl()).getHost()).topPrivateDomain().toString();
-        } catch (URISyntaxException e) {
+        } catch (URISyntaxException | IllegalArgumentException e) {
             return getUrl();
         }
     }
