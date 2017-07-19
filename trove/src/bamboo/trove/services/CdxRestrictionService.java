@@ -240,6 +240,7 @@ public class CdxRestrictionService {
   public LastRun startProcess() {
     if (updateRun == null || updateRun.getAllCompleted() != null) {
       updateRun = dao.startNewRun();
+      TODAY = updateRun.getStarted();
     }
     return updateRun;
   }
