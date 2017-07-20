@@ -667,7 +667,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
   @Override
   public void start() {
-    throw new IllegalArgumentException(); //startProcessing();
+    throw new IllegalArgumentException("Rule processing is not to be started or stopped manually"); //startProcessing();
   }
 
   private void startProcessing() {
@@ -682,7 +682,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
   @Override
   public void stop() {
-    throw new IllegalArgumentException();
+    throw new IllegalArgumentException("Rule processing is not to be started or stopped manually");
   }
 
   private void stopProcessing() {
