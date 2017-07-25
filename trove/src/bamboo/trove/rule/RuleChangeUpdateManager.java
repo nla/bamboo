@@ -95,6 +95,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private int maxIndexWorkers;
   private int scheduleTimeHour;
   private int scheduleTimeMinute;
+  private int solrReadSize = 5000;
 
   private String collection;
   private String zookeeperConfig = null;
@@ -176,6 +177,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     log.info("Solr zk path          : {}", zookeeperConfig);
     log.info("Collection            : {}", collection);
     log.info("Number of workers     : {}", NUMBER_OF_WORKERS);
+    log.info("Solr read size        : {}", solrReadSize);
     if (disableRulesUpdates) {
       log.warn("!!! Rule updating is currently disabled by configuration");
     }
@@ -302,6 +304,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     // Check for early termination
     if (earlyAbortNightlyRun || !running) {
       log.warn("Aborting execution of nightly rules processing. Early terminated requested.");
+      progress = "Warning: Aborting execution of nightly rules processing. Early terminated requested.";
       return;
     }
 
@@ -317,6 +320,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       restrictionsService.finishNightlyRun();
       running = false;
       stopping = false;
+      lastProcessed = restrictionsService.getLastProcessed();
+      progress = null;
       return;
     }
 
@@ -359,6 +364,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     // Check for early termination
     if (earlyAbortNightlyRun || !running) {
       log.warn("Aborting execution of nightly rules processing. Early terminated requested.");
+      progress = "Warning: Aborting execution of nightly rules processing. Early terminated requested.";
       return;
     }
 
@@ -577,7 +583,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     q.setFilterQueries(query);
     q.setFields(SOLR_FIELDS);
     q.setSort(SortClause.asc(SolrEnum.ID.toString()));
-    q.setRows(1000);
+    q.setRows(solrReadSize);
     return q;
   }
 
@@ -665,7 +671,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
   @Override
   public void start() {
-    throw new IllegalArgumentException(); //startProcessing();
+    throw new IllegalArgumentException("Rule processing is not to be started or stopped manually"); //startProcessing();
   }
 
   private void startProcessing() {
@@ -680,7 +686,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
   @Override
   public void stop() {
-    throw new IllegalArgumentException();
+    throw new IllegalArgumentException("Rule processing is not to be started or stopped manually");
   }
 
   private void stopProcessing() {
@@ -764,6 +770,10 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     NUMBER_OF_WORKERS = numberOfWorkers;
   }
 
+  public void setSolrReadSize(int solrReadSize){
+		this.solrReadSize = solrReadSize;
+	}
+  
   private static class Schedule implements Runnable {
     private RuleChangeUpdateManager manager;
     long nextRun;
