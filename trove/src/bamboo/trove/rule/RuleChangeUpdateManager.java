@@ -304,6 +304,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     // Check for early termination
     if (earlyAbortNightlyRun || !running) {
       log.warn("Aborting execution of nightly rules processing. Early terminated requested.");
+      progress = "Warning: Aborting execution of nightly rules processing. Early terminated requested.";
       return;
     }
 
@@ -319,6 +320,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       restrictionsService.finishNightlyRun();
       running = false;
       stopping = false;
+      lastProcessed = restrictionsService.getLastProcessed();
+      progress = null;
       return;
     }
 
@@ -361,6 +364,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     // Check for early termination
     if (earlyAbortNightlyRun || !running) {
       log.warn("Aborting execution of nightly rules processing. Early terminated requested.");
+      progress = "Warning: Aborting execution of nightly rules processing. Early terminated requested.";
       return;
     }
 
