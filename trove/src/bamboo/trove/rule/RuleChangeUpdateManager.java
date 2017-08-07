@@ -35,6 +35,7 @@ import org.apache.solr.client.solrj.SolrQuery.SortClause;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrInputDocument;
@@ -546,7 +547,9 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   			url = url.substring(0, url.length()-1);
   		}
   	}
-    return SolrEnum.URL_TOKENIZED + ":" + CdxAccessControl.getSearchUrl(url);
+  	url = CdxAccessControl.getSearchUrl(url);
+  	url = ClientUtils.escapeQueryChars(url);
+    return SolrEnum.URL_TOKENIZED + ":" + url;
   }
 
   private WorkLog findDocumentsNewRule(CdxRule newRule, String notLastIndexed) throws SolrServerException, IOException {
