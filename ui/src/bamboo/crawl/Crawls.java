@@ -152,6 +152,7 @@ public class Crawls {
         }
     }
 
+
     private Path createWarcsDir(Crawl crawl) throws IOException {
         Path warcsDir = allocateCrawlPath(crawl).resolve("warcs");
         if (!Files.exists(warcsDir)) {

@@ -1,9 +1,13 @@
 package bamboo.app;
 
+import bamboo.crawl.Scrub;
+import bamboo.crawl.Warc;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,16 +52,17 @@ public class CLI {
                 bamboo.crawls.importHeritrixCrawl(args[1], Long.parseLong(args[2]));
                 break;
             case "insert-warc":
-                List<Path> warcFiles = new ArrayList<>();
+                long crawlId = Long.parseLong(args[1]);
                 for (int i = 2; i < args.length; i++) {
                     Path path = Paths.get(args[i]);
                     if (!Files.exists(path)) {
                         System.err.println("File not found: " + path);
                         System.exit(1);
                     }
-                    warcFiles.add(path);
+                    long size = Files.size(path);
+                    String digest = Scrub.calculateDigest("SHA-256", path);
+                    bamboo.warcs.create(crawlId, Warc.IMPORTED, path, path.getFileName().toString(), size, digest);
                 }
-                bamboo.crawls.addWarcs(Long.parseLong(args[1]), warcFiles);
                 break;
             /* FIXME: restore these
             case "cdx-indexer":
