@@ -1,6 +1,11 @@
 package bamboo.app;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CLI {
     public static void usage() {
@@ -42,12 +47,19 @@ public class CLI {
             case "import":
                 bamboo.crawls.importHeritrixCrawl(args[1], Long.parseLong(args[2]));
                 break;
-            /* FIXME: restore these
             case "insert-warc":
+                List<Path> warcFiles = new ArrayList<>();
                 for (int i = 2; i < args.length; i++) {
-                    bamboo.insertWarc(Long.parseLong(args[1]), args[i]);
+                    Path path = Paths.get(args[i]);
+                    if (!Files.exists(path)) {
+                        System.err.println("File not found: " + path);
+                        System.exit(1);
+                    }
+                    warcFiles.add(path);
                 }
+                bamboo.crawls.addWarcs(Long.parseLong(args[1]), warcFiles);
                 break;
+            /* FIXME: restore these
             case "cdx-indexer":
                 bamboo.runCdxIndexer();
                 break;
