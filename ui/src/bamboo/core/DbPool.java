@@ -22,6 +22,8 @@ public class DbPool implements Closeable {
         long start = System.currentTimeMillis();
 
         ds = new ViburDBCPDataSource();
+        ds.setPoolInitialSize(1);
+        ds.setPoolMaxSize(32);
         ds.setName("BambooDBPool");
         ds.setJdbcUrl(config.getDbUrl());
         ds.setUsername(config.getDbUser());
