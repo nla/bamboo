@@ -54,6 +54,7 @@ import au.gov.nla.trove.indexer.api.AcknowledgeWorker;
 import au.gov.nla.trove.indexer.api.EndPointDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.trove.common.BaseWarcDomainManager;
+import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.EndPointRotator;
 import bamboo.trove.common.LastRun;
 import bamboo.trove.common.SolrEnum;
@@ -70,7 +71,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
 
   private static final String[] SOLR_FIELDS = new String[] {SolrEnum.ID.toString(), SolrEnum.DISPLAY_URL.toString(),
           SolrEnum.DELIVERY_URL.toString(), SolrEnum.DATE.toString(), SolrEnum.BOOST.toString(),
-          SolrEnum.RULE.toString()};
+          SolrEnum.RULE.toString(), SolrEnum.DELIVERABLE.toString(), SolrEnum.DISCOVERABLE.toString()};
   private static final SimpleDateFormat format = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss'Z'");
   private static int NUMBER_OF_WORKERS = 5;
   private static final ZoneId TZ = ZoneId.systemDefault();
@@ -654,9 +655,11 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       Date capture = (Date) doc.getFieldValue(SolrEnum.DATE.toString());
       float boost = (Float) doc.getFieldValue(SolrEnum.BOOST.toString());
       int ruleId = (Integer) doc.getFieldValue(SolrEnum.RULE.toString());
-
-      RuleRecheckWorker worker = new RuleRecheckWorker(id, deliveryUrl, capture, ruleId, boost,
-              workLog, manager, restrictionsService);
+      Boolean deliverable = (Boolean) doc.getFieldValue(SolrEnum.DELIVERABLE.toString());
+      Boolean discoverable = (Boolean) doc.getFieldValue(SolrEnum.DELIVERABLE.toString());
+      DocumentStatus currentPolicy = DocumentStatus.status(deliverable, discoverable);
+      RuleRecheckWorker worker = new RuleRecheckWorker(id, deliveryUrl, capture, ruleId, 
+      		currentPolicy,boost, workLog, manager, restrictionsService);
 
       workProcessor.process(worker);
     }

@@ -20,5 +20,18 @@ public enum DocumentStatus {
   NOT_APPLICABLE,
   RESTRICTED_FOR_DELIVERY,
   RESTRICTED_FOR_DISCOVERY,
-  RESTRICTED_FOR_BOTH
+  RESTRICTED_FOR_BOTH;
+  
+  public static DocumentStatus status(Boolean deliverable, Boolean discoverable){
+  	if((deliverable!=null && !deliverable) && (discoverable != null && !discoverable)){
+  		return RESTRICTED_FOR_BOTH;
+  	}
+  	if(deliverable!=null && !deliverable){
+  		return RESTRICTED_FOR_DELIVERY;
+  	}
+  	if(discoverable!=null && !discoverable){
+  		return RESTRICTED_FOR_DISCOVERY;
+  	}
+  	return ACCEPTED;
+  }
 }
