@@ -246,8 +246,8 @@ public class CdxRestrictionServiceTest {
     SolrQuery query = manager.convertRuleToSearch(ruleSet.getRules().get(1144L), "");
     boolean found = false;
     // We do not want to see *:* on the end
-    String target = "(" + SolrEnum.URL_TOKENIZED + ":pandora.nla.gov.au/pan/35531/) OR ("
-            + SolrEnum.URL_TOKENIZED + ":adultshop.com.au/)";
+    String target = "(" + SolrEnum.URL_TOKENIZED + ":pandora.nla.gov.au\\/pan\\/35531\\/) OR ("
+            + SolrEnum.URL_TOKENIZED + ":adultshop.com.au\\/)";
     for (String fq : query.getFilterQueries()) {
       if (target.equals(fq)) {
         found = true;

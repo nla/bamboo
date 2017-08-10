@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Timer;
 
+import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.common.cdx.CdxRule;
 import bamboo.trove.services.CdxRestrictionService;
@@ -46,18 +47,20 @@ class RuleRecheckWorker implements Runnable {
   private String url;
   private Date capture;
   private int existingRuleId;
+  private DocumentStatus existingPolicy;
   private RuleChangeUpdateManager.WorkLog workLog;
   private float solrBoost = 1.0f;
 
-  RuleRecheckWorker(String id, String url, Date capture, int existingRuleId, float solrBoost,
-                    RuleChangeUpdateManager.WorkLog workLog, RuleChangeUpdateManager manager,
-                    CdxRestrictionService service) {
+	RuleRecheckWorker(String id, String url, Date capture, int existingRuleId, DocumentStatus existingPolicy,
+			float solrBoost, RuleChangeUpdateManager.WorkLog workLog, RuleChangeUpdateManager manager,
+			CdxRestrictionService service){
     this.manager = manager;
     this.service = service;
     this.id = id;
     this.url = url;
     this.capture = capture;
     this.existingRuleId = existingRuleId;
+    this.existingPolicy = existingPolicy;
     this.solrBoost = solrBoost;
     this.workLog = workLog;
   }
@@ -80,8 +83,11 @@ class RuleRecheckWorker implements Runnable {
 
   private SolrInputDocument processResultsRecheckRule() {
     CdxRule rule = service.filterDocument(url, capture);
-    // Cutout if the rule hasn't changed (and we are not writing all objects back just to touch their timestamp)
-    if (manager.isMinimizingWriteTraffic() && existingRuleId == rule.getId()) {
+    // Cutout if the rule and policy hasn't changed 
+    // (and we are not writing all objects back just to touch their timestamp)
+    if (manager.isMinimizingWriteTraffic() 
+    		&& existingRuleId == rule.getId() 
+    		&& existingPolicy.equals(rule.getIndexerPolicy())) {
       return null;
     }
 
