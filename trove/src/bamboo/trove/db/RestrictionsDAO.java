@@ -87,6 +87,9 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
    *
    * SQL, methods and mappers related to rules set retrieval
    */
+  @SqlQuery("SELECT count(*) FROM " + TABLE_RULESET )
+  abstract Long getCountRuleset();
+
   @SqlQuery("SELECT id FROM " + TABLE_RULESET + " WHERE retired IS NULL AND activated IS NOT NULL")
   abstract Long getCurrentRulesetId();
 
@@ -99,6 +102,10 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   public CdxAccessControl getCurrentRules() {
     Long ruleSetId = getCurrentRulesetId();
     if (ruleSetId == null) {
+    	// only allowed to return null for the first run
+    	if(getCountRuleset() > 0){
+    		throw new IllegalStateException("No current rule Set and this is not the first run. ");
+    	}
       return null;
     }
     List<CdxRule> rules = getRules(ruleSetId);
