@@ -21,6 +21,8 @@ import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.archive.url.SURT;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
@@ -54,6 +56,7 @@ public class SolrIndexer implements Runnable {
 
     private final DbPool dbPool;
     private SolrServer solr;
+    private static final Logger log = LoggerFactory.getLogger(SolrIndexer.class);
 
     public SolrIndexer(DbPool dbPool) {
         this.dbPool = dbPool;
@@ -149,6 +152,10 @@ public class SolrIndexer implements Runnable {
                     try {
                         solr.add(surt, doc);
                     } catch (RuntimeException e) {
+                        if (e.getMessage().contains("Invalid UTF-8 character")) {
+                            log.warn("Unable to index " + doc.get("id"), e);
+                            break;
+                        }
                         System.err.println("Error indexing " + doc.get("id"));
                         throw e;
                     }
