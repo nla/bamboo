@@ -1,6 +1,5 @@
 package bamboo.core;
 
-import com.googlecode.flyway.core.Flyway;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.StatementContext;
@@ -8,6 +7,8 @@ import org.skife.jdbi.v2.logging.PrintStreamLog;
 import org.skife.jdbi.v2.tweak.Argument;
 import org.skife.jdbi.v2.tweak.ArgumentFactory;
 import org.vibur.dbcp.ViburDBCPDataSource;
+
+import org.flywaydb.core.Flyway;
 
 import java.io.Closeable;
 import java.io.PrintWriter;
