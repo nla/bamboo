@@ -20,7 +20,7 @@ public class Markdown {
             SMARTYPANTS;
     private static final Whitelist HTML_WHITELIST = Whitelist.relaxed().preserveRelativeLinks(true);
 
-    public static String render(String markdown, URI baseUri) {
+    public static String render(String markdown, String baseUri) {
         if (markdown == null || markdown.isEmpty()) {
             return null;
         }
@@ -32,12 +32,12 @@ public class Markdown {
         return clean.body().html();
     }
 
-    private static void rewriteFragmentLinks(Document doc, URI baseUri) {
+    private static void rewriteFragmentLinks(Document doc, String baseUri) {
         Elements links = doc.select("a");
         for (Element link : links) {
             String href = link.attr("href");
             if (href != null && href.startsWith("#")) {
-                link.attr("href", baseUri.toString() + href);
+                link.attr("href", baseUri + href);
             }
         }
     }

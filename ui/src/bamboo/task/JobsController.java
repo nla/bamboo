@@ -1,41 +1,38 @@
 package bamboo.task;
 
 import bamboo.app.Bamboo;
-import droute.Csrf;
-import droute.Handler;
-import droute.Request;
-import droute.Response;
+import bamboo.util.Csrf;
 import org.apache.commons.io.FileUtils;
+import spark.Request;
+import spark.Response;
+import spark.Spark;
 
 import java.io.IOException;
 
-import static droute.Response.*;
-import static droute.Route.*;
+import static bamboo.util.Freemarker.render;
 
 public class JobsController {
     final Bamboo bamboo;
-    public final Handler routes = routes(
-            GET("/jobs", this::index),
-            POST("/jobs/:job/delete", this::delete));
+
+    public void routes() {
+        Spark.get("/jobs", this::index);
+        Spark.post("/jobs/:job/delete", this::delete);
+    }
 
     public JobsController(Bamboo bamboo) {
         this.bamboo = bamboo;
     }
 
-    Response delete(Request request) {
-        String jobName = request.urlParam("job");
+    String delete(Request request, Response response) throws IOException {
+        String jobName = request.params(":job");
         HeritrixJob job = HeritrixJob.byName(bamboo.config.getHeritrixJobs(), jobName);
-        try {
-            FileUtils.deleteDirectory(job.dir().toFile());
-        } catch (IOException e) {
-            e.printStackTrace();
-            return response(500, e.toString());
-        }
-        return seeOther(request.contextUri().resolve("jobs").toString());
+        FileUtils.deleteDirectory(job.dir().toFile());
+        response.redirect(request.contextPath() + "/jobs", 303);
+        return "";
     }
 
-    Response index(Request request) {
-        return render("bamboo/views/jobs/index.ftl",
+    String index(Request request, Response response) {
+        return render(request, "bamboo/views/jobs/index.ftl",
                 "csrfToken", Csrf.token(request),
                 "heritrixUrl", bamboo.config.getHeritrixUrl(),
                 "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()));

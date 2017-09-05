@@ -3,12 +3,17 @@ package bamboo.seedlist;
 import bamboo.app.Bamboo;
 import bamboo.pandas.Pandas;
 import bamboo.pandas.PandasComparison;
+import bamboo.util.Csrf;
+import bamboo.util.Freemarker;
 import bamboo.util.Markdown;
-import droute.*;
 import org.archive.url.SURT;
 import org.archive.url.SURTTokenizer;
+import spark.Request;
+import spark.Response;
+import spark.Spark;
 
 import java.io.BufferedWriter;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
@@ -17,68 +22,66 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 
-import static droute.Response.*;
-import static droute.Route.GET;
-import static droute.Route.POST;
-
 public class SeedlistsController {
 
     private final Seedlists seedlists;
     private final Pandas pandas;
 
-    public final Handler routes = Route.routes(
-            GET("/seedlists", this::index),
-            GET("/seedlists/new", this::newForm),
-            POST("/seedlists/create", this::create),
-            GET("/seedlists/:id", this::show, "id", "[0-9]+"),
-            GET("/seedlists/:id/edit", this::edit, "id", "[0-9]+"),
-            POST("/seedlists/:id/edit", this::update, "id", "[0-9]+"),
-            POST("/seedlists/:id/delete", this::delete, "id", "[0-9]+"),
-            GET("/seedlists/:id/export/:format", this::export, "id", "[0-9]+"),
-            GET("/seedlists/:id/compare", this::compare, "id", "[0-9]+"),
-            GET("/seedlists/:id/compare/pandas", this::compareWithPandas, "id", "[0-9]+"),
-            GET("/seedlists/:id1/compare/:id2", this::showComparison, "id1", "[0-9]+", "id2", "[0-9]+"),
-            GET("/seedlists/:id1/compare/:id2/:sublist/export/:format", this::exportComparison, "id1", "[0-9]+", "id2", "[0-9]+"),
-            GET("/seedlists/:id1/compare/:id2/:sublist/saveas", this::saveComparison, "id1", "[0-9]+", "id2", "[0-9]+")
-    );
+    public void routes() {
+        Spark.get("/seedlists", this::index);
+        Spark.get("/seedlists/new", this::newForm);
+        Spark.post("/seedlists/create", this::create);
+        Spark.get("/seedlists/:id", this::show);
+        Spark.get("/seedlists/:id/edit", this::edit);
+        Spark.post("/seedlists/:id/edit", this::update);
+        Spark.post("/seedlists/:id/delete", this::delete);
+        Spark.get("/seedlists/:id/export/:format", this::export);
+        Spark.get("/seedlists/:id/compare", this::compare);
+        Spark.get("/seedlists/:id/compare/pandas", this::compareWithPandas);
+        Spark.get("/seedlists/:id1/compare/:id2", this::showComparison);
+        Spark.get("/seedlists/:id1/compare/:id2/:sublist/export/:format", this::exportComparison);
+        Spark.get("/seedlists/:id1/compare/:id2/:sublist/saveas", this::saveComparison);
+    }
 
     public SeedlistsController(Bamboo bamboo) {
         seedlists = bamboo.seedlists;
         pandas = bamboo.pandas;
     }
 
-    Response render(String view, Object... model) {
-        // FIXME: load templates relative to class?
-        return Response.render("/" + getClass().getName().replaceFirst("\\.[^.]*$","").replace('.', '/') + "/" + view, model);
+    String render(Request request, String view, Object... model) {
+        return Freemarker.render(request, "bamboo/seedlist/" + view, model);
     }
 
-    Response index(Request request) {
-        return render("views/index.ftl",
+    String index(Request request, Response response) {
+        return render(request, "views/index.ftl",
                 "seedlists", seedlists.listAll());
     }
 
-    Response newForm(Request request) {
-        return render("views/new.ftl",
+    String newForm(Request request, Response response) {
+        return render(request, "views/new.ftl",
                 "csrfToken", Csrf.token(request));
     }
 
-    Response saveComparison(Request request) {
-        Comparison comparison = new Comparison(seedlists, request);
-        return render("views/new.ftl",
-                "seeds", comparison.sublist(request.param("sublist")),
+    String saveComparison(Request request, Response response) {
+        Comparison comparison = new Comparison(seedlists,
+                Long.parseLong(request.params(":id1")),
+                Long.parseLong(request.params(":id2")));
+        return render(request, "views/new.ftl",
+                "seeds", comparison.sublist(request.params(":sublist")),
                 "csrfToken", Csrf.token(request));
     }
 
-
-    Response create(Request request) {
+    String create(Request request, Response response) {
         long seedlistId = seedlists.create(new Form(request));
-        return seeOther(request.contextUri().resolve("seedlists/" + seedlistId).toString());
+        response.redirect(request.contextPath() + "/seedlists/" + seedlistId, 303);
+        return "";
     }
 
-    Response update(Request request) {
-        long seedlistId = Long.parseLong(request.urlParam("id"));
+    String update(Request request, Response response) {
+        long seedlistId = Long.parseLong(request.params(":id"));
         seedlists.update(seedlistId, new Form(request));
-        return seeOther(request.contextUri().resolve("seedlists/" + seedlistId).toString());
+        response.redirect(request.contextPath() + "/seedlists/" + seedlistId, 303);
+        return "";
     }
 
     private static class Form implements Seedlists.Update {
@@ -91,18 +94,18 @@ public class SeedlistsController {
 
         @Override
         public String getName() {
-            return request.formParam("name");
+            return request.queryParams("name");
         }
 
         @Override
         public String getDescription() {
-            return request.formParam("description");
+            return request.queryParams("description");
         }
 
         @Override
         public Collection<Seed> getSeeds() {
             Set<Seed> seeds = new HashSet<>();
-            for (String url : request.formParam("seeds").split("\n")) {
+            for (String url : request.queryParams("seeds").split("\n")) {
                 url = SURTTokenizer.addImpliedHttpIfNecessary(url.trim());
                 seeds.add(new Seed(url));
             }
@@ -110,72 +113,80 @@ public class SeedlistsController {
         }
     }
 
-    Response show(Request request) {
-        long id = Long.parseLong(request.urlParam("id"));
+    String show(Request request, Response response) {
+        long id = Long.parseLong(request.params(":id"));
         Seedlist seedlist = seedlists.get(id);
-        return render("views/show.ftl",
+        return render(request, "views/show.ftl",
                 "seedlist", seedlist,
                 "descriptionHtml", Markdown.render(seedlist.getDescription(), request.uri()),
                 "seeds", seedlists.listSeeds(id));
     }
 
-    Response edit(Request request) {
-        long id = Long.parseLong(request.urlParam("id"));
+    String edit(Request request, Response response) {
+        long id = Long.parseLong(request.params(":id"));
         Seedlist seedlist = seedlists.get(id);
-        return render("views/edit.ftl",
+        return render(request, "views/edit.ftl",
                 "csrfToken", Csrf.token(request),
                 "seedlist", seedlist,
                 "seeds", seedlists.listSeeds(id));
     }
 
 
-    Response delete(Request request) {
-        long seedlistId = Long.parseLong(request.urlParam("id"));
+    String delete(Request request, Response response) {
+        long seedlistId = Long.parseLong(request.params(":id"));
         seedlists.delete(seedlistId);
-        return seeOther(request.contextUri().resolve("seedlists").toString());
+        response.redirect(request.contextPath() + "/seedlists", 303);
+        return "";
     }
 
-    Response export(Request request) {
-        long seedlistId = Long.parseLong(request.urlParam("id"));
-        return export(seedlists.listSeeds(seedlistId), exportFormat(request.param("format")));
+    String export(Request request, Response response) throws IOException {
+        long seedlistId = Long.parseLong(request.params(":id"));
+        return export(seedlists.listSeeds(seedlistId), exportFormat(request.params(":format")), response);
     }
 
-    private Response exportComparison(Request request) {
-        List<Seed> sublist = new Comparison(seedlists, request).sublist(request.param("sublist"));
-        UnaryOperator<String> format = exportFormat(request.param("format"));
-        return export(sublist, format);
+    private String exportComparison(Request request, Response response) throws IOException {
+        List<Seed> sublist = new Comparison(seedlists,
+                Long.parseLong(request.params(":id1")),
+                Long.parseLong(request.params(":id2"))).sublist(request.params(":sublist"));
+        UnaryOperator<String> format = exportFormat(request.params(":format"));
+        return export(sublist, format, response);
     }
 
-    private Response export(List<Seed> seeds, UnaryOperator<String> transformation) {
-        return response((Streamable) out -> {
-            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
+    private String export(List<Seed> seeds, UnaryOperator<String> transformation, Response response) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(response.raw().getOutputStream(), StandardCharsets.UTF_8))) {
             for (Seed seed : seeds) {
                 writer.write(transformation.apply(seed.getUrl()));
                 writer.write("\n");
             }
             writer.flush();
-        });
+            return "";
+        }
     }
 
     UnaryOperator<String> exportFormat(String formatName) {
         switch (formatName) {
-            case "urls": return UnaryOperator.identity();
-            case "surts": return SURT::toSURT;
-            default: throw new IllegalArgumentException("unsupported export format");
+            case "urls":
+                return UnaryOperator.identity();
+            case "surts":
+                return SURT::toSURT;
+            default:
+                throw new IllegalArgumentException("unsupported export format");
         }
     }
 
-    Response compare(Request request) {
-        long id = Long.parseLong(request.urlParam("id"));
+    String compare(Request request, Response response) {
+        long id = Long.parseLong(request.params(":id"));
         Seedlist seedlist = seedlists.get(id);
-        return render("views/compare.ftl",
+        return render(request, "views/compare.ftl",
                 "seedlist", seedlist,
                 "seedlists", seedlists.listAll());
     }
 
-    Response showComparison(Request request) {
-        Comparison comparison = new Comparison(seedlists, request);
-        return render("views/comparison.ftl",
+    String showComparison(Request request, Response response) {
+        Comparison comparison = new Comparison(seedlists,
+                Long.parseLong(request.params(":id1")),
+                Long.parseLong(request.params(":id2")));
+        return render(request, "views/comparison.ftl",
                 "seedlist1", comparison.seedlist1,
                 "seedlist2", comparison.seedlist2,
                 "onlyIn1", comparison.onlyIn1,
@@ -183,16 +194,16 @@ public class SeedlistsController {
                 "common", comparison.common);
     }
 
-    Response compareWithPandas(Request request) {
+    String compareWithPandas(Request request, Response response) {
         if (pandas == null) {
-            return notFound("PANDAS integration is not configured");
+            throw Spark.halt(404, "PANDAS integration not configured");
         }
 
-        long seedlistId = Long.parseLong(request.urlParam("id"));
+        long seedlistId = Long.parseLong(request.params(":id"));
         Seedlist seedlist = seedlists.get(seedlistId);
         PandasComparison comparison = pandas.compareSeedlist(seedlistId);
 
-        return render("views/pandas.ftl",
+        return render(request, "views/pandas.ftl",
                 "seedlist", seedlist,
                 "matches", comparison.matches,
                 "unmatched", comparison.unmatched);

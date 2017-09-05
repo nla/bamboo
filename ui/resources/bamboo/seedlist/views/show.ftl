@@ -30,7 +30,7 @@
 
 <div class="description well">
     <div class="panel-body">
-        [#noescape]${descriptionHtml!"No description."}[/#noescape]
+        ${(descriptionHtml!"No description.")?no_esc}
     </div>
 </div>
 
@@ -39,7 +39,7 @@
     [#list seeds as seed]
         [#assign domain = seed.topPrivateDomain()]
         <tr [#if domain != prevDomain]class="table-sep"[/#if]>
-            <td><a href="${seed.url}">[#noescape]${seed.highlighted()}[/#noescape]</a></td>
+            <td><a href="${seed.url}">${seed.highlighted()?no_esc}</a></td>
         </tr>
         [#assign prevDomain = domain]
     [/#list]

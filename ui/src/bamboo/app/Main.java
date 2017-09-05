@@ -1,13 +1,24 @@
 package bamboo.app;
 
-import droute.Handler;
-import droute.ShotgunHandler;
-import droute.nanohttpd.NanoServer;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import spark.Spark;
+import spark.embeddedserver.EmbeddedServer;
+import spark.embeddedserver.EmbeddedServers;
+import spark.embeddedserver.jetty.EmbeddedJettyFactory;
+import spark.embeddedserver.jetty.EmbeddedJettyServer;
+import spark.embeddedserver.jetty.JettyHandler;
+import spark.http.matching.MatcherFilter;
+import spark.route.Routes;
+import spark.staticfiles.StaticFilesConfiguration;
 
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.nio.channels.Channel;
-import java.nio.channels.ServerSocketChannel;
 import java.util.Arrays;
 
 public class Main {
@@ -30,14 +41,14 @@ public class Main {
         System.err.println("Usage: java " + Bamboo.class.getName() + " [-b bindaddr] [-p port] [-i]");
         System.err.println("");
         System.err.println("  -b bindaddr   Bind to a particular IP address");
-        System.err.println("  -i            Inherit the server socket via STDIN (for use with systemd, inetd etc)");
         System.err.println("  -p port       Local port to listen on");
+        System.err.println("  -c path       Set context path");
     }
 
-    public static void server(String[] args) throws IOException {
+    public static void server(String[] args) throws IOException, InterruptedException {
         int port = 8080;
         String host = null;
-        boolean inheritSocket = false;
+        String contextPath = null;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "-p":
@@ -46,29 +57,56 @@ public class Main {
                 case "-b":
                     host = args[++i];
                     break;
-                case "-i":
-                    inheritSocket = true;
+                case "-c":
+                    contextPath = args[++i];
                     break;
                 default:
                     serverUsage();
                     System.exit(1);
             }
         }
-        Handler handler = new ShotgunHandler("bamboo.app.Webapp");
-        if (inheritSocket) {
-            Channel channel = System.inheritedChannel();
-            if (channel != null && channel instanceof ServerSocketChannel) {
-                new NanoServer(handler, ((ServerSocketChannel) channel).socket()).startAndJoin();
-                System.exit(0);
-            }
-            System.err.println("When -i is given STDIN must be a ServerSocketChannel, but got " + channel);
-            System.exit(1);
-        }
+        Spark.port(port);
         if (host != null) {
-            new NanoServer(handler, host, port).startAndJoin();
-        } else {
-            new NanoServer(handler, port).startAndJoin();
+            Spark.ipAddress(host);
+        }
+
+        if (contextPath != null) {
+            String path = contextPath;
+            EmbeddedServers.add(EmbeddedServers.Identifiers.JETTY, new EmbeddedJettyFactory() {
+                @Override
+                public EmbeddedServer create(Routes routeMatcher, StaticFilesConfiguration staticFilesConfiguration, boolean hasMultipleHandler) {
+                    MatcherFilter matcherFilter = new MatcherFilter(routeMatcher, staticFilesConfiguration, false, hasMultipleHandler);
+                    matcherFilter.init((FilterConfig) null);
+                    JettyHandler handler = new JettyHandler(matcherFilter) {
+                        @Override
+                        public void doHandle(String target, org.eclipse.jetty.server.Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+                            request = new HttpServletRequestWrapper(request) {
+                                @Override
+                                public String getRequestURI() {
+                                    // Spark unfortunately uses getRequestURI() for routing rather than pathInfo
+                                    // so we work around it here.
+                                    return super.getRequestURI().substring(path.length());
+                                }
+                            };
+                            super.doHandle(target, baseRequest, request, response);
+                        }
+                    };
+                    ServletContextHandler servletContextHandler = new ServletContextHandler();
+                    servletContextHandler.setContextPath(path);
+                    servletContextHandler.setHandler(handler);
+                    return new EmbeddedJettyServer((i, j, k) -> {
+                        Server server = new Server();
+                        return server;
+                    }, servletContextHandler);
+                }
+            });
+        }
+
+        try (Webapp webapp = new Webapp()) {
+            Spark.awaitInitialization();
+            while (true) {
+                Thread.sleep(1000000000);
+            }
         }
     }
-
 }

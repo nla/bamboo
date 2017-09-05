@@ -1,7 +1,5 @@
 package bamboo.seedlist;
 
-import droute.Request;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -13,11 +11,8 @@ class Comparison {
     final List<Seed> onlyIn2 = new ArrayList<>();
     final List<Seed> common = new ArrayList<>();
 
-    Comparison(Seedlists seedlists, Request request) {
+    Comparison(Seedlists seedlists, long id1, long id2) {
         List<Seed> seeds1, seeds2;
-
-        long id1 = Long.parseLong(request.urlParam("id1"));
-        long id2 = Long.parseLong(request.urlParam("id2"));
 
         seedlist1 = seedlists.get(id1);
         seedlist2 = seedlists.get(id2);

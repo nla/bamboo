@@ -5,139 +5,99 @@ import bamboo.crawl.CollectionsController;
 import bamboo.crawl.CrawlsController;
 import bamboo.crawl.SeriesController;
 import bamboo.crawl.WarcsController;
-import bamboo.directory.CategoryController;
-import bamboo.task.HeritrixJob;
 import bamboo.seedlist.SeedlistsController;
+import bamboo.task.HeritrixJob;
 import bamboo.task.JobsController;
 import bamboo.task.TasksController;
-import droute.*;
-import freemarker.ext.beans.BeansWrapper;
-import freemarker.template.Configuration;
+import bamboo.util.Csrf;
+import bamboo.util.Freemarker;
+import org.apache.commons.lang.StringEscapeUtils;
+import spark.ExceptionHandler;
+import spark.Request;
+import spark.Response;
+import spark.Spark;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.io.UncheckedIOException;
-import java.net.URL;
+import java.util.Date;
 
 import static bamboo.util.Parsing.parseLongOrDefault;
-import static droute.Response.*;
-import static droute.Route.*;
 
-public class Webapp implements Handler, AutoCloseable {
+public class Webapp implements AutoCloseable {
     final Bamboo bamboo;
-    final Handler handler;
 
     public Webapp(Bamboo bamboo) {
         this.bamboo = bamboo;
 
-        final Handler routes = routes(
-                GET("/webjars/*", this::serveWebjars),
-                resources("/assets", "bamboo/assets"),
-                GET("/", this::index),
-                GET("/import", this::showImportForm),
-                POST("/import", this::performImport),
-                GET("/healthcheck", this::healthcheck),
-                new CollectionsController(bamboo).routes,
-                new CrawlsController(bamboo).routes,
-                new CategoryController(bamboo).routes,
-                new JobsController(bamboo).routes,
-                new SeedlistsController(bamboo).routes,
-                new SeriesController(bamboo).routes,
-                new TasksController(bamboo).routes,
-                new WarcsController(bamboo).routes,
-                notFoundHandler("404. Alas, there is nothing here."));
+        Spark.staticFileLocation("META-INF/resources");
 
-        Configuration fremarkerConfig = FreeMarkerHandler.defaultConfiguration(Bamboo.class, "/");
-        fremarkerConfig.addAutoInclude("/bamboo/views/layout.ftl");
-        BeansWrapper beansWrapper = BeansWrapper.getDefaultInstance();
-        beansWrapper.setExposeFields(true);
-        fremarkerConfig.setObjectWrapper(beansWrapper);
-        Handler handler = new FreeMarkerHandler(fremarkerConfig, routes);
-        handler = Csrf.protect(handler);
-        this.handler = errorHandler(handler);
+        Spark.exception(NotFoundException.class, (e, request, response) -> {
+            response.status(404);
+            response.body("Not found: " + e.getMessage());
+        });
+
+        Spark.exception(Exception.class, (e, request, response) -> {
+            response.status(500);
+            StringWriter sw = new StringWriter();
+            e.printStackTrace(new PrintWriter(sw));
+            String stackTrace = StringEscapeUtils.escapeHtml(sw.toString());
+            response.body("<!doctype html><h1>Internal Server Error</h1><p>Please include the following text when reporting this error:</p><pre>"
+                    + request.requestMethod() + " " + request.uri() + " " + new Date() + "\n"
+                    + stackTrace + "</pre>");
+        });;
+
+        Spark.before(Csrf::protect);
+
+        Spark.get("/", this::index);
+        Spark.get("/import", this::showImportForm);
+        Spark.post("/import", this::performImport);
+        Spark.get("/healthcheck", this::healthcheck);
+
+        new CollectionsController(bamboo).routes();
+        new CrawlsController(bamboo).routes();
+        new JobsController(bamboo).routes();
+        new SeedlistsController(bamboo).routes();
+        new SeriesController(bamboo).routes();
+        new TasksController(bamboo).routes();
+        new WarcsController(bamboo).routes();
     }
 
-    private Response serveWebjars(Request request) {
-        String path = "/META-INF/resources/webjars/" + request.urlParam("*").replace("../", "");
-
-        // workaround for something in droute converting "+" to " "
-        path = path.replace(" ", "+");
-
-        URL url = getClass().getResource(path);
-        if (url != null) {
-            try {
-                return Response.resource(url);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        } else {
-            return NEXT_HANDLER;
-        }
-    }
-
-    private Response healthcheck(Request request) {
+    private String healthcheck(Request request, Response response) {
         StringWriter out = new StringWriter();
         boolean ok = bamboo.healthcheck(new PrintWriter(out));
-        return response(ok ? 200 : 500, out.toString()).withHeader("Content-Type", "text/plain");
+        response.status(ok ? 200 : 500);
+        response.type("text/plain");
+        return out.toString();
     }
 
     public Webapp() {
         this(new Bamboo());
     }
 
-    /**
-     * Dump a copy of the stack trace to the client on uncaught exceptions.
-     */
-    static Handler errorHandler(Handler handler) {
-        return request -> {
-            try {
-                return handler.handle(request);
-            } catch (NotFoundException e) {
-                return notFound("Not found: " + e.getMessage());
-            } catch (NotFound e) {
-                return notFound(e.getMessage());
-            } catch (Exception t) {
-                StringWriter out = new StringWriter();
-                t.printStackTrace();
-                t.printStackTrace(new PrintWriter(out));
-                return response(500, "Internal Server Error\n\n" + out.toString());
-            }
-        };
-    }
-
-    Response index(Request request) {
-        return render("bamboo/views/index.ftl",
+    String index(Request request, Response response) {
+        return Freemarker.render(request, "bamboo/views/index.ftl",
                 "seriesList", bamboo.serieses.listAll(),
                 "collections", bamboo.collections.listAll());
     }
 
-    Response showImportForm(Request request) {
-        return render("bamboo/views/import.ftl",
+    String showImportForm(Request request, Response response) {
+        return Freemarker.render(request, "bamboo/views/import.ftl",
                 "allCrawlSeries", bamboo.serieses.listImportable(),
-                "selectedCrawlSeriesId", parseLongOrDefault(request.queryParam("crawlSeries"), -1),
+                "selectedCrawlSeriesId", parseLongOrDefault(request.queryParams("crawlSeries"), -1),
                 "jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()),
                 "csrfToken", Csrf.token(request));
     }
 
-    Response performImport(Request request) {
-        String jobName = request.param("heritrixJob");
-        long crawlSeriesId = Long.parseLong(request.param("crawlSeriesId"));
+    String performImport(Request request, Response response) {
+        String jobName = request.queryParams("heritrixJob");
+        long crawlSeriesId = Long.parseLong(request.queryParams("crawlSeriesId"));
         long crawlId = bamboo.crawls.importHeritrixCrawl(jobName, crawlSeriesId);
-        return seeOther(request.contextUri().resolve("crawls/" + crawlId).toString());
-    }
-
-    Response badRequest(String message) {
-        return response(400, message);
+        response.redirect(request.contextPath() + "/crawls/" + crawlId, 303);
+        return "";
     }
 
     @Override
-    public Response handle(Request request) {
-        return handler.handle(request);
-    }
-
-    @Override
-    public void close() throws Exception {
+    public void close() {
         bamboo.close();
     }
 

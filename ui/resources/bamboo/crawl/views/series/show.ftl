@@ -6,7 +6,7 @@
     <div class="col-md-8">
         <div class="description well">
             <div class="panel-body">
-                [#noescape]${descriptionHtml!"No description."}[/#noescape]
+                ${(descriptionHtml!"No description.")?no_esc}
             </div>
         </div>
     </div>

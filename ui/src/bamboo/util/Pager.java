@@ -1,7 +1,6 @@
 package bamboo.util;
 
-import droute.Request;
-
+import spark.Request;
 import java.util.List;
 
 import static bamboo.util.Parsing.parseLongOrDefault;
@@ -24,7 +23,7 @@ public class Pager<T> {
 
     @Deprecated
     public Pager(Request request, String pageParam, long totalItems, PaginationQuery<T> query) {
-        this(parseLongOrDefault(request.queryParam(pageParam), 1), totalItems, query);
+        this(parseLongOrDefault(request.queryParams(pageParam), 1), totalItems, query);
     }
 
     public interface PaginationQuery<T> {

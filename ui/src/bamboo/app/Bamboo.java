@@ -7,7 +7,6 @@ import bamboo.crawl.Collections;
 import bamboo.crawl.Crawls;
 import bamboo.crawl.Serieses;
 import bamboo.crawl.Warcs;
-import bamboo.directory.Categories;
 import bamboo.pandas.Pandas;
 import bamboo.seedlist.Seedlists;
 import bamboo.task.CdxIndexer;
@@ -25,7 +24,6 @@ public class Bamboo implements AutoCloseable {
     public final Collections collections;
     public final Seedlists seedlists;
     public final Pandas pandas;
-    public final Categories categories;
 
     public final Taskmaster taskmaster;
     private final CdxIndexer cdxIndexer;
@@ -53,9 +51,6 @@ public class Bamboo implements AutoCloseable {
         this.warcs = new Warcs(dao.warcs());
         this.crawls = new Crawls(dao.crawls(), serieses, warcs);
         this.collections = new Collections(dao.collections());
-
-        // directory pacakge
-        this.categories = new Categories(dao.directory());
 
         // seedlist package
         this.seedlists = new Seedlists(dao.seedlists());
