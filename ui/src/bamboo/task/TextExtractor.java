@@ -208,8 +208,12 @@ public class TextExtractor {
                     info.setTitle(link.getTitle());
                 }
                 if (baseUrl != null) {
-                    String url = baseUrl.resolve(link.getUri()).toString();
-                    info.setUrl(WarcUtils.cleanUrl(url));
+                    try {
+                        String url = baseUrl.resolve(link.getUri()).toString();
+                        info.setUrl(WarcUtils.cleanUrl(url));
+                    } catch (IllegalArgumentException e) {
+                        // bad url
+                    }
                 }
                 links.add(info);
             }
