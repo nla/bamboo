@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 
 import static org.junit.Assert.assertEquals;
 
@@ -37,7 +38,7 @@ public class TextExtractorTest {
     public void textExtractTika() throws IOException, TextExtractionException {
         Document doc = new Document();
         try (InputStream stream = getClass().getResourceAsStream("example.odt")) {
-            TextExtractor.extractTika(stream, doc);
+            TextExtractor.extractTika(stream, doc, URI.create("http://example.net/subdir/example.odt"));
         }
         assertEquals("Visible title\n" +
                 "This is an example.\n", doc.getText());
@@ -48,14 +49,14 @@ public class TextExtractorTest {
     public void textExtractBadTitle() throws IOException, TextExtractionException {
         Document doc = new Document();
         try (InputStream stream = getClass().getResourceAsStream("badtitle.html")) {
-            TextExtractor.extractTika(stream, doc);
+            TextExtractor.extractTika(stream, doc, URI.create("http://example.net/subdir/badtitle.html"));
         }
         assertEquals("Ministerial Decision and Recommendations: New South Wales Ocean Trawl Fishery", doc.getTitle());
         assertEquals("Test\nLink text", doc.getText().trim());
         assertEquals("this is a description", doc.getDescription());
         assertEquals("this is keywords", doc.getKeywords());
 
-        assertEquals("style.css", doc.getLinks().get(1).getUrl());
+        assertEquals("http://example.net/subdir/style.css", doc.getLinks().get(1).getUrl());
     }
 
     @Test

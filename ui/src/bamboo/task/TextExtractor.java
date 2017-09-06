@@ -29,6 +29,7 @@ import org.xml.sax.SAXException;
 
 import java.io.*;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -79,6 +80,13 @@ public class TextExtractor {
 
         String url = WarcUtils.getCleanUrl(warcHeader);
 
+        URI uri;
+        try {
+            uri = URI.create(url);
+        } catch (IllegalArgumentException e) {
+            uri = null;
+        }
+
         if (WarcUtils.isResponseRecord(warcHeader)) {
             HttpHeader httpHeader;
             try {
@@ -121,7 +129,7 @@ public class TextExtractor {
             switch (doc.getContentType()) {
                 case "text/html":
                     if (useTika) {
-                        extractTika(record, doc);
+                        extractTika(record, doc, uri);
                     } else {
                         extractHtml(record, doc);
                     }
@@ -146,7 +154,7 @@ public class TextExtractor {
                 case "application/vnd.oasis.opendocument.text":
                 case "application/vnd.oasis.opendocument.spreadsheet":
                     if (useTika) {
-                        extractTika(record, doc);
+                        extractTika(record, doc, uri);
                     } else {
                         doc.setTextError("not implemented for content-type");
                     }
@@ -162,7 +170,7 @@ public class TextExtractor {
         return doc;
     }
 
-    public static void extractTika(InputStream record, Document doc) throws TextExtractionException {
+    public static void extractTika(InputStream record, Document doc, URI baseUrl) throws TextExtractionException {
         Tika tika = new Tika();
         Metadata metadata = new Metadata();
         try {
@@ -188,7 +196,7 @@ public class TextExtractor {
                 }
                 LinkInfo info = new LinkInfo();
                 info.setType(link.getType());
-                info.setUrl(link.getUri());
+                info.setHref(link.getUri());
                 if (!"".equals(link.getText())) {
                     info.setText(link.getText());
                 }
@@ -197,6 +205,10 @@ public class TextExtractor {
                 }
                 if (!"".equals(link.getTitle())) {
                     info.setTitle(link.getTitle());
+                }
+                if (baseUrl != null) {
+                    String url = baseUrl.resolve(link.getUri()).toString();
+                    info.setUrl(WarcUtils.cleanUrl(url));
                 }
                 links.add(info);
             }

@@ -6,6 +6,7 @@ public class LinkInfo {
     private String url;
     private String rel;
     private String title;
+    private String href;
 
     public void setText(String text) {
         this.text = text;
@@ -45,5 +46,13 @@ public class LinkInfo {
 
     public String getRel() {
         return rel;
+    }
+
+    public void setHref(String href) {
+        this.href = href;
+    }
+
+    public String getHref() {
+        return href;
     }
 }
