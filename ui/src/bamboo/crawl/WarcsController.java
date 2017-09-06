@@ -27,13 +27,18 @@ import com.google.common.base.Charsets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonWriter;
+import net.didion.jwnl.data.Exc;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import spark.Spark;
 import spark.Request;
 import spark.Response;
 
 public class WarcsController {
+    private static final Logger log = LoggerFactory.getLogger(WarcsController.class);
+
     final Bamboo wa;
     public void routes() {
         Spark.get("/warcs/:id", this::serve);
@@ -231,6 +236,8 @@ public class WarcsController {
             writer.endArray();
             writer.flush();
             return "";
+        } catch (Exception e) {
+            log.error("Error during text extraction of WARC " + warc.getId() + " " + warc.getPath(), e);
         }
     }
 
