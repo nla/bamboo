@@ -176,7 +176,7 @@ public class TextExtractor {
         Metadata metadata = new Metadata();
         try {
             ParseContext parseContext = new ParseContext();
-            LinkContentHandler linkHandler = new LinkContentHandler();
+            LinkContentHandler linkHandler = new LinkContentHandler(true);
             BodyContentHandler bodyHandler = new BodyContentHandler(maxDocSize);
             TeeContentHandler teeHandler = new TeeContentHandler(linkHandler, bodyHandler);
             tika.getParser().parse(record, teeHandler, metadata, parseContext);
