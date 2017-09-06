@@ -238,6 +238,7 @@ public class WarcsController {
             return "";
         } catch (Exception e) {
             log.error("Error during text extraction of WARC " + warc.getId() + " " + warc.getPath(), e);
+            return "";
         }
     }
 
