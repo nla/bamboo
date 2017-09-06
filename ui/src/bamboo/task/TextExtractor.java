@@ -183,12 +183,21 @@ public class TextExtractor {
 
             List<LinkInfo> links = new ArrayList<>();
             for (Link link: linkHandler.getLinks()) {
+                if ("".equals(link.getUri())) {
+                    continue;
+                }
                 LinkInfo info = new LinkInfo();
-                info.setText(link.getText());
                 info.setType(link.getType());
                 info.setUrl(link.getUri());
-                info.setRel(link.getRel());
-                info.setTitle(link.getTitle());
+                if (!"".equals(link.getText())) {
+                    info.setText(link.getText());
+                }
+                if (!"".equals(link.getRel())) {
+                    info.setRel(link.getRel());
+                }
+                if (!"".equals(link.getTitle())) {
+                    info.setTitle(link.getTitle());
+                }
                 links.add(info);
             }
             doc.setLinks(links);
