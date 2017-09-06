@@ -30,6 +30,7 @@ import org.xml.sax.SAXException;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -80,13 +81,6 @@ public class TextExtractor {
 
         String url = WarcUtils.getCleanUrl(warcHeader);
 
-        URI uri;
-        try {
-            uri = URI.create(url);
-        } catch (IllegalArgumentException e) {
-            uri = null;
-        }
-
         if (WarcUtils.isResponseRecord(warcHeader)) {
             HttpHeader httpHeader;
             try {
@@ -123,6 +117,13 @@ public class TextExtractor {
 
         if (doc.getContentType() == null) {
             throw new TextExtractionException("no content type");
+        }
+
+        URI uri;
+        try {
+            uri = new URI(doc.getUrl());
+        } catch (URISyntaxException e) {
+            uri = null;
         }
 
         try {
