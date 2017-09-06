@@ -15,6 +15,11 @@ import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.sax.Link;
+import org.apache.tika.sax.LinkContentHandler;
+import org.apache.tika.sax.TeeContentHandler;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.netpreserve.urlcanon.Canonicalizer;
@@ -31,7 +36,9 @@ import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -159,7 +166,12 @@ public class TextExtractor {
         Tika tika = new Tika();
         Metadata metadata = new Metadata();
         try {
-            String text = tika.parseToString(record, metadata, maxDocSize);
+            ParseContext parseContext = new ParseContext();
+            LinkContentHandler linkHandler = new LinkContentHandler();
+            BodyContentHandler bodyHandler = new BodyContentHandler(maxDocSize);
+            TeeContentHandler teeHandler = new TeeContentHandler(linkHandler, bodyHandler);
+            tika.getParser().parse(record, teeHandler, metadata, parseContext);
+            String text = bodyHandler.toString();
             doc.setText(text);
             doc.setTitle(metadata.get(TikaCoreProperties.TITLE));
             doc.setDescription(getAny(metadata, "description", "DC.description", "DC.Description", "dcterms.description"));
@@ -168,7 +180,19 @@ public class TextExtractor {
             doc.setCreator(getAny(metadata, "creator", "DC.creator", "DC.Creator", "dcterms.creator"));
             doc.setContributor(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor", "dcterms.contributor"));
             doc.setCoverage(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage"));
-        } catch (IOException | TikaException e) {
+
+            List<LinkInfo> links = new ArrayList<>();
+            for (Link link: linkHandler.getLinks()) {
+                LinkInfo info = new LinkInfo();
+                info.setText(link.getText());
+                info.setType(link.getType());
+                info.setUrl(link.getUri());
+                info.setRel(link.getRel());
+                info.setTitle(link.getTitle());
+                links.add(info);
+            }
+            doc.setLinks(links);
+        } catch (IOException | TikaException | SAXException e) {
             throw new TextExtractionException("Tika failed", e);
         }
     }

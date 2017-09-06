@@ -1,5 +1,6 @@
 package bamboo.task;
 
+import com.google.gson.Gson;
 import com.lowagie.text.pdf.PdfReader;
 import org.junit.Test;
 
@@ -50,9 +51,11 @@ public class TextExtractorTest {
             TextExtractor.extractTika(stream, doc);
         }
         assertEquals("Ministerial Decision and Recommendations: New South Wales Ocean Trawl Fishery", doc.getTitle());
-        assertEquals("Test", doc.getText().trim());
+        assertEquals("Test\nLink text", doc.getText().trim());
         assertEquals("this is a description", doc.getDescription());
         assertEquals("this is keywords", doc.getKeywords());
+
+        assertEquals("style.css", doc.getLinks().get(1).getUrl());
     }
 
     @Test

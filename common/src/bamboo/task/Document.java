@@ -3,6 +3,7 @@ package bamboo.task;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.util.Date;
+import java.util.List;
 
 public class Document {
     private String url;
@@ -32,6 +33,7 @@ public class Document {
     private String creator;
     private String contributor;
     private String coverage;
+    private List<LinkInfo> links;
 
     public String getUrl() {
         return url;
@@ -199,5 +201,13 @@ public class Document {
 
     public String getCoverage() {
         return coverage;
+    }
+
+    public void setLinks(List<LinkInfo> links) {
+        this.links = links;
+    }
+
+    public List<LinkInfo> getLinks() {
+        return links;
     }
 }
