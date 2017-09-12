@@ -35,6 +35,9 @@ public class Document {
     private String coverage;
     private List<LinkInfo> links;
 
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    private boolean pandora;
+
     public String getUrl() {
         return url;
     }
@@ -209,5 +212,13 @@ public class Document {
 
     public List<LinkInfo> getLinks() {
         return links;
+    }
+
+    public boolean isPandora() {
+        return pandora;
+    }
+
+    public void setPandora(boolean pandora) {
+        this.pandora = pandora;
     }
 }

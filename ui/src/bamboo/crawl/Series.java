@@ -14,6 +14,7 @@ public class Series {
     private long records;
     private long recordBytes;
     private String description;
+    private boolean pandora;
 
     public Series() {
     }
@@ -27,6 +28,7 @@ public class Series {
         setRecords(rs.getLong("records"));
         setRecordBytes(rs.getLong("record_bytes"));
         setDescription(rs.getString("description"));
+        setPandora(rs.getBoolean("pandora"));
     }
 
     private static Path maybePath(String path) {
@@ -95,5 +97,13 @@ public class Series {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public boolean isPandora() {
+        return pandora;
+    }
+
+    public void setPandora(boolean pandora) {
+        this.pandora = pandora;
     }
 }
