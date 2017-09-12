@@ -7,17 +7,6 @@
 </div>
 
 <div class="form-group">
-    <div class="col-lg-2"></div>
-    <div class="col-lg-10 checkbox">
-        <label>
-            <input type="checkbox" name="pandora" [#if (series.pandora)!false]checked[/#if]>
-            Treat as PANDORA content (for Trove search purposes)
-        </label>
-    </div>
-</div>
-
-
-<div class="form-group">
     <label for="path" class="col-lg-2 control-label">Archival Path</label>
     <div class="col-lg-10">
         <input class="form-control" id="path" value="${(series.path)!}" name="path">

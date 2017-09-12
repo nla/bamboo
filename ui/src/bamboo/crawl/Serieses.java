@@ -30,12 +30,12 @@ public class Serieses {
     }
 
     public long create(Series series) {
-        return dao.createCrawlSeries(series.getName(), series.getPath(), series.getDescription(), series.isPandora());
+        return dao.createCrawlSeries(series.getName(), series.getPath(), series.getDescription());
     }
 
     public void update(long seriesId, Series series, List<Long> collectionIds, List<String> collectionUrlFilters) {
         String path = series.getPath() == null ? null : series.getPath().toString();
-        int rows1 = dao.updateCrawlSeries(seriesId, series.getName(), path, series.getDescription(), series.isPandora());
+        int rows1 = dao.updateCrawlSeries(seriesId, series.getName(), path, series.getDescription());
         if (rows1 > 0) {
             dao.removeCrawlSeriesFromAllCollections(seriesId);
             dao.addCrawlSeriesToCollections(seriesId, collectionIds, collectionUrlFilters);
@@ -52,9 +52,5 @@ public class Serieses {
 
     public List<Series> listImportable() {
         return dao.listImportableCrawlSeries();
-    }
-
-    public Series getForCrawl(long crawlId) {
-        return NotFoundException.check(dao.findCrawlSeriesForCrawl(crawlId), "crawl", crawlId);
     }
 }

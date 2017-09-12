@@ -27,6 +27,7 @@ import com.google.common.base.Charsets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonWriter;
+import net.didion.jwnl.data.Exc;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
 import org.slf4j.Logger;
@@ -218,7 +219,6 @@ public class WarcsController {
         }
 
         Warc warc = findWarc(request);
-        Series series = wa.serieses.getForCrawl(warc.getCrawlId());
         response.type("application/json");
         try (ArchiveReader reader = WarcUtils.open(warc.getPath());
              JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.raw().getOutputStream(),
@@ -228,7 +228,6 @@ public class WarcsController {
                 if (record.getHeader().getUrl() == null) continue;
                 try {
                     Document doc = extractor.extract(record);
-                    doc.setPandora(series.isPandora());
                     gson.toJson(doc, Document.class, writer);
                 } catch (TextExtractionException e) {
                     continue; // skip it

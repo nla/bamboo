@@ -45,9 +45,6 @@ public interface SeriesDAO {
     @SqlQuery("SELECT * FROM crawl_series WHERE id = :id")
     Series findCrawlSeriesById(@Bind("id") long crawlSeriesId);
 
-    @SqlQuery("SELECT * FROM crawl_series WHERE id = (SELECT crawl_series_id FROM crawl WHERE id = :crawlId)")
-    Series findCrawlSeriesForCrawl(long crawlId);
-
     @SqlQuery("SELECT * FROM crawl_series ORDER BY name")
     List<Series> listCrawlSeries();
 
@@ -63,12 +60,12 @@ public interface SeriesDAO {
     @SqlUpdate("UPDATE crawl_series SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCrawlSeries(@Bind("id") long crawlSeriesId, @Bind("records") long records, @Bind("bytes") long bytes);
 
-    @SqlUpdate("INSERT INTO crawl_series (name, path, description, pandora) VALUES (:name, :path, :description, :pandora)")
+    @SqlUpdate("INSERT INTO crawl_series (name, path, description) VALUES (:name, :path, :description)")
     @GetGeneratedKeys
-    long createCrawlSeries(@Bind("name") String name, @Bind("path") Path path, @Bind("description") String description, @Bind("pandora") boolean pandora);
+    long createCrawlSeries(@Bind("name") String name, @Bind("path") Path path, @Bind("description") String description);
 
-    @SqlUpdate("UPDATE crawl_series SET name = :name, path = :path, description = :description, pandora = :pandora WHERE id = :id")
-    int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path, @Bind("description") String description, @Bind("pandora") boolean pandora);
+    @SqlUpdate("UPDATE crawl_series SET name = :name, path = :path, description = :description WHERE id = :id")
+    int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path, @Bind("description") String description);
 
     @SqlUpdate("UPDATE crawl_series SET warc_files = (SELECT COALESCE(SUM(warc_files), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), warc_size = (SELECT COALESCE(SUM(warc_size), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), records = (SELECT COALESCE(SUM(records), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), record_bytes = (SELECT COALESCE(SUM(record_bytes), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id)")
     int refreshWarcStatsOnCrawlSeries();

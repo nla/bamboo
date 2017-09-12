@@ -53,7 +53,6 @@ public class SeriesController {
         Series series = new Series();
         series.setName(request.queryParams("name"));
         series.setDescription(request.queryParams("description"));
-        series.setPandora(request.queryParams("pandora") != null);
 
         String path = request.queryParams("path");
         if (path != null && !path.isEmpty()) {
