@@ -46,7 +46,7 @@ public interface SeriesDAO {
     Series findCrawlSeriesById(@Bind("id") long crawlSeriesId);
 
     @SqlQuery("SELECT * FROM crawl_series WHERE id = (SELECT crawl_series_id FROM crawl WHERE id = :crawlId)")
-    Series findCrawlSeriesForCrawl(@Bind("crawlId") long crawlId);
+    Series findCrawlSeriesForCrawl(long crawlId);
 
     @SqlQuery("SELECT * FROM crawl_series ORDER BY name")
     List<Series> listCrawlSeries();
