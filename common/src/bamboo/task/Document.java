@@ -34,6 +34,7 @@ public class Document {
     private String contributor;
     private String coverage;
     private List<LinkInfo> links;
+    private List<CollectionInfo> collections;
 
     public String getUrl() {
         return url;
@@ -209,5 +210,13 @@ public class Document {
 
     public List<LinkInfo> getLinks() {
         return links;
+    }
+
+    public List<CollectionInfo> getCollections() {
+        return collections;
+    }
+
+    public void setCollections(List<CollectionInfo> collections) {
+        this.collections = collections;
     }
 }

@@ -13,15 +13,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import bamboo.app.Bamboo;
-import bamboo.task.Cdx;
-import bamboo.task.Document;
-import bamboo.task.TextExtractionException;
-import bamboo.task.TextExtractor;
-import bamboo.task.WarcUtils;
+import bamboo.task.*;
 import bamboo.util.Freemarker;
 import bamboo.util.Parsing;
+import bamboo.util.SurtFilter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.gson.Gson;
@@ -30,6 +28,7 @@ import com.google.gson.stream.JsonWriter;
 import net.didion.jwnl.data.Exc;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
+import org.archive.url.SURT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import spark.Spark;
@@ -203,6 +202,23 @@ public class WarcsController {
 
     private static final TextExtractor extractor = new TextExtractor();
 
+    static class CollectionMatcher {
+        private final SurtFilter filter;
+        final CollectionInfo info;
+
+        public CollectionMatcher(CollectionWithFilters collectionWithFilters) {
+            this.info = new CollectionInfo();
+            info.setId(collectionWithFilters.getId());
+            info.setName(collectionWithFilters.getName());
+            this.filter = new SurtFilter(collectionWithFilters.urlFilters);
+        }
+
+        public boolean matches(String url) {
+            String surt = SURT.toSURT(url);
+            return surt != null && this.filter.accepts(url);
+        }
+    }
+
     private String showText(Request request, Response response) throws IOException {
         TextExtractor extractor = new TextExtractor();
 
@@ -219,6 +235,10 @@ public class WarcsController {
         }
 
         Warc warc = findWarc(request);
+        Crawl crawl = wa.crawls.get(warc.getCrawlId());
+        List<CollectionMatcher> collections = wa.collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())
+                .stream().map(CollectionMatcher::new).collect(Collectors.toList());
+
         response.type("application/json");
         try (ArchiveReader reader = WarcUtils.open(warc.getPath());
              JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.raw().getOutputStream(),
@@ -228,6 +248,13 @@ public class WarcsController {
                 if (record.getHeader().getUrl() == null) continue;
                 try {
                     Document doc = extractor.extract(record);
+                    List<CollectionInfo> docCollections = new ArrayList<>();
+                    for (CollectionMatcher matcher: collections) {
+                        if (matcher.matches(doc.getUrl())) {
+                            docCollections.add(matcher.info);
+                        }
+                    }
+                    doc.setCollections(docCollections);
                     gson.toJson(doc, Document.class, writer);
                 } catch (TextExtractionException e) {
                     continue; // skip it
