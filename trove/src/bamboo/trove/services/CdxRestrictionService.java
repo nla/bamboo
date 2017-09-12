@@ -154,7 +154,7 @@ public class CdxRestrictionService {
       RulesDiff diff;
       if (currentRules == null) {
         // First run in the environment
-        diff = (new CdxAccessControl(new ArrayList<>())).checkForRulesChanges(newRules);
+        diff = (new CdxAccessControl(-1, new ArrayList<>())).checkForRulesChanges(newRules);
       } else {
         // Normal
         diff = currentRules.checkForRulesChanges(newRules);
@@ -187,7 +187,7 @@ public class CdxRestrictionService {
       rulesInUse = newRules;
       log.info("Setting 'rulesInUse' to new value");
       // A funky way of generating a diff that will flag everything as 'new'
-      return (new CdxAccessControl(new ArrayList<>())).checkForRulesChanges(newRules);
+      return (new CdxAccessControl(-1, new ArrayList<>())).checkForRulesChanges(newRules);
     }
 
     // Normal nightly update
@@ -203,7 +203,6 @@ public class CdxRestrictionService {
         throw new RulesOutOfDateException("Error processing nightly rules.", e);
       }
       newRules = freshRules;
-      currentRules = newRules;
       rulesInUse = newRules;
       return diff;
     }
@@ -284,7 +283,7 @@ public class CdxRestrictionService {
   public void finishNightlyRun() {
     // Update run metadata
     if (updateRun.getAllCompleted() == null) {
-      dao.finishNightyRun(updateRun.getId(), newRules);
+      dao.finishNightyRun(updateRun.getId(), newRules, currentRules);
       updateRun = dao.getRunById(updateRun.getId());
     }
     if(newRules != null){

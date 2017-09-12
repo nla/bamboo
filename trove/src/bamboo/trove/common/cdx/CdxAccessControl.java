@@ -51,6 +51,7 @@ public class CdxAccessControl {
     DEFAULT_RULE.setId(-1);
   }
 
+  private long rulesSetId;
   private final Map<Long, CdxRule> rules;
   private final RulesBySsurt rulesBySurt;
 
@@ -82,7 +83,11 @@ public class CdxAccessControl {
    *
    * @param rules The CDX Rules from the database, WITH translated policy references.
    */
-  public CdxAccessControl(List<CdxRule> rules) {
+  public CdxAccessControl(long rulesSetId, List<CdxRule> rules) {
+  	if(rulesSetId == 0){
+  		throw new IllegalArgumentException("Must supply rules set id.");
+  	}
+  	this.rulesSetId = rulesSetId;
     this.rules = new TreeMap<>();
     for (CdxRule rule : rules) {
       this.rules.put(rule.getId(), rule);
@@ -137,6 +142,19 @@ public class CdxAccessControl {
     return map;
   }
 
+  public long getRulesSetId(){
+		return rulesSetId;
+	}
+  public void setRulesSetId(long rulesSetId){
+  	if(this.rulesSetId != 0){
+  		throw new IllegalStateException("Not allowed to change a rules set id.");
+  	}
+  	if(rulesSetId <= 0){
+  		throw new IllegalArgumentException("Invalid rules set id.");
+  	}
+		this.rulesSetId = rulesSetId;
+	}
+  
   public Map<Long, CdxRule> getRules() {
     return rules;
   }

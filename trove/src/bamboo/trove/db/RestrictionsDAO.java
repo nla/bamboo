@@ -87,6 +87,9 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
    *
    * SQL, methods and mappers related to rules set retrieval
    */
+  @SqlQuery("SELECT count(*) FROM " + TABLE_RULESET )
+  abstract Long getCountRuleset();
+
   @SqlQuery("SELECT id FROM " + TABLE_RULESET + " WHERE retired IS NULL AND activated IS NOT NULL")
   abstract Long getCurrentRulesetId();
 
@@ -99,10 +102,14 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   public CdxAccessControl getCurrentRules() {
     Long ruleSetId = getCurrentRulesetId();
     if (ruleSetId == null) {
+    	// only allowed to return null for the first run
+    	if(getCountRuleset() > 0){
+    		throw new IllegalStateException("No current rule Set and this is not the first run. ");
+    	}
       return null;
     }
     List<CdxRule> rules = getRules(ruleSetId);
-    return new CdxAccessControl(rules);
+    return new CdxAccessControl(ruleSetId, rules);
   }
 
   public CdxAccessControl getNewRules() {
@@ -111,7 +118,7 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
       return null;
     }
     List<CdxRule> rules = getRules(ruleSetId);
-    return new CdxAccessControl(rules);
+    return new CdxAccessControl(ruleSetId, rules);
   }
 
   // This MUST be public for JDBI... ignore your IDE hints
@@ -205,25 +212,31 @@ public abstract class RestrictionsDAO implements Transactional<RestrictionsDAO> 
   @Transaction
   public void addNewRuleSet(CdxAccessControl ruleset) throws JsonProcessingException {
     long newRulesetId = newRuleset();
+    ruleset.setRulesSetId(newRulesetId);
     for (CdxRule rule : ruleset.getRules().values()) {
       String json = jsonMapper.writeValueAsString(rule);
       writeRule(newRulesetId, rule.getId(), json);
     }
   }
 
-  @SqlUpdate("UPDATE " + TABLE_RULESET + " SET retired = :activationTime WHERE retired IS NULL AND activated IS NOT NULL")
-  abstract void retireCurrentRules(@Bind("activationTime") Date activationTime);
+  @SqlUpdate("UPDATE " + TABLE_RULESET + " SET retired = :activationTime WHERE id = :id AND retired IS NULL AND activated IS NOT NULL")
+  abstract void retireCurrentRules(@Bind("id") long id, @Bind("activationTime") Date activationTime);
 
-  @SqlUpdate("UPDATE " + TABLE_RULESET + " SET activated = :activationTime WHERE activated IS NULL")
-  abstract void activateNewRules(@Bind("activationTime") Date activationTime);
+  @SqlUpdate("UPDATE " + TABLE_RULESET + " SET activated = :activationTime WHERE id = :id AND activated IS NULL")
+  abstract void activateNewRules(@Bind("id") long id, @Bind("activationTime") Date activationTime);
 
   @Transaction
-  public void finishNightyRun(long id, CdxAccessControl newRules) {
+  public void finishNightyRun(long id, CdxAccessControl newRules, CdxAccessControl currentRules) {
   	Date activationTime = new Date();
   	finishNightyRunForId(id, activationTime);
   	if(newRules != null){
-  		retireCurrentRules(activationTime);
-  		activateNewRules(activationTime);
+  		// we have a new rule set so retire the current and make the new active
+    	if(currentRules != null && currentRules.getRulesSetId() > 0){
+    		retireCurrentRules(currentRules.getRulesSetId(), activationTime);
+    	}
+    	if(newRules != null && newRules.getRulesSetId() > 0){
+    		activateNewRules(newRules.getRulesSetId(), activationTime);
+    	}
   	}
   }
 }
