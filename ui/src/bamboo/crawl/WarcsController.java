@@ -213,9 +213,8 @@ public class WarcsController {
             this.filter = new SurtFilter(collectionWithFilters.urlFilters);
         }
 
-        public boolean matches(String url) {
-            String surt = SURT.toSURT(url);
-            return surt != null && this.filter.accepts(url);
+        public boolean matches(String surt) {
+            return this.filter.accepts(surt);
         }
     }
 
@@ -248,13 +247,18 @@ public class WarcsController {
                 if (record.getHeader().getUrl() == null) continue;
                 try {
                     Document doc = extractor.extract(record);
+
+                    // add collections info
+                    String surt = SURT.toSURT(doc.getUrl());
                     List<CollectionInfo> docCollections = new ArrayList<>();
                     for (CollectionMatcher matcher: collections) {
-                        if (matcher.matches(doc.getUrl())) {
+                        if (matcher.matches(surt)) {
                             docCollections.add(matcher.info);
                         }
                     }
                     doc.setCollections(docCollections);
+
+                    // return as JSON
                     gson.toJson(doc, Document.class, writer);
                 } catch (TextExtractionException e) {
                     continue; // skip it
