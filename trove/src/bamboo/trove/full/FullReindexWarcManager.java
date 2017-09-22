@@ -268,12 +268,12 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   @Override
   public void start() {
     if (!running && !starting && !stopping)  {
+      starting = true;
     	// use new thread to start so we don't block on the lock and leave the ui hanging.
     	Thread thread = new Thread(()->{      
     		acquireDomainStartLock();
         try {
-          if (!running && !starting && !stopping)  {
-            starting = true;
+          if (!running && starting && !stopping)  {
             startInnner();
             starting = false;
           }
@@ -285,7 +285,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     }
   }
 
-  private void startInnner() {
+  public void startInnner() {
     log.info("Starting...");
     running = true;
     tick();
@@ -302,6 +302,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   @Override
   public void stop() {
+  	stopInner();
+  }
+  
+  public void stopInner() {
     if (running && !stopping)  {
       stopping = true;
       log.info("Stopping domain... {} Bamboo read threads still need to stop", readWorkers.size());
@@ -489,7 +493,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     if (!(finishedFinding && warcTracking.isEmpty() && allBatches.isEmpty())) {
       setTick();
     } else {
-      stop();
+      stopInner();
     }
 
   }

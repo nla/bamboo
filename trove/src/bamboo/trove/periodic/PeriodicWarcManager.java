@@ -47,11 +47,15 @@ public class PeriodicWarcManager extends FullReindexWarcManager {
   private String resumptionToken;
   private String bambooCollectionsSyncUrl; 
   private boolean limitRunningTime = true;
+  private boolean stopPressed = false;
   private int startHour = 0;
   private int startMinute = 0;
   private int stopHour = 0;
   private int stopMinute = 0;
   private String runMessage = "";
+  private boolean pStarting = false;
+  private boolean pStopping = false;
+  private Object startStopLock = new Object();
 
   public PeriodicWarcManager(){
   	log = LoggerFactory.getLogger(PeriodicWarcManager.class);
@@ -192,6 +196,73 @@ public class PeriodicWarcManager extends FullReindexWarcManager {
   }
   
   @Override
+  public void start(){
+  	synchronized (startStopLock){
+  		if(pStarting == true){
+  			return;
+  		}
+    	finishedFinding = false;
+    	pStarting = true;
+    	super.start();			
+		}
+  }
+  
+  @Override
+  public void startInnner(){
+  	synchronized (startStopLock){  	
+      	super.startInnner();
+      	pStarting = false;
+  	}
+  }
+  
+  @Override
+  public void stop(){
+  	while(pStarting){ // start not finished so wait
+  		try{
+				Thread.sleep(1000);
+			}
+			catch (InterruptedException e){
+				// ignore
+			}
+  	}
+  	synchronized (startStopLock){
+    	stopPressed = true;
+    	finishedFinding = true;
+    	stopInner();
+    	stopPressed = false;
+  	}
+  }
+  
+  public void stopInner() {
+  	synchronized (startStopLock){
+  		if(!stopPressed && !pStopping){
+  			// stop from parent ignore and react to stop from this domain
+  			return;
+  		}
+  		pStopping = false;
+  		if(pStarting){
+  			return; // race condition detected let the start win
+  		}
+      boolean holdRunning = running;
+      boolean holdStopping = stopping;
+  		super.stopInner();
+  		runMessage = "";
+    	if(!stopPressed && holdRunning && !holdStopping){
+    		// in periodic domain only stop when button pressed.
+    		// not pressed so restart
+    		runMessage = " recheck for new content.";
+    		try{
+    			Thread.sleep(10000);
+    		}
+    		catch(InterruptedException e){
+    			// ignore
+    		}
+    		start();
+    	}
+  	}
+  }
+  
+  @Override
   public void run(){
     // we will stay here until we are in the time window to run
     while(true){
@@ -211,7 +282,7 @@ public class PeriodicWarcManager extends FullReindexWarcManager {
         break;
       }
       try{
-        Thread.sleep(10000);
+        Thread.sleep(60000);
       }
       catch (InterruptedException e){
         // ignore
@@ -253,12 +324,10 @@ public class PeriodicWarcManager extends FullReindexWarcManager {
         log.error("Thread sleep interrupted whilst waiting on batch completion. Resuming: {}", e.getMessage());
       }
     }
-    boolean holdRunning = running;
-    boolean holdStopping = stopping;
-    stopWorkers();
-    if(holdRunning && !holdStopping){
-      // stop because out of run window so start again for next day.
-      start();
-    }
+  	synchronized (startStopLock){
+  		pStopping = true;
+  		finishedFinding = true;
+  		stopInner();
+  	}
   }
 }
