@@ -26,6 +26,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonWriter;
 import net.didion.jwnl.data.Exc;
+import org.apache.log4j.lf5.util.StreamUtils;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
 import org.archive.url.SURT;
@@ -120,11 +121,11 @@ public class WarcsController {
         }
     }
 
-    Object serve(Request request, Response response) {
+    String serve(Request request, Response response) {
         return serve(request, response, findWarc(request));
     }
 
-    private Object serve(Request request, Response response, Warc warc) {
+    private String serve(Request request, Response response, Warc warc) {
         List<Range> ranges = Range.parseHeader(request.headers("Range"), warc.getSize());
         try {
             if (ranges == null || ranges.isEmpty()) {
@@ -132,7 +133,16 @@ public class WarcsController {
                 response.header("Content-Length", Long.toString(warc.getSize()));
                 response.header("Content-Disposition", "filename=" + warc.getFilename());
                 response.header("Accept-Ranges", "bytes");
-                return Files.newInputStream(warc.getPath());
+
+                try (InputStream src = Files.newInputStream(warc.getPath());
+                     OutputStream dst = response.raw().getOutputStream()) {
+                    byte[] buf = new byte[16384];
+                    for (int n = src.read(buf); n >= 0; n = src.read(buf)) {
+                        dst.write(buf, 0, n);
+                    }
+                }
+
+                return "";
             } else if (ranges.size() == 1) {
                 return singleRangeResponse(response, warc.getPath(), ranges.get(0));
             } else {
