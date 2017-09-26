@@ -45,9 +45,6 @@ public class WarcsController {
         Spark.get("/warcs/:id/cdx", this::showCdx);
         Spark.get("/warcs/:id/text", this::showText);
         Spark.get("/warcs/:id/details", this::details);
-        Spark.get("/warcs/:filename", this::serve);
-        Spark.get("/warcs/:filename/cdx", this::showCdx);
-        Spark.get("/warcs/:filename/cdx", this::showText);
     }
 
     public WarcsController(Bamboo wa) {
@@ -111,13 +108,13 @@ public class WarcsController {
     }
 
     Warc findWarc(Request request) {
-        if (request.params(":id") != null) {
-            long warcId = Long.parseLong(request.params(":id"));
+        String id = request.params(":id");
+        try {
+            long warcId = Long.parseLong(id);
             return wa.warcs.get(warcId);
-        } else if (request.params(":filename") != null) {
-            return wa.warcs.getByFilename(request.params(":filename"));
-        } else {
-            throw new IllegalStateException("id or filename is required");
+        } catch (NumberFormatException e) {
+            return wa.warcs.getByFilename(id);
+
         }
     }
 
