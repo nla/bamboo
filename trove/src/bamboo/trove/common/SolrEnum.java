@@ -34,11 +34,13 @@ public enum SolrEnum {
   LAST_INDEXED("lastIndexed"),
   METADATA("metadata"),
   PANDORA_URL("pandoraUrl"),
+  PANDORA("pandora"),
   RULE("ruleId"),
   SEARCH_CATEGORY("searchCategory"),
   SITE("site"),
   TEXT_ERROR("textError"),
   TITLE("title"),
+  LINK_TITLE("linkTitle"),
   URL_TOKENIZED("urlTokenized"),
   YEAR("year");
   

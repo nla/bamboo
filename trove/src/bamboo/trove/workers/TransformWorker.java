@@ -15,6 +15,7 @@
  */
 package bamboo.trove.workers;
 
+import bamboo.task.CollectionInfo;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
@@ -43,6 +44,8 @@ public class TransformWorker implements Runnable {
   public static final float BONUS_GOV_SITE = 1.35f;
   public static final float BONUS_EDU_SITE = 1.1f;
   public static final float MALUS_SEARCH_CATEGORY = 0.9f;
+  
+  public static final long PANDORA_COLLECTION = 4;
 
   public static final int TEXT_LIMIT = 3000;
 
@@ -149,6 +152,14 @@ public class TransformWorker implements Runnable {
       solr.addField(SolrEnum.PANDORA_URL.toString(), parsedUrl.toString());
     }
 
+    // check if from the pandora collection.
+    for(CollectionInfo c : document.getBambooDocument().getCollections()){
+    	if(c.getId() == PANDORA_COLLECTION){
+        solr.addField(SolrEnum.PANDORA.toString(), true);
+        break;
+    	}
+    }
+    
     String filename = FilenameFinder.getFilename(url);
     if (filename != null) {
       solr.addField(SolrEnum.FILENAME.toString(), filename);
@@ -169,7 +180,7 @@ public class TransformWorker implements Runnable {
     optionalMetadata(solr, document.getBambooDocument().getContributor());
     optionalMetadata(solr, document.getBambooDocument().getCoverage());
   }
-
+  
   private void domainAndTitleMetadata(SolrInputDocument solr, IndexerDocument document) {
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
     solr.addField(SolrEnum.HOST.toString(), document.getBambooDocument().getHost());
