@@ -52,11 +52,16 @@ public class TextExtractorTest {
             TextExtractor.extractTika(stream, doc, URI.create("http://example.net/subdir/badtitle.html"));
         }
         assertEquals("Ministerial Decision and Recommendations: New South Wales Ocean Trawl Fishery", doc.getTitle());
-        assertEquals("Test\nLink text", doc.getText().trim());
+        assertEquals("Heading one!\n" +
+                "\n" +
+                "    Test\nLink text", doc.getText().trim());
         assertEquals("this is a description", doc.getDescription());
         assertEquals("this is keywords", doc.getKeywords());
 
         assertEquals("http://example.net/subdir/style.css", doc.getLinks().get(1).getUrl());
+        assertEquals("site name", doc.getOgSiteName());
+        assertEquals("og title", doc.getOgTitle());
+        assertEquals("Heading one!", doc.getH1());
     }
 
     @Test

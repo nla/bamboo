@@ -178,17 +178,22 @@ public class TextExtractor {
             ParseContext parseContext = new ParseContext();
             LinkContentHandler linkHandler = new LinkContentHandler(true);
             BodyContentHandler bodyHandler = new BodyContentHandler(maxDocSize);
-            TeeContentHandler teeHandler = new TeeContentHandler(linkHandler, bodyHandler);
+            HeadingContentHandler headingHandler = new HeadingContentHandler();
+            TeeContentHandler teeHandler = new TeeContentHandler(linkHandler, bodyHandler, headingHandler);
+
             tika.getParser().parse(record, teeHandler, metadata, parseContext);
-            String text = bodyHandler.toString();
-            doc.setText(text);
-            doc.setTitle(metadata.get(TikaCoreProperties.TITLE));
+
+            doc.setText(bodyHandler.toString());
+            doc.setTitle(getAny(metadata, TikaCoreProperties.TITLE.getName()));
             doc.setDescription(getAny(metadata, "description", "DC.description", "DC.Description", "dcterms.description"));
             doc.setKeywords(getAny(metadata, "keywords", "DC.keywords", "DC.Keywords", "dcterms.keywords"));
             doc.setPublisher(getAny(metadata, "publisher", "DC.publisher", "DC.Publisher", "dcterms.publisher"));
             doc.setCreator(getAny(metadata, "creator", "DC.creator", "DC.Creator", "dcterms.creator"));
             doc.setContributor(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor", "dcterms.contributor"));
             doc.setCoverage(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage"));
+            doc.setH1(headingHandler.getText());
+            doc.setOgSiteName(metadata.get("og:site_name"));
+            doc.setOgTitle(metadata.get("og:title"));
 
             List<LinkInfo> links = new ArrayList<>();
             for (Link link: linkHandler.getLinks()) {
