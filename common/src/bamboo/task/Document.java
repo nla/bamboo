@@ -35,7 +35,7 @@ public class Document {
     private String coverage;
     private List<LinkInfo> links;
     private List<CollectionInfo> collections;
-    private String h1;
+    private List<String> h1;
     private String ogSiteName;
     private String ogTitle;
 
@@ -223,11 +223,11 @@ public class Document {
         this.collections = collections;
     }
 
-    public void setH1(String h1) {
+    public void setH1(List<String> h1) {
         this.h1 = h1;
     }
 
-    public String getH1() {
+    public List<String> getH1() {
         return h1;
     }
 

@@ -191,7 +191,7 @@ public class TextExtractor {
             doc.setCreator(getAny(metadata, "creator", "DC.creator", "DC.Creator", "dcterms.creator"));
             doc.setContributor(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor", "dcterms.contributor"));
             doc.setCoverage(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage"));
-            doc.setH1(headingHandler.getText());
+            doc.setH1(headingHandler.getHeadings());
             doc.setOgSiteName(metadata.get("og:site_name"));
             doc.setOgTitle(metadata.get("og:title"));
 
