@@ -10,11 +10,13 @@ public class HeadingContentHandler extends DefaultHandler {
     private static Pattern WHITESPACE_RE = Pattern.compile("\\s+");
     private StringBuilder text = new StringBuilder();
     private int depth = 0;
+    private boolean sawAnyHeadings = false;
 
     @Override
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
         if (depth > 0 || localName.equals("h1")) {
             depth++;
+            sawAnyHeadings = true;
             if (text.length() != 0) {
                 text.append(" ");
             }
@@ -43,6 +45,10 @@ public class HeadingContentHandler extends DefaultHandler {
     }
 
     public String getText() {
-        return WHITESPACE_RE.matcher(text).replaceAll(" ");
+        if (sawAnyHeadings) {
+            return WHITESPACE_RE.matcher(text).replaceAll(" ");
+        } else {
+            return null;
+        }
     }
 }
