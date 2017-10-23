@@ -19,6 +19,7 @@ import au.gov.nla.trove.indexer.api.BaseDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.task.Document;
 import bamboo.trove.services.FilteringCoordinationService;
+import bamboo.trove.services.RankingService;
 import bamboo.trove.workers.FilterWorker;
 import bamboo.trove.workers.IndexerWorker;
 import bamboo.trove.workers.TransformWorker;
@@ -35,6 +36,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Required;
 
 import java.io.BufferedInputStream;
@@ -81,6 +83,8 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   private static int filterPoolLimit;
   private static int transformPoolLimit;
   private static int indexPoolLimit;
+  
+  public static RankingService rankingService;
 
   private static void notAlreadyStarted() {
     if (imStarted) {

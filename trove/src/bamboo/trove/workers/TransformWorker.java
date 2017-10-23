@@ -24,6 +24,9 @@ import bamboo.trove.common.IndexerDocument;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.common.TitleTools;
+import bamboo.trove.services.RankingService;
+import bamboo.trove.services.RankingService.RankingContainer;
+
 import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.solr.common.SolrInputDocument;
@@ -113,8 +116,9 @@ public class TransformWorker implements Runnable {
     }
 
     SolrInputDocument solr = new SolrInputDocument();
+    RankingContainer ranking = BaseWarcDomainManager.rankingService.getRanking(document.getBambooDocument().getUrl());
 
-    basicMetadata(solr, document);
+    basicMetadata(solr, document, ranking);
     restrictions(solr, document);
     errorHandling(solr, document);
     fullText(solr, document);
@@ -130,7 +134,8 @@ public class TransformWorker implements Runnable {
   // Not SDF is not thread-safe, but this worker never allows
   // more than one thread into this method per instantiated worker
   private SimpleDateFormat dateYear = new SimpleDateFormat("yyyy");
-  private void basicMetadata(SolrInputDocument solr, IndexerDocument document) {
+  
+  private void basicMetadata(SolrInputDocument solr, IndexerDocument document, RankingContainer ranking) {
     solr.addField(SolrEnum.ID.toString(), document.getDocId());
 
     // Display URL is the original provided by Bamboo
@@ -158,6 +163,11 @@ public class TransformWorker implements Runnable {
         solr.addField(SolrEnum.PANDORA.toString(), true);
         break;
     	}
+    }
+    
+    // add link text
+    for(String t : ranking.getLinkText()){
+    	solr.addField(SolrEnum.LINK_TEXT.toString(), t);    	
     }
     
     String filename = FilenameFinder.getFilename(url);

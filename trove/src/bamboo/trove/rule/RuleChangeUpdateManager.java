@@ -64,6 +64,7 @@ import bamboo.trove.common.cdx.CdxRule;
 import bamboo.trove.common.cdx.RulesDiff;
 import bamboo.trove.services.CdxRestrictionService;
 import bamboo.trove.services.FilteringCoordinationService;
+import bamboo.trove.services.RankingService;
 
 @Service
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker {
@@ -76,6 +77,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private static int NUMBER_OF_WORKERS = 5;
   private static final ZoneId TZ = ZoneId.systemDefault();
 
+  @Autowired
+  public RankingService rankingService;
 
   @Autowired
   private CdxRestrictionService restrictionsService;
@@ -174,6 +177,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     // and init (via statics) the base class all of the other domains extend. They will wait until we are done.
     BaseWarcDomainManager.setBambooApiBaseUrl(bambooBaseUrl);
     BaseWarcDomainManager.setWorkerCounts(maxFilterWorkers, maxTransformWorkers, maxIndexWorkers);
+    BaseWarcDomainManager.rankingService = this.rankingService;
+    
     // We must acquire the start lock before letting the other domains complete their init() methods.
 
     log.info("Solr zk path          : {}", zookeeperConfig);

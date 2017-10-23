@@ -40,7 +40,7 @@ public enum SolrEnum {
   SITE("site"),
   TEXT_ERROR("textError"),
   TITLE("title"),
-  LINK_TITLE("linkTitle"),
+  LINK_TEXT("linkText"),
   URL_TOKENIZED("urlTokenized"),
   YEAR("year");
   
