@@ -7,6 +7,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 
@@ -52,11 +53,17 @@ public class TextExtractorTest {
             TextExtractor.extractTika(stream, doc, URI.create("http://example.net/subdir/badtitle.html"));
         }
         assertEquals("Ministerial Decision and Recommendations: New South Wales Ocean Trawl Fishery", doc.getTitle());
-        assertEquals("Test\nLink text", doc.getText().trim());
+        assertEquals("Heading one!\n" +
+                "\n" +
+                "    Test\n" +
+                "Link textHeading two!", doc.getText().trim());
         assertEquals("this is a description", doc.getDescription());
         assertEquals("this is keywords", doc.getKeywords());
 
         assertEquals("http://example.net/subdir/style.css", doc.getLinks().get(1).getUrl());
+        assertEquals("site name", doc.getOgSiteName());
+        assertEquals("og title", doc.getOgTitle());
+        assertEquals(Arrays.asList("Heading one!", "Heading two!"), doc.getH1());
     }
 
     @Test

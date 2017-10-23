@@ -35,6 +35,9 @@ public class Document {
     private String coverage;
     private List<LinkInfo> links;
     private List<CollectionInfo> collections;
+    private List<String> h1;
+    private String ogSiteName;
+    private String ogTitle;
 
     public String getUrl() {
         return url;
@@ -218,5 +221,29 @@ public class Document {
 
     public void setCollections(List<CollectionInfo> collections) {
         this.collections = collections;
+    }
+
+    public void setH1(List<String> h1) {
+        this.h1 = h1;
+    }
+
+    public List<String> getH1() {
+        return h1;
+    }
+
+    public void setOgSiteName(String ogSiteName) {
+        this.ogSiteName = ogSiteName;
+    }
+
+    public String getOgSiteName() {
+        return ogSiteName;
+    }
+
+    public void setOgTitle(String ogTitle) {
+        this.ogTitle = ogTitle;
+    }
+
+    public String getOgTitle() {
+        return ogTitle;
     }
 }

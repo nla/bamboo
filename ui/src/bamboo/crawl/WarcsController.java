@@ -26,6 +26,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonWriter;
 import net.didion.jwnl.data.Exc;
+import org.apache.log4j.lf5.util.StreamUtils;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
 import org.archive.url.SURT;
@@ -44,9 +45,6 @@ public class WarcsController {
         Spark.get("/warcs/:id/cdx", this::showCdx);
         Spark.get("/warcs/:id/text", this::showText);
         Spark.get("/warcs/:id/details", this::details);
-        Spark.get("/warcs/:filename", this::serve);
-        Spark.get("/warcs/:filename/cdx", this::showCdx);
-        Spark.get("/warcs/:filename/cdx", this::showText);
     }
 
     public WarcsController(Bamboo wa) {
@@ -110,21 +108,21 @@ public class WarcsController {
     }
 
     Warc findWarc(Request request) {
-        if (request.params(":id") != null) {
-            long warcId = Long.parseLong(request.params(":id"));
+        String id = request.params(":id");
+        try {
+            long warcId = Long.parseLong(id);
             return wa.warcs.get(warcId);
-        } else if (request.params(":filename") != null) {
-            return wa.warcs.getByFilename(request.params(":filename"));
-        } else {
-            throw new IllegalStateException("id or filename is required");
+        } catch (NumberFormatException e) {
+            return wa.warcs.getByFilename(id);
+
         }
     }
 
-    Object serve(Request request, Response response) {
+    String serve(Request request, Response response) {
         return serve(request, response, findWarc(request));
     }
 
-    private Object serve(Request request, Response response, Warc warc) {
+    private String serve(Request request, Response response, Warc warc) {
         List<Range> ranges = Range.parseHeader(request.headers("Range"), warc.getSize());
         try {
             if (ranges == null || ranges.isEmpty()) {
@@ -132,7 +130,16 @@ public class WarcsController {
                 response.header("Content-Length", Long.toString(warc.getSize()));
                 response.header("Content-Disposition", "filename=" + warc.getFilename());
                 response.header("Accept-Ranges", "bytes");
-                return Files.newInputStream(warc.getPath());
+
+                try (InputStream src = Files.newInputStream(warc.getPath());
+                     OutputStream dst = response.raw().getOutputStream()) {
+                    byte[] buf = new byte[16384];
+                    for (int n = src.read(buf); n >= 0; n = src.read(buf)) {
+                        dst.write(buf, 0, n);
+                    }
+                }
+
+                return "";
             } else if (ranges.size() == 1) {
                 return singleRangeResponse(response, warc.getPath(), ranges.get(0));
             } else {
