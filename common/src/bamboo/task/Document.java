@@ -2,6 +2,7 @@ package bamboo.task;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -38,7 +39,6 @@ public class Document {
     private List<String> h1;
     private String ogSiteName;
     private String ogTitle;
-    private String location;
 
     public String getUrl() {
         return url;
@@ -216,6 +216,13 @@ public class Document {
         return links;
     }
 
+    public void addLink(LinkInfo link) {
+        if (links == null) {
+            links = new ArrayList<>();
+        }
+        links.add(link);
+    }
+
     public List<CollectionInfo> getCollections() {
         return collections;
     }
@@ -246,13 +253,5 @@ public class Document {
 
     public String getOgTitle() {
         return ogTitle;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public String getLocation() {
-        return location;
     }
 }

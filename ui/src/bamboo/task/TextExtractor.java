@@ -93,7 +93,13 @@ public class TextExtractor {
             }
             doc.setContentType(HttpHeader.cleanContentType(httpHeader.contentType));
             doc.setStatusCode(httpHeader.status);
-            doc.setLocation(httpHeader.location);
+            if (httpHeader.location != null) {
+                LinkInfo link = new LinkInfo();
+                link.setType("location");
+                link.setUrl(httpHeader.location);
+                link.setHref(httpHeader.rawLocation);
+                doc.addLink(link);
+            }
         } else if (WarcUtils.isResourceRecord(warcHeader)) {
             doc.setContentType(HttpHeader.cleanContentType((String) warcHeader.getHeaderValue("Content-Type")));
             doc.setStatusCode(200);
@@ -221,9 +227,8 @@ public class TextExtractor {
                         // bad url
                     }
                 }
-                links.add(info);
+                doc.addLink(info);
             }
-            doc.setLinks(links);
         } catch (IOException | TikaException | SAXException e) {
             throw new TextExtractionException("Tika failed", e);
         }

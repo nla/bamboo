@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 public class HttpHeader {
     int status;
     String location;
+    String rawLocation;
     String contentType;
 
     public static HttpHeader parse(InputStream in, String targetUrl) throws IOException {
@@ -28,6 +29,7 @@ public class HttpHeader {
             switch (header.getName().toLowerCase()) {
                 case "location":
                     try {
+                        result.rawLocation = header.getValue();
                         URL url = new URL(targetUrl);
                         result.location = new URL(url, header.getValue()).toString().replace(" ", "%20");
                     } catch (MalformedURLException e) {
