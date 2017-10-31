@@ -38,6 +38,7 @@ public class Document {
     private List<String> h1;
     private String ogSiteName;
     private String ogTitle;
+    private String location;
 
     public String getUrl() {
         return url;
@@ -245,5 +246,13 @@ public class Document {
 
     public String getOgTitle() {
         return ogTitle;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public String getLocation() {
+        return location;
     }
 }

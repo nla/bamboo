@@ -93,6 +93,7 @@ public class TextExtractor {
             }
             doc.setContentType(HttpHeader.cleanContentType(httpHeader.contentType));
             doc.setStatusCode(httpHeader.status);
+            doc.setLocation(httpHeader.location);
         } else if (WarcUtils.isResourceRecord(warcHeader)) {
             doc.setContentType(HttpHeader.cleanContentType((String) warcHeader.getHeaderValue("Content-Type")));
             doc.setStatusCode(200);
