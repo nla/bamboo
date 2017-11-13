@@ -38,9 +38,16 @@ public enum SolrEnum {
   RULE("ruleId"),
   SEARCH_CATEGORY("searchCategory"),
   SITE("site"),
+  OG_SITE("ogSite"),
   TEXT_ERROR("textError"),
   TITLE("title"),
+  OG_TITLE("ogTitle"),
+  H1("h1"),
+  TITLE_COMBINED("titleCombined"),
+  TITLE_H1_COMBINED("titleH1Combined"),
   LINK_TEXT("linkText"),
+  TITLE_LINK_COMBINED("titleLinkCombined"),
+  TITLE_H1_LINK_COMBINED("titleH1LinkCombined"),
   URL_TOKENIZED("urlTokenized"),
   YEAR("year");
   

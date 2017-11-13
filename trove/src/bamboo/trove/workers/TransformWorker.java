@@ -15,6 +15,24 @@
  */
 package bamboo.trove.workers;
 
+import static bamboo.trove.services.QualityControlService.DOCUMENT_CONTENT_TYPES;
+import static bamboo.trove.services.QualityControlService.HTML_CONTENT_TYPES;
+import static bamboo.trove.services.QualityControlService.PDF_CONTENT_TYPES;
+import static bamboo.trove.services.QualityControlService.PRESENTATION_CONTENT_TYPES;
+import static bamboo.trove.services.QualityControlService.SPREADSHEET_CONTENT_TYPES;
+
+import java.text.SimpleDateFormat;
+import java.util.regex.Pattern;
+
+import org.apache.solr.common.SolrInputDocument;
+import org.netpreserve.urlcanon.Canonicalizer;
+import org.netpreserve.urlcanon.ParsedUrl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
+
 import bamboo.task.CollectionInfo;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.ContentThreshold;
@@ -24,21 +42,7 @@ import bamboo.trove.common.IndexerDocument;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.common.TitleTools;
-import bamboo.trove.services.RankingService;
 import bamboo.trove.services.RankingService.RankingContainer;
-
-import com.codahale.metrics.Timer;
-import com.google.common.annotations.VisibleForTesting;
-import org.apache.solr.common.SolrInputDocument;
-import org.netpreserve.urlcanon.Canonicalizer;
-import org.netpreserve.urlcanon.ParsedUrl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.text.SimpleDateFormat;
-import java.util.regex.Pattern;
-
-import static bamboo.trove.services.QualityControlService.*;
 
 public class TransformWorker implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(TransformWorker.class);
@@ -165,11 +169,6 @@ public class TransformWorker implements Runnable {
     	}
     }
     
-    // add link text
-    for(String t : ranking.getLinkText()){
-    	solr.addField(SolrEnum.LINK_TEXT.toString(), t);    	
-    }
-    
     String filename = FilenameFinder.getFilename(url);
     if (filename != null) {
       solr.addField(SolrEnum.FILENAME.toString(), filename);
@@ -180,7 +179,7 @@ public class TransformWorker implements Runnable {
     solr.addField(SolrEnum.DECADE.toString(), year.substring(0, 3));
     solr.addField(SolrEnum.YEAR.toString(), year);
 
-    domainAndTitleMetadata(solr, document);
+    domainAndTitleMetadata(solr, document, ranking);
 
     // Optional metadata we _might_ get from html
     optionalMetadata(solr, document.getBambooDocument().getDescription());
@@ -191,8 +190,12 @@ public class TransformWorker implements Runnable {
     optionalMetadata(solr, document.getBambooDocument().getCoverage());
   }
   
-  private void domainAndTitleMetadata(SolrInputDocument solr, IndexerDocument document) {
+  private void domainAndTitleMetadata(SolrInputDocument solr, IndexerDocument document, RankingContainer ranking) {
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
+    if(document.getBambooDocument().getOgSiteName() != null 
+    		&& !document.getBambooDocument().getOgSiteName().isEmpty()){
+    	solr.addField(SolrEnum.OG_SITE.toString(), document.getBambooDocument().getOgSiteName());
+    }
     solr.addField(SolrEnum.HOST.toString(), document.getBambooDocument().getHost());
     // We reverse the hostname (which is site + sub-domain) for efficient sub-domain wildcarding in Solr
     solr.addField(SolrEnum.HOST_REVERSED.toString(),
@@ -211,7 +214,34 @@ public class TransformWorker implements Runnable {
     }
 
     String title = removeExtraSpaces(document.getBambooDocument().getTitle());
-    solr.addField(SolrEnum.TITLE.toString(), title);
+    if(!title.isEmpty())
+    {    solr.addField(SolrEnum.TITLE.toString(), title);
+      solr.addField(SolrEnum.TITLE_COMBINED.toString(), title);
+      solr.addField(SolrEnum.TITLE_LINK_COMBINED.toString(), title);
+      solr.addField(SolrEnum.TITLE_H1_COMBINED.toString(), title);
+      solr.addField(SolrEnum.TITLE_H1_LINK_COMBINED.toString(), title);
+    }
+    if(document.getBambooDocument().getOgTitle() != null 
+    		&& !document.getBambooDocument().getOgTitle().isEmpty()){
+    	solr.addField(SolrEnum.OG_TITLE.toString(), document.getBambooDocument().getOgTitle());
+      solr.addField(SolrEnum.TITLE_COMBINED.toString(), document.getBambooDocument().getOgTitle());
+      solr.addField(SolrEnum.TITLE_H1_COMBINED.toString(), document.getBambooDocument().getOgTitle());
+      solr.addField(SolrEnum.TITLE_LINK_COMBINED.toString(), document.getBambooDocument().getOgTitle());
+      solr.addField(SolrEnum.TITLE_H1_LINK_COMBINED.toString(), document.getBambooDocument().getOgTitle());
+    }
+    // add link text
+    for(String t : ranking.getLinkText()){
+    	solr.addField(SolrEnum.LINK_TEXT.toString(), t);    	
+    	solr.addField(SolrEnum.TITLE_LINK_COMBINED.toString(), t);    	
+    	solr.addField(SolrEnum.TITLE_H1_LINK_COMBINED.toString(), t);    	
+    }
+    
+    if(document.getBambooDocument().getH1() != null 
+    		&& !document.getBambooDocument().getH1().isEmpty()){
+    	solr.addField(SolrEnum.H1.toString(), document.getBambooDocument().getH1());
+      solr.addField(SolrEnum.TITLE_H1_COMBINED.toString(), document.getBambooDocument().getH1());
+      solr.addField(SolrEnum.TITLE_H1_LINK_COMBINED.toString(), document.getBambooDocument().getH1());
+    }
     document.modifyBoost(TitleTools.lengthMalus(title));
 
     float seoMalus = TitleTools.seoMalus(title);
