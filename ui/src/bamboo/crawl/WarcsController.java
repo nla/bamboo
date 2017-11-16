@@ -246,9 +246,10 @@ public class WarcsController {
                 .stream().map(CollectionMatcher::new).collect(Collectors.toList());
 
         response.type("application/json");
-        try (ArchiveReader reader = WarcUtils.open(warc.getPath());
-             JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.raw().getOutputStream(),
-                     StandardCharsets.UTF_8))) {
+        OutputStreamWriter streamWriter = new OutputStreamWriter(response.raw().getOutputStream(),
+                StandardCharsets.UTF_8);
+        try (ArchiveReader reader = WarcUtils.open(warc.getPath())) {
+            JsonWriter writer = gson.newJsonWriter(streamWriter);
             writer.beginArray();
             for (ArchiveRecord record : reader) {
                 if (record.getHeader().getUrl() == null) continue;
@@ -276,6 +277,8 @@ public class WarcsController {
             return "";
         } catch (Exception e) {
             log.error("Error during text extraction of WARC " + warc.getId() + " " + warc.getPath(), e);
+            streamWriter.write("\n\nError during text extraction of WARC " + warc.getId() + " " + warc.getPath());
+            e.printStackTrace(new PrintWriter(streamWriter));
             return "";
         }
     }
