@@ -248,11 +248,13 @@ public class WarcsController {
         response.type("application/json");
         OutputStreamWriter streamWriter = new OutputStreamWriter(response.raw().getOutputStream(),
                 StandardCharsets.UTF_8);
+        String url = null;
         try (ArchiveReader reader = WarcUtils.open(warc.getPath())) {
             JsonWriter writer = gson.newJsonWriter(streamWriter);
             writer.beginArray();
             for (ArchiveRecord record : reader) {
-                if (record.getHeader().getUrl() == null) continue;
+                url = record.getHeader().getUrl();
+                if (url == null) continue;
                 try {
                     Document doc = extractor.extract(record);
 
@@ -275,9 +277,10 @@ public class WarcsController {
             writer.endArray();
             writer.flush();
             return "";
-        } catch (Exception e) {
-            log.error("Error during text extraction of WARC " + warc.getId() + " " + warc.getPath(), e);
-            streamWriter.write("\n\nError during text extraction of WARC " + warc.getId() + " " + warc.getPath() + "\n");
+        } catch (Exception | StackOverflowError e) {
+            String message = "Text extraction failed. warcId=" + warc.getId() + " path=" + warc.getPath() + " recordUrl=" + url;
+            log.error(message, e);
+            streamWriter.write("\n\n" + message);
             e.printStackTrace(new PrintWriter(streamWriter));
             return "";
         }
