@@ -280,7 +280,7 @@ public class WarcsController {
         } catch (Exception | StackOverflowError e) {
             String message = "Text extraction failed. warcId=" + warc.getId() + " path=" + warc.getPath() + " recordUrl=" + url;
             log.error(message, e);
-            streamWriter.write("\n\n" + message);
+            streamWriter.write("\n\n" + message + "\n");
             e.printStackTrace(new PrintWriter(streamWriter));
             return "";
         }
