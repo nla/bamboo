@@ -236,7 +236,8 @@ public class TextExtractor {
 
             List<LinkInfo> links = new ArrayList<>();
             for (Link link: linkHandler.getLinks()) {
-                if ("".equals(link.getUri())) {
+                if ("".equals(link.getUri()) ||
+                        startsWithIgnoreCase(link.getUri(), "data:")) {
                     continue;
                 }
                 LinkInfo info = new LinkInfo();
@@ -267,6 +268,10 @@ public class TextExtractor {
         } catch (IOException | TikaException | SAXException e) {
             throw new TextExtractionException("Tika failed", e);
         }
+    }
+
+    private static boolean startsWithIgnoreCase(String str, String prefix) {
+        return str.regionMatches(true, 0, prefix, 0, prefix.length());
     }
 
     public static String getAny(Metadata metadata, String... keys) {
