@@ -22,8 +22,11 @@ import org.apache.tika.sax.LinkContentHandler;
 import org.apache.tika.sax.TeeContentHandler;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
+import org.archive.util.Base32;
 import org.netpreserve.urlcanon.Canonicalizer;
 import org.netpreserve.urlcanon.ParsedUrl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
@@ -35,6 +38,9 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -45,6 +51,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TextExtractor {
+    private static final Logger log = LoggerFactory.getLogger(TextExtractor.class);
     static final int pdfDiskOffloadThreshold = 32 * 1024 * 1024;
     static final int maxDocSize = 0x100000;
     static final long timeLimitMillis = 5000;
@@ -114,12 +121,20 @@ public class TextExtractor {
         doc.setDate(Date.from(instant));
         doc.setWarcOffset(warcHeader.getOffset());
 
+        InputStream contentStream = record;
         String digest = (String) warcHeader.getHeaderValue("WARC-Payload-Digest");
         if (digest != null) {
             if (digest.startsWith("sha1:")) {
                 digest = digest.substring(5);
             }
             doc.setContentSha1(digest);
+        } else {
+            // no digest was available so let's calculate one on the fly
+            try {
+                contentStream = new DigestInputStream(record, MessageDigest.getInstance("SHA1"));
+            } catch (NoSuchAlgorithmException e) {
+                log.warn("SHA1 not available", e);
+            }
         }
 
         if (doc.getContentType() == null) {
@@ -137,16 +152,16 @@ public class TextExtractor {
             switch (doc.getContentType()) {
                 case "text/html":
                     if (useTika) {
-                        extractTika(record, doc, uri);
+                        extractTika(contentStream, doc, uri);
                     } else {
-                        extractHtml(record, doc);
+                        extractHtml(contentStream, doc);
                     }
                     break;
                 case "application/pdf":
                     if (usePdfBox) {
-                        extractPdfBox(record, doc);
+                        extractPdfBox(contentStream, doc);
                     } else {
-                        extractPdf(record, doc);
+                        extractPdf(contentStream, record, doc);
                     }
                     break;
                 case "application/vnd.ms-excel":
@@ -162,7 +177,7 @@ public class TextExtractor {
                 case "application/vnd.oasis.opendocument.text":
                 case "application/vnd.oasis.opendocument.spreadsheet":
                     if (useTika) {
-                        extractTika(record, doc, uri);
+                        extractTika(contentStream, doc, uri);
                     } else {
                         doc.setTextError("not implemented for content-type");
                     }
@@ -175,7 +190,24 @@ public class TextExtractor {
             doc.setTextError(e.getMessage());
         }
 
+        if (contentStream instanceof DigestInputStream) {
+            fullyConsume(contentStream);
+            byte[] digestBytes = ((DigestInputStream)contentStream).getMessageDigest().digest();
+            doc.setContentSha1(Base32.encode(digestBytes));
+        }
+
         return doc;
+    }
+
+    private void fullyConsume(InputStream stream) {
+        byte[] buf = new byte[8192];
+        try {
+            while (true) {
+                if (stream.read(buf) == -1) break;
+            }
+        } catch (IOException e) {
+            log.warn("error consuming rest of stream", e);
+        }
     }
 
     public static void extractTika(InputStream record, Document doc, URI baseUrl) throws TextExtractionException {
@@ -244,7 +276,7 @@ public class TextExtractor {
         return null;
     }
 
-    private void extractHtml(ArchiveRecord record, Document doc) throws TextExtractionException {
+    private void extractHtml(InputStream record, Document doc) throws TextExtractionException {
         try {
             BoundedInputStream in = new BoundedInputStream(record, maxDocSize);
             TextDocument textDoc = new BoilerpipeSAXInput(new InputSource(in)).getTextDocument();
@@ -259,7 +291,7 @@ public class TextExtractor {
         }
     }
 
-    private static void extractPdf(ArchiveRecord record, Document doc) throws TextExtractionException {
+    private static void extractPdf(InputStream stream, ArchiveRecord record, Document doc) throws TextExtractionException {
         doc.setTitle(record.getHeader().getUrl());
 
         try {
@@ -267,7 +299,7 @@ public class TextExtractor {
                 // PDFReader needs (uncompressed) random access to the file.  When given a stream it loads the whole
                 // lot into a memory buffer. So for large records let's decompress to a temporary file first.
                 Path tmp = Files.createTempFile("bamboo-solr-tmp", ".pdf");
-                Files.copy(record, tmp, StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(stream, tmp, StandardCopyOption.REPLACE_EXISTING);
                 try {
                     extractPdfContent(new PdfReader(tmp.toString()), doc);
                 } finally {
@@ -278,7 +310,7 @@ public class TextExtractor {
                     }
                 }
             } else {
-                extractPdfContent(new PdfReader(record), doc);
+                extractPdfContent(new PdfReader(stream), doc);
             }
         } catch (NoClassDefFoundError | RuntimeException | IOException e) {
             throw new TextExtractionException(e);
