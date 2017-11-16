@@ -274,9 +274,9 @@
         </dependency>
 
         <dependency>
-            <groupId>com.github.iipc</groupId>
+            <groupId>org.netpreserve</groupId>
             <artifactId>urlcanon</artifactId>
-            <version>66b854d</version>
+            <version>0.1.1</version>
         </dependency>
     </dependencies>
 
@@ -288,10 +288,6 @@
         <repository>
             <id>nla-public-snapshots</id>
             <url>http://maven.nla.gov.au/snapshots</url>
-        </repository>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
         </repository>
     </repositories>
 
