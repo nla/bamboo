@@ -277,7 +277,7 @@ public class WarcsController {
             return "";
         } catch (Exception e) {
             log.error("Error during text extraction of WARC " + warc.getId() + " " + warc.getPath(), e);
-            streamWriter.write("\n\nError during text extraction of WARC " + warc.getId() + " " + warc.getPath());
+            streamWriter.write("\n\nError during text extraction of WARC " + warc.getId() + " " + warc.getPath() + "\n");
             e.printStackTrace(new PrintWriter(streamWriter));
             return "";
         }
