@@ -252,11 +252,14 @@ public class TextExtractor {
                     info.setTitle(link.getTitle());
                 }
                 if (baseUrl != null) {
+                    String url = null;
                     try {
-                        String url = baseUrl.resolve(link.getUri()).toString();
+                        url = baseUrl.resolve(link.getUri()).toString();
                         info.setUrl(WarcUtils.cleanUrl(url));
                     } catch (IllegalArgumentException e) {
                         // bad url
+                    } catch (StackOverflowError e) {
+                        log.warn("URL caused stackoverflow: " + url);
                     }
                 }
                 doc.addLink(info);
