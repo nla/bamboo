@@ -20,6 +20,8 @@ public enum SolrEnum {
   // to help readability as the schema grows
   AU_GOV("auGov"),
   BOOST("boost"),
+  PAGEBOOST("pageBoost"),
+  PAGERANK("pageRank"),
   DATE("date"),
   DECADE("decade"),
   DELIVERABLE("deliverable"),
@@ -49,7 +51,22 @@ public enum SolrEnum {
   TITLE_LINK_COMBINED("titleLinkCombined"),
   TITLE_H1_LINK_COMBINED("titleH1LinkCombined"),
   URL_TOKENIZED("urlTokenized"),
-  YEAR("year");
+  YEAR("year"),
+  QUEUED_FOR_CLASSIFICATION("queuedForClassification"),
+  CLASSIFICATION_FAILED("classificationFailed"),
+  IMAGE_HUMAN_SAFE("imageHumanSafe"),
+  IMAGE_AUTO_SAFE("imageAutoSafe"),
+  IMAGE_AUTO_MAYBE_SAFE("imageAutoMaybeSafe"),
+  IMAGE_AUTO_MAYBE_UNSAFE("imageAutoMaybeUnsafe"),
+  IMAGE_AUTO_UNSAFE("imageAutoUnsafe"),
+  IMAGE_HUMAN_UNSAFE("imageHumanUnsafe"),
+  TEXT_HUMAN_SAFE("textHumanSafe"),
+  TEXT_AUTO_SAFE("textAutoSafe"),
+  TEXT_AUTO_MAYBE_SAFE("textAutoMaybeSafe"),
+  TEXT_AUTO_MAYBE_UNSAFE("textAutoMaybeUnsafe"),
+  TEXT_AUTO_UNSAFE("textAutoUnsafe"),
+  TEXT_CONTENTKEEPER_UNSAFE("textContentkeeperUnsafe"),
+  TEXT_HUMAN_UNSAFE("textHumanUnsafe");
   
   private String value;
   SolrEnum(String value) {

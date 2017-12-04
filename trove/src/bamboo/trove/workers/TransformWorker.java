@@ -42,7 +42,7 @@ import bamboo.trove.common.IndexerDocument;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.common.TitleTools;
-import bamboo.trove.services.RankingService.RankingContainer;
+import lookupClient.LookupPageRankLinkTextClassification;
 
 public class TransformWorker implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(TransformWorker.class);
@@ -65,10 +65,19 @@ public class TransformWorker implements Runnable {
   private Timer timer;
   private IndexerDocument lastJob = null;
   private IndexerDocument thisJob = null;
+  
+  private LookupPageRankLinkTextClassification pageRanker;
 
   public TransformWorker(Timer timer, boolean indexFullText) {
     this.timer = timer;
     this.indexFullText = indexFullText;
+    try{
+			pageRanker = BaseWarcDomainManager.rankingService.getLookupService();
+		}
+		catch (Exception e){
+			log.error("Error starting Page Rank lookup service.", e);
+			System.exit(5);
+		}
   }
 
   @Override
@@ -107,30 +116,38 @@ public class TransformWorker implements Runnable {
     }
   }
 
-  private void doJob() {
+  private void doJob() throws Exception{
     thisJob.transform.start(timer);
     transform(thisJob);
     thisJob.transform.finish();
   }
 
-  private void transform(IndexerDocument document) {
+  private void transform(IndexerDocument document) throws Exception {
     // No indexing at all
     if (ContentThreshold.NONE.equals(document.getThreshold())) {
       return;
     }
 
     SolrInputDocument solr = new SolrInputDocument();
-    RankingContainer ranking = BaseWarcDomainManager.rankingService.getRanking(document.getBambooDocument().getUrl());
+    
+    int sec = (int)(document.getBambooDocument().getDate().getTime() / 1000);
+    pageRanker.lookupUrl(document.getBambooDocument().getUrl(), sec);
+    PageRank ranking = new PageRank(pageRanker.linkCaptionText, pageRanker.pageRank, pageRanker.classification);
 
     basicMetadata(solr, document, ranking);
+    classificationMetadata(solr, document, ranking);
     restrictions(solr, document);
     errorHandling(solr, document);
     fullText(solr, document);
 
-    solr.setDocumentBoost(document.getBoost());
     // We store the boost in the index too. It lets us look at it for debugging, but also restrictions
-    // rules don't need to reprocess boost constantly, they can just read it from Solr.
-    solr.addField(SolrEnum.BOOST.toString(), document.getBoost());
+    // rules don't need to re-process boost constantly, they can just read it from Solr.
+    // there are two fields to hold boost one from page rank and the other for page type boosting
+    // we may need to try combination of these?
+    solr.addField(SolrEnum.BOOST.toString(), ranking.getRanking()); // field we are using for boost
+    solr.addField(SolrEnum.PAGEBOOST.toString(), document.getBoost());// store for debug compare 
+    solr.addField(SolrEnum.PAGERANK.toString(), ranking.getRanking());// store for debug compare
+    solr.setDocumentBoost(ranking.getRanking());
 
     document.converted(solr);
   }
@@ -139,7 +156,7 @@ public class TransformWorker implements Runnable {
   // more than one thread into this method per instantiated worker
   private SimpleDateFormat dateYear = new SimpleDateFormat("yyyy");
   
-  private void basicMetadata(SolrInputDocument solr, IndexerDocument document, RankingContainer ranking) {
+  private void basicMetadata(SolrInputDocument solr, IndexerDocument document, PageRank ranking) {
     solr.addField(SolrEnum.ID.toString(), document.getDocId());
 
     // Display URL is the original provided by Bamboo
@@ -190,7 +207,7 @@ public class TransformWorker implements Runnable {
     optionalMetadata(solr, document.getBambooDocument().getCoverage());
   }
   
-  private void domainAndTitleMetadata(SolrInputDocument solr, IndexerDocument document, RankingContainer ranking) {
+  private void domainAndTitleMetadata(SolrInputDocument solr, IndexerDocument document, PageRank ranking) {
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
     if(document.getBambooDocument().getOgSiteName() != null 
     		&& !document.getBambooDocument().getOgSiteName().isEmpty()){
@@ -230,10 +247,12 @@ public class TransformWorker implements Runnable {
       solr.addField(SolrEnum.TITLE_H1_LINK_COMBINED.toString(), document.getBambooDocument().getOgTitle());
     }
     // add link text
-    for(String t : ranking.getLinkText()){
-    	solr.addField(SolrEnum.LINK_TEXT.toString(), t);    	
-    	solr.addField(SolrEnum.TITLE_LINK_COMBINED.toString(), t);    	
-    	solr.addField(SolrEnum.TITLE_H1_LINK_COMBINED.toString(), t);    	
+    if(ranking.getLinkText() != null){
+      for(String t : ranking.getLinkText()){
+      	solr.addField(SolrEnum.LINK_TEXT.toString(), t);    	
+      	solr.addField(SolrEnum.TITLE_LINK_COMBINED.toString(), t);    	
+      	solr.addField(SolrEnum.TITLE_H1_LINK_COMBINED.toString(), t);    	
+      }
     }
     
     if(document.getBambooDocument().getH1() != null 
@@ -252,6 +271,18 @@ public class TransformWorker implements Runnable {
     document.modifyBoost(seoMalus);
   }
 
+  /**
+   * add classifications that contributed to ranking. 
+   * @param solr
+   * @param document
+   * @param ranking
+   */
+  private void classificationMetadata(SolrInputDocument solr, IndexerDocument document, PageRank ranking) {
+  	for(SolrEnum c : ranking.getClassifications()){
+  		solr.addField(c.toString(), true);
+  	}
+  }
+  
   private void optionalMetadata(SolrInputDocument solr, String optionalData) {
     if (optionalData != null && !"".equals(optionalData)) {
       String cleaned = removeExtraSpaces(optionalData).trim();
