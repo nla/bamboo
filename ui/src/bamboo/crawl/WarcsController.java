@@ -249,7 +249,7 @@ public class WarcsController {
                 .stream().map(CollectionMatcher::new).collect(Collectors.toList());
 
         response.type("application/json");
-        OutputStream outputStream = GzipUtils.checkAndWrap(request.raw(), response.raw(), true);
+        OutputStream outputStream = GzipUtils.checkAndWrap(request.raw(), response.raw(), false);
         OutputStreamWriter streamWriter = new OutputStreamWriter(outputStream, UTF_8);
         String url = null;
         try (ArchiveReader reader = WarcUtils.open(warc.getPath())) {
