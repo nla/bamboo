@@ -35,6 +35,9 @@ import org.slf4j.LoggerFactory;
 import spark.Spark;
 import spark.Request;
 import spark.Response;
+import spark.utils.GzipUtils;
+
+import static java.nio.charset.StandardCharsets.*;
 
 public class WarcsController {
     private static final Logger log = LoggerFactory.getLogger(WarcsController.class);
@@ -188,7 +191,7 @@ public class WarcsController {
         Path path = warc.getPath();
         String filename = path.getFileName().toString();
         response.type("text/plain");
-        try (Writer out = new BufferedWriter(new OutputStreamWriter(response.raw().getOutputStream(), StandardCharsets.UTF_8))) {
+        try (Writer out = new BufferedWriter(new OutputStreamWriter(response.raw().getOutputStream(), UTF_8))) {
             Cdx.writeCdx(path, warc.getFilename(), out);
             out.flush();
         }
@@ -246,8 +249,8 @@ public class WarcsController {
                 .stream().map(CollectionMatcher::new).collect(Collectors.toList());
 
         response.type("application/json");
-        OutputStreamWriter streamWriter = new OutputStreamWriter(response.raw().getOutputStream(),
-                StandardCharsets.UTF_8);
+        OutputStream outputStream = GzipUtils.checkAndWrap(request.raw(), response.raw(), true);
+        OutputStreamWriter streamWriter = new OutputStreamWriter(outputStream, UTF_8);
         String url = null;
         try (ArchiveReader reader = WarcUtils.open(warc.getPath())) {
             JsonWriter writer = gson.newJsonWriter(streamWriter);
