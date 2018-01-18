@@ -286,6 +286,8 @@ public class WarcsController {
             streamWriter.write("\n\n" + message + "\n");
             e.printStackTrace(new PrintWriter(streamWriter));
             return "";
+        } finally {
+            streamWriter.close(); // ensure output stream always closed to avoid gzip issues
         }
     }
 
