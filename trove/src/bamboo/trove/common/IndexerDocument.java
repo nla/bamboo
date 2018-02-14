@@ -91,6 +91,12 @@ public class IndexerDocument implements AcknowledgeWorker {
   //***********************************
   // Step 3) Conversion work
   private SolrInputDocument solrDocument;
+  // flag so we can retain the solr document to get the XML for the on demand indexer.
+  private boolean holdSolrDocument = false;
+  public void setHoldSolrDocument(boolean holdSolrDocument){
+    this.holdSolrDocument = holdSolrDocument;
+  }
+  
   public void converted(SolrInputDocument solrDocument) {
     this.solrDocument = solrDocument;
   }
@@ -127,10 +133,22 @@ public class IndexerDocument implements AcknowledgeWorker {
   @Override
   public void acknowledge(SolrInputDocument solrInputDocument) {
     index.finish();
+    if(!holdSolrDocument){
+    	// as we are finished OK
+    	// we can remove the references to some big no longer needed data.
+    	this.bambooDocument = null;
+    	this.solrDocument = null;
+    }
   }
   @Override
   public void errorProcessing(SolrInputDocument solrInputDocument, Throwable throwable) {
     this.setIndexError(throwable);
+    if(!holdSolrDocument){
+    	// as we are finished OK
+    	// we can remove the references to some big no longer needed data.
+    	this.bambooDocument = null;
+    	this.solrDocument = null;
+    }
   }
 
   boolean isInError() {

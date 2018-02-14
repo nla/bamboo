@@ -52,6 +52,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 
 @Service
 public class FullReindexWarcManager extends BaseWarcDomainManager {
@@ -163,6 +164,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   @SuppressWarnings("unused")
   public void setFreeHeapLimit(long freeHeapLimit) {
     this.freeHeapLimit = freeHeapLimit;
+    BaseWarcDomainManager.setFreeHeapLimitParser(freeHeapLimit);
   }
 
   @SuppressWarnings("unused")
@@ -365,7 +367,12 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     URL url = new URL(bambooCollectionsUrl + "?start=" + startOfNextBatch + "&rows=" + bambooBatchSize);
     log.info("Contacting Bamboo for more IDs. start={}, rows={}", startOfNextBatch, bambooBatchSize);
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestProperty("Accept-Encoding", "gzip");
+
     InputStream in = new BufferedInputStream(connection.getInputStream());
+    if("gzip".equals(connection.getHeaderField("Content-Encoding"))){
+    	in = new GZIPInputStream(in);
+    }
 
     ObjectMapper om = getObjectMapper();
     JsonParser json = createParser(in);
@@ -447,10 +454,11 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
       return;
     }
 
-    // Saturated heap? But only if the queue is large as well
+    // Saturated heap? 
     long unusedHeap = (Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory())
             + Runtime.getRuntime().freeMemory();
-    if (queueSize >= 10 && unusedHeap < freeHeapLimit) {
+//    if (queueSize >= 10 && unusedHeap < freeHeapLimit) {
+    if (unusedHeap < freeHeapLimit) {
       Thread.sleep(1000);
       return;
     }

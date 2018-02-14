@@ -55,19 +55,20 @@ public class PageRank{
 			SolrEnum.TEXT_CONTENTKEEPER_UNSAFE,
 			SolrEnum.TEXT_HUMAN_UNSAFE};
 
-	private String[] linkText = null;
+	private LinkTextScore[] linkText = null;
 	private float ranking;
 	private byte classification;
 	
-	protected PageRank(String linkText, float ranking, byte classification){
+	public PageRank(final String[] linkText, final float[] score, int size, float ranking, byte classification){
 		this.ranking = ranking;
 		this.classification = classification;
-		if(linkText != null){
-			this.linkText = linkText.split("\t");
+		this.linkText = new LinkTextScore[size];
+		for(int i=0;i<size;i++){
+			this.linkText[i] = new LinkTextScore(linkText[i], score[i]);
 		}
 	}
 	
-	public String[] getLinkText(){
+	public LinkTextScore[] getLinkText(){
 		return linkText;
 	}
 	public float getRanking(){
@@ -100,5 +101,21 @@ public class PageRank{
 		}		
 	}
 	
+	class LinkTextScore{
+		private String linkText;
+		private float score;
+		
+		private LinkTextScore(String text, float score){
+			this.linkText = text;
+			this.score = score;
+		}
+		
+		public String getLinkText(){
+			return linkText;
+		}
+		public float getScore(){
+			return score;
+		}
+	}
 }
 

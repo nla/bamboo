@@ -35,6 +35,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Calendar;
 import java.util.LinkedList;
+import java.util.zip.GZIPInputStream;
 
 @Service
 public class PeriodicWarcManager extends FullReindexWarcManager {
@@ -119,7 +120,12 @@ public class PeriodicWarcManager extends FullReindexWarcManager {
     URL url = new URL(bambooCollectionsSyncUrl + "?after=" + resumptionToken + "&limit=" + bambooBatchSize);
     log.info("Contacting Bamboo for more IDs. after={}, limit={}", resumptionToken, bambooBatchSize);
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestProperty("Accept-Encoding", "gzip");
+
     InputStream in = new BufferedInputStream(connection.getInputStream());
+    if("gzip".equals(connection.getHeaderField("Content-Encoding"))){
+      in = new GZIPInputStream(in);
+    }
 
     ObjectMapper om = getObjectMapper();
     JsonParser json = createParser(in);

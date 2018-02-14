@@ -42,6 +42,7 @@ import bamboo.trove.common.IndexerDocument;
 import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.common.TitleTools;
+import bamboo.trove.workers.PageRank.LinkTextScore;
 import lookupClient.LookupPageRankLinkTextClassification;
 
 public class TransformWorker implements Runnable {
@@ -51,6 +52,8 @@ public class TransformWorker implements Runnable {
   public static final float BONUS_GOV_SITE = 1.35f;
   public static final float BONUS_EDU_SITE = 1.1f;
   public static final float MALUS_SEARCH_CATEGORY = 0.9f;
+  
+  private static final float[] LINK_TEXT_SCORE_RANGE = {5.0f, 3.0f, 1.5f, 1.2f, 1.0f, 0.9f, 0.8f, 0.6f, 0.5f};
   
   public static final long PANDORA_COLLECTION = 4;
 
@@ -132,7 +135,8 @@ public class TransformWorker implements Runnable {
     
     int sec = (int)(document.getBambooDocument().getDate().getTime() / 1000);
     pageRanker.lookupUrl(document.getBambooDocument().getUrl(), sec);
-    PageRank ranking = new PageRank(pageRanker.linkCaptionText, pageRanker.pageRank, pageRanker.classification);
+    PageRank ranking = new PageRank(pageRanker.linkCaptionTexts, pageRanker.linkCaptionTextPageRanks, 
+    		pageRanker.linkCaptionTextCount, pageRanker.pageRank, pageRanker.classification);
 
     basicMetadata(solr, document, ranking);
     classificationMetadata(solr, document, ranking);
@@ -232,34 +236,50 @@ public class TransformWorker implements Runnable {
 
     String title = removeExtraSpaces(document.getBambooDocument().getTitle());
     if(!title.isEmpty())
-    {    solr.addField(SolrEnum.TITLE.toString(), title);
-      solr.addField(SolrEnum.TITLE_COMBINED.toString(), title);
-      solr.addField(SolrEnum.TITLE_LINK_COMBINED.toString(), title);
-      solr.addField(SolrEnum.TITLE_H1_COMBINED.toString(), title);
-      solr.addField(SolrEnum.TITLE_H1_LINK_COMBINED.toString(), title);
+    {    
+    	solr.addField(SolrEnum.TITLE.toString(), title);
     }
     if(document.getBambooDocument().getOgTitle() != null 
     		&& !document.getBambooDocument().getOgTitle().isEmpty()){
     	solr.addField(SolrEnum.OG_TITLE.toString(), document.getBambooDocument().getOgTitle());
-      solr.addField(SolrEnum.TITLE_COMBINED.toString(), document.getBambooDocument().getOgTitle());
-      solr.addField(SolrEnum.TITLE_H1_COMBINED.toString(), document.getBambooDocument().getOgTitle());
-      solr.addField(SolrEnum.TITLE_LINK_COMBINED.toString(), document.getBambooDocument().getOgTitle());
-      solr.addField(SolrEnum.TITLE_H1_LINK_COMBINED.toString(), document.getBambooDocument().getOgTitle());
     }
     // add link text
-    if(ranking.getLinkText() != null){
-      for(String t : ranking.getLinkText()){
-      	solr.addField(SolrEnum.LINK_TEXT.toString(), t);    	
-      	solr.addField(SolrEnum.TITLE_LINK_COMBINED.toString(), t);    	
-      	solr.addField(SolrEnum.TITLE_H1_LINK_COMBINED.toString(), t);    	
+    for(LinkTextScore t : ranking.getLinkText()){
+    	if(t.getScore() >= LINK_TEXT_SCORE_RANGE[0]){
+    		solr.addField(SolrEnum.LINK_TEXT_1.toString(), t.getLinkText());    	
+    	}
+    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[1]){
+    		solr.addField(SolrEnum.LINK_TEXT_2.toString(), t.getLinkText());
+    	}
+    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[2]){
+    		solr.addField(SolrEnum.LINK_TEXT_3.toString(), t.getLinkText());    	
+    	}
+    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[3]){
+    		solr.addField(SolrEnum.LINK_TEXT_4.toString(), t.getLinkText());
+    	}
+    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[4]){
+    		solr.addField(SolrEnum.LINK_TEXT_5.toString(), t.getLinkText());
+    	}
+    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[5]){
+    		solr.addField(SolrEnum.LINK_TEXT_6.toString(), t.getLinkText());
+    	}
+    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[6]){
+    		solr.addField(SolrEnum.LINK_TEXT_7.toString(), t.getLinkText());
+    	}
+    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[7]){
+    		solr.addField(SolrEnum.LINK_TEXT_8.toString(), t.getLinkText());
+    	}
+    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[8]){
+    		solr.addField(SolrEnum.LINK_TEXT_9.toString(), t.getLinkText());
+    	}
+    	else{
+    		solr.addField(SolrEnum.LINK_TEXT_10.toString(), t.getLinkText());
       }
     }
     
     if(document.getBambooDocument().getH1() != null 
     		&& !document.getBambooDocument().getH1().isEmpty()){
     	solr.addField(SolrEnum.H1.toString(), document.getBambooDocument().getH1());
-      solr.addField(SolrEnum.TITLE_H1_COMBINED.toString(), document.getBambooDocument().getH1());
-      solr.addField(SolrEnum.TITLE_H1_LINK_COMBINED.toString(), document.getBambooDocument().getH1());
     }
     document.modifyBoost(TitleTools.lengthMalus(title));
 

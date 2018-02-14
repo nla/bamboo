@@ -73,6 +73,7 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
 
     WarcProgressManager batch = getAndEnqueueWarc(toIndex);
     IndexerDocument responseDocument = batch.getTrackedDocument();
+    responseDocument.setHoldSolrDocument(true);
     log.info("Warc #{} has {} documents. Loading has completed.", warcId, batch.size());
 
     // TODO: A fair bit more thinking needs to go into error handling here. The complexity was increased dramatically
