@@ -16,12 +16,12 @@ public class CLI {
         System.out.println("Usage: bamboo <subcommand>");
         System.out.println("Bamboo admin tools");
         System.out.println("\nSub-commands:");
-        System.out.println("  cdx-indexer                      - Run the CDX indexer");
+//        System.out.println("  cdx-indexer                      - Run the CDX indexer");
         System.out.println("  import <jobName> <crawlSeriesId> - Import a crawl from Heritrix");
         System.out.println("  insert-warc <crawl-id> <paths>   - Register WARCs with a crawl");
-        System.out.println("  recalc-crawl-times               - Fill approx crawl times based on warc filenames (migration hack)");
-        System.out.println("  refresh-warc-stats               - Refresh warc stats tables");
-        System.out.println("  refresh-warc-stats-fs            - Refresh warc stats tables based on disk");
+//        System.out.println("  recalc-crawl-times               - Fill approx crawl times based on warc filenames (migration hack)");
+        System.out.println("  recalculate-warc-stats           - Refresh warc stats tables");
+//        System.out.println("  refresh-warc-stats-fs            - Refresh warc stats tables based on disk");
         System.out.println("  server                           - Run web server");
         System.out.println("  watch-importer <crawl-id> <path> - Monitor path for new warcs, incrementally index them and then import them to crawl-id");
         System.out.println("  import-pandas-instance  <series-id> <instance-id>");
@@ -63,6 +63,12 @@ public class CLI {
                     String digest = Scrub.calculateDigest("SHA-256", path);
                     bamboo.warcs.create(crawlId, Warc.IMPORTED, path, path.getFileName().toString(), size, digest);
                 }
+                break;
+            case "recalculate-warc-stats":
+                System.out.println("Recalculating WARC stats for crawls");
+                bamboo.crawls.recalculateWarcStats();
+                System.out.println("Recalculating WARC stats for serieses");
+                bamboo.serieses.recalculateWarcStats();
                 break;
             /* FIXME: restore these
             case "cdx-indexer":

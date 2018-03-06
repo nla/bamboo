@@ -53,4 +53,8 @@ public class Serieses {
     public List<Series> listImportable() {
         return dao.listImportableCrawlSeries();
     }
+
+    public void recalculateWarcStats() {
+        dao.recalculateWarcStats();
+    }
 }

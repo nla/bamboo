@@ -68,7 +68,7 @@ public interface SeriesDAO {
     int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path, @Bind("description") String description);
 
     @SqlUpdate("UPDATE crawl_series SET warc_files = (SELECT COALESCE(SUM(warc_files), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), warc_size = (SELECT COALESCE(SUM(warc_size), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), records = (SELECT COALESCE(SUM(records), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), record_bytes = (SELECT COALESCE(SUM(record_bytes), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id)")
-    int refreshWarcStatsOnCrawlSeries();
+    int recalculateWarcStats();
 
     @SqlUpdate("DELETE FROM collection_series WHERE crawl_series_id = :it")
     void removeCrawlSeriesFromAllCollections(@Bind long crawlSeriesId);

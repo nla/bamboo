@@ -84,6 +84,10 @@ public class Crawls {
             return new CrawlStats(dao, crawlId);
     }
 
+    public void recalculateWarcStats() {
+        dao.recalculateWarcStats();
+    }
+
     /**
      * Update a crawl
      *
