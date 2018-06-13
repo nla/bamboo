@@ -49,7 +49,7 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
   public void init() throws InterruptedException {
     waitUntilStarted();
 		log.info("***** OnDemandWarcManager *****");
-		log.info("Run at start       : {}", runAtStart);
+		log.info("Run at start        : {}", runAtStart);
   }
 
   // The UI will call here when it wants to start indexing a warc
@@ -73,7 +73,9 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
 
     WarcProgressManager batch = getAndEnqueueWarc(toIndex);
     IndexerDocument responseDocument = batch.getTrackedDocument();
-    responseDocument.setHoldSolrDocument(true);
+    if(responseDocument != null){
+      responseDocument.setHoldSolrDocument(true);
+    }
     log.info("Warc #{} has {} documents. Loading has completed.", warcId, batch.size());
 
     // TODO: A fair bit more thinking needs to go into error handling here. The complexity was increased dramatically
@@ -105,6 +107,9 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
     }
     lastWarcId = warcId;
 
+    if(responseDocument == null){
+      return "<ResultNotFound/>";
+    }
     return ClientUtils.toXML(responseDocument.getSolrDocument());
   }
 

@@ -53,7 +53,7 @@ public class TransformWorker implements Runnable {
   public static final float BONUS_EDU_SITE = 1.1f;
   public static final float MALUS_SEARCH_CATEGORY = 0.9f;
   
-  private static final float[] LINK_TEXT_SCORE_RANGE = {5.0f, 3.0f, 1.5f, 1.2f, 1.0f, 0.9f, 0.8f, 0.6f, 0.5f};
+  private static final float[] LINK_TEXT_SCORE_RANGE = {3.0f, 1.5f, 0.8f};
   
   public static final long PANDORA_COLLECTION = 4;
 
@@ -148,9 +148,7 @@ public class TransformWorker implements Runnable {
     // rules don't need to re-process boost constantly, they can just read it from Solr.
     // there are two fields to hold boost one from page rank and the other for page type boosting
     // we may need to try combination of these?
-    solr.addField(SolrEnum.BOOST.toString(), ranking.getRanking()); // field we are using for boost
-    solr.addField(SolrEnum.PAGEBOOST.toString(), document.getBoost());// store for debug compare 
-    solr.addField(SolrEnum.PAGERANK.toString(), ranking.getRanking());// store for debug compare
+    solr.addField(SolrEnum.PAGERANK.toString(), ranking.getRanking());// field we are using for boost
     solr.setDocumentBoost(ranking.getRanking());
 
     document.converted(solr);
@@ -170,7 +168,6 @@ public class TransformWorker implements Runnable {
     if (deliveryUrl == null || "".equals(deliveryUrl)) {
       throw new IllegalArgumentException("Delivery URL is empty for document " + document.getDocId());
     }
-    solr.addField(SolrEnum.DELIVERY_URL.toString(), deliveryUrl);
 
     // In the vast majority of cases DELIVERY_URL == canon(DISPLAY_URL)
     // But we test for that because Pandora can throw a spanner in the works
@@ -179,7 +176,11 @@ public class TransformWorker implements Runnable {
     if (!parsedUrl.toString().equals(deliveryUrl)) {
       // This is a pandora URL. To support exact match on both DISPLAY_URL and DELIVERY_URL
       // we need to store a canonicalized version of DISPLAY_URL
-      solr.addField(SolrEnum.PANDORA_URL.toString(), parsedUrl.toString());
+      solr.addField(SolrEnum.PANDORA_URL.toString(), deliveryUrl);
+      solr.addField(SolrEnum.DELIVERY_URL.toString(), parsedUrl.toString());
+    }
+    else{
+      solr.addField(SolrEnum.DELIVERY_URL.toString(), deliveryUrl);
     }
 
     // check if from the pandora collection.
@@ -254,26 +255,8 @@ public class TransformWorker implements Runnable {
     	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[2]){
     		solr.addField(SolrEnum.LINK_TEXT_3.toString(), t.getLinkText());    	
     	}
-    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[3]){
-    		solr.addField(SolrEnum.LINK_TEXT_4.toString(), t.getLinkText());
-    	}
-    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[4]){
-    		solr.addField(SolrEnum.LINK_TEXT_5.toString(), t.getLinkText());
-    	}
-    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[5]){
-    		solr.addField(SolrEnum.LINK_TEXT_6.toString(), t.getLinkText());
-    	}
-    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[6]){
-    		solr.addField(SolrEnum.LINK_TEXT_7.toString(), t.getLinkText());
-    	}
-    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[7]){
-    		solr.addField(SolrEnum.LINK_TEXT_8.toString(), t.getLinkText());
-    	}
-    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[8]){
-    		solr.addField(SolrEnum.LINK_TEXT_9.toString(), t.getLinkText());
-    	}
     	else{
-    		solr.addField(SolrEnum.LINK_TEXT_10.toString(), t.getLinkText());
+    		solr.addField(SolrEnum.LINK_TEXT_4.toString(), t.getLinkText());
       }
     }
     

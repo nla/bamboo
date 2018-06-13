@@ -191,10 +191,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     log.info("***** FullReindexWarcManager *****");
     bambooCollectionsUrl = getBambooApiBaseUrl() + "collections/" + bambooCollectionId + "/warcs/json";
 
-    log.info("Bamboo Collection : {}", bambooCollectionsUrl);
-    log.info("Warc read threads : {}", bambooReadThreads);
-    log.info("Warc queue limit  : {}", queueLimit);
-    log.info("Run at start      : {}", runAtStart);
+    log.info("Bamboo Collection   : {}", bambooCollectionsUrl);
+    log.info("Warc read threads   : {}", bambooReadThreads);
+    log.info("Warc queue limit    : {}", queueLimit);
+    log.info("Run at start        : {}", runAtStart);
 
     dao = database.getDao().fullPersistence();
     persistedWarcId = dao.getLastId(moduloRemainder);

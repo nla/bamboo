@@ -16,11 +16,7 @@
 package bamboo.trove.common;
 
 public enum SolrEnum {
-  // Keeping them in alphabetical order just
-  // to help readability as the schema grows
   AU_GOV("auGov"),
-  BOOST("boost"),
-  PAGEBOOST("pageBoost"),
   PAGERANK("pageRank"),
   DATE("date"),
   DECADE("decade"),
@@ -49,12 +45,6 @@ public enum SolrEnum {
   LINK_TEXT_2("linkText2"),
   LINK_TEXT_3("linkText3"),
   LINK_TEXT_4("linkText4"),
-  LINK_TEXT_5("linkText5"),
-  LINK_TEXT_6("linkText6"),
-  LINK_TEXT_7("linkText7"),
-  LINK_TEXT_8("linkText8"),
-  LINK_TEXT_9("linkText9"),
-  LINK_TEXT_10("linkText10"),
   URL_TOKENIZED("urlTokenized"),
   YEAR("year"),
   QUEUED_FOR_CLASSIFICATION("queuedForClassification"),

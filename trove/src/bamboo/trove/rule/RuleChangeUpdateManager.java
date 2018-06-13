@@ -71,7 +71,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private static final Logger log = LoggerFactory.getLogger(RuleChangeUpdateManager.class);
 
   private static final String[] SOLR_FIELDS = new String[] {SolrEnum.ID.toString(), SolrEnum.DISPLAY_URL.toString(),
-          SolrEnum.DELIVERY_URL.toString(), SolrEnum.DATE.toString(), SolrEnum.BOOST.toString(),
+          SolrEnum.DELIVERY_URL.toString(), SolrEnum.DATE.toString(), SolrEnum.PAGERANK.toString(),
           SolrEnum.RULE.toString(), SolrEnum.DELIVERABLE.toString(), SolrEnum.DISCOVERABLE.toString()};
   private static final SimpleDateFormat format = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss'Z'");
   private static int NUMBER_OF_WORKERS = 5;
@@ -95,6 +95,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private FilteringCoordinationService filteringService;
 
   private String bambooBaseUrl;
+  
   private int maxFilterWorkers;
   private int maxTransformWorkers;
   private int maxIndexWorkers;
@@ -152,7 +153,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   public void setMaxIndexWorkers(int maxIndexWorkers) {
     this.maxIndexWorkers = maxIndexWorkers;
   }
-
+  
   public boolean isMinimizingWriteTraffic() {
     return minimizeWriteTraffic;
   }
@@ -658,7 +659,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       }
       String deliveryUrl = (String) doc.getFieldValue(SolrEnum.DELIVERY_URL.toString());
       Date capture = (Date) doc.getFieldValue(SolrEnum.DATE.toString());
-      float boost = (Float) doc.getFieldValue(SolrEnum.BOOST.toString());
+      float boost = (Float) doc.getFieldValue(SolrEnum.PAGERANK.toString());
       int ruleId = (Integer) doc.getFieldValue(SolrEnum.RULE.toString());
       Boolean deliverable = (Boolean) doc.getFieldValue(SolrEnum.DELIVERABLE.toString());
       Boolean discoverable = (Boolean) doc.getFieldValue(SolrEnum.DELIVERABLE.toString());
