@@ -200,11 +200,6 @@
             <artifactId>bootstrap-chosen</artifactId>
             <version>1.0.0</version>
         </dependency>
-        <dependency>
-            <groupId>org.webjars</groupId>
-            <artifactId>flotr2</artifactId>
-            <version>d43f8566e8</version>
-        </dependency>
 
         <dependency>
             <groupId>org.apache.solr</groupId>
