@@ -6,6 +6,7 @@ import bamboo.crawl.*;
 import bamboo.crawl.Collections;
 import bamboo.util.SurtFilter;
 import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveReaderFactory;
 import org.archive.url.SURT;
 
 import java.io.*;
@@ -114,8 +115,8 @@ public class CdxIndexer implements Runnable {
 
         try {
             // parse the warc file
-            try {
-                stats = writeCdx(warc.getPath(), warc.getFilename(), buffers);
+            try (ArchiveReader reader = warcs.openReader(warc)){
+                stats = writeCdx(reader, warc.getFilename(), warc.getSize(), buffers);
             } catch (RuntimeException e) {
                 if (e.getCause() != null && e.getCause() instanceof ZipException) {
                     warcs.updateState(warc.getId(), Warc.CDX_ERROR);
@@ -295,31 +296,29 @@ public class CdxIndexer implements Runnable {
         return SURT.toSURT(stripScheme(url));
     }
 
-    private static RecordStats writeCdx(Path warc, String filename, List<CdxBuffer> buffers) throws IOException {
+    private static RecordStats writeCdx(ArchiveReader reader, String filename, long warcLength, List<CdxBuffer> buffers) throws IOException {
         RecordStats stats = new RecordStats();
-        try (ArchiveReader reader = WarcUtils.open(warc)) {
-            Cdx.records(reader, filename, Files.size(warc)).forEach(record -> {
-                if (record instanceof Cdx.Alias) {
-                    Cdx.Alias alias = (Cdx.Alias) record;
-                    for (CdxBuffer buffer : buffers) {
-                        buffer.appendAlias(alias.alias, alias.target);
-                    }
-                } else {
-                    Cdx.Capture capture = (Cdx.Capture) record;
-                    Date time;
-                    try {
-                        time = WarcUtils.parseArcDate(capture.date);
-                    } catch (DateTimeParseException e) {
-                        return; // skip record if we can't get a sane time
-                    }
-                    stats.update(capture.compressedLength, time);
-                    String surt = toSchemalessSURT(capture.url);
-                    for (CdxBuffer buffer : buffers) {
-                        buffer.append(surt, capture.compressedLength, capture.toCdxLine(), time);
-                    }
+        Cdx.records(reader, filename, warcLength).forEach(record -> {
+            if (record instanceof Cdx.Alias) {
+                Cdx.Alias alias = (Cdx.Alias) record;
+                for (CdxBuffer buffer : buffers) {
+                    buffer.appendAlias(alias.alias, alias.target);
                 }
-            });
-        }
+            } else {
+                Cdx.Capture capture = (Cdx.Capture) record;
+                Date time;
+                try {
+                    time = WarcUtils.parseArcDate(capture.date);
+                } catch (DateTimeParseException e) {
+                    return; // skip record if we can't get a sane time
+                }
+                stats.update(capture.compressedLength, time);
+                String surt = toSchemalessSURT(capture.url);
+                for (CdxBuffer buffer : buffers) {
+                    buffer.append(surt, capture.compressedLength, capture.toCdxLine(), time);
+                }
+            }
+        });
         return stats;
     }
 
@@ -329,7 +328,8 @@ public class CdxIndexer implements Runnable {
             System.exit(1);
         }
         Path warc = Paths.get(args[0]);
-        Cdx.writeCdx(warc, warc.getFileName().toString(), new OutputStreamWriter(System.out));
+        Cdx.writeCdx(ArchiveReaderFactory.get(warc.toFile()), warc.getFileName().toString(), Files.size(warc),
+                new OutputStreamWriter(System.out));
     }
 
 }

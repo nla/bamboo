@@ -3,21 +3,34 @@ package bamboo.crawl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
+import doss.BlobStore;
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveReaderFactory;
+import org.archive.io.warc.WARCReaderFactory;
 import org.skife.jdbi.v2.sqlobject.Bind;
 
 public class Warcs {
     private final WarcsDAO dao;
+    private final BlobStore blobStore;
 
     public Warcs(WarcsDAO warcsDAO) {
+        this(warcsDAO, null);
+    }
+
+    public Warcs(WarcsDAO warcsDAO, BlobStore blobStore) {
         this.dao = warcsDAO;
+        this.blobStore = blobStore;
     }
 
     public List<Warc> findByCrawlId(long crawlId) {
@@ -183,7 +196,7 @@ public class Warcs {
             return true;
         }
 
-        try (InputStream stream = Files.newInputStream(warc.getPath())) {
+        try (InputStream stream = openStream(warc)) {
             stream.read();
             out.println("OK");
             return true;
@@ -207,5 +220,29 @@ public class Warcs {
     public List<WarcResumptionToken> resumptionByCollectionIdAndStateId(
             long collectionId, int stateId, WarcResumptionToken after, int limit) {
         return dao.resumptionByCollectionIdAndStateId(collectionId, stateId, Timestamp.from(after.time), after.id, limit);
+    }
+
+    public InputStream openStream(Warc warc) throws IOException {
+        if (warc.getBlobId() != null) {
+            return blobStore.get(warc.getBlobId()).openStream();
+        }
+        return Files.newInputStream(warc.getPath());
+    }
+
+    public SeekableByteChannel openChannel(Warc warc) throws IOException {
+        if (warc.getBlobId() != null) {
+            return blobStore.get(warc.getBlobId()).openChannel();
+        }
+        return FileChannel.open(warc.getPath(), StandardOpenOption.READ);
+    }
+
+    public ArchiveReader openReader(Warc warc) throws IOException {
+        /*
+         * ArchiveReaderFactor.get doesn't understand the .open extension.
+         */
+        if (warc.getFilename().endsWith(".warc.gz.open")) {
+            return WARCReaderFactory.get(warc.getFilename(), openStream(warc), true);
+        }
+        return ArchiveReaderFactory.get(warc.getFilename(), openStream(warc), true);
     }
 }

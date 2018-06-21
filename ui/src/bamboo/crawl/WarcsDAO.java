@@ -29,6 +29,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
             warc.setRecordBytes(rs.getLong("record_bytes"));
             warc.setFilename(rs.getString("filename"));
             warc.setSha256(rs.getString("sha256"));
+            warc.setBlobId((Long)rs.getObject("blob_id"));
             return warc;
         }
     }

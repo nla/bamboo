@@ -1,6 +1,8 @@
 package bamboo.app;
 
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 
 import bamboo.core.*;
 import bamboo.crawl.Collections;
@@ -13,11 +15,15 @@ import bamboo.task.CdxIndexer;
 import bamboo.task.Importer;
 import bamboo.task.SolrIndexer;
 import bamboo.task.WatchImporter;
+import doss.BlobStore;
+import doss.DOSS;
 
 public class Bamboo implements AutoCloseable {
 
     public final Config config;
     private final DbPool dbPool;
+    private final BlobStore blobStore;
+
     public final Crawls crawls;
     public final Serieses serieses;
     public final Warcs warcs;
@@ -30,14 +36,17 @@ public class Bamboo implements AutoCloseable {
     private final SolrIndexer solrIndexer;
     private final LockManager lockManager;
 
-    public Bamboo() {
+    public Bamboo() throws IOException {
         this(new Config());
     }
 
-    public Bamboo(Config config) {
+    public Bamboo(Config config) throws IOException {
         long startTime = System.currentTimeMillis();
 
         this.config = config;
+
+        String dossUrl = config.getDossUrl();
+        blobStore = dossUrl == null ? null : DOSS.open(dossUrl);
 
         dbPool = new DbPool(config);
         dbPool.migrate();
@@ -48,7 +57,7 @@ public class Bamboo implements AutoCloseable {
 
         // crawl package
         this.serieses = new Serieses(dao.serieses());
-        this.warcs = new Warcs(dao.warcs());
+        this.warcs = new Warcs(dao.warcs(), blobStore);
         this.crawls = new Crawls(dao.crawls(), serieses, warcs);
         this.collections = new Collections(dao.collections());
 

@@ -27,8 +27,8 @@ public class Cdx {
         return StreamUtils.takeWhile(stream, (record) -> record != null);
     }
 
-    public static void writeCdx(Path warc, String filename, Writer out) throws IOException {
-        records(WarcUtils.open(warc), filename, Files.size(warc)).forEach(record -> {
+    public static void writeCdx(ArchiveReader warcReader, String filename, long warcLength, Writer out) throws IOException {
+        records(warcReader, filename, warcLength).forEach(record -> {
             try {
                 out.write(record.toCdxLine() + "\n");
             } catch (IOException e) {

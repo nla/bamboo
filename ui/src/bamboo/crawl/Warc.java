@@ -15,6 +15,7 @@ public class Warc {
     private long recordBytes;
     private String filename;
     private String sha256;
+    private Long blobId;
 
     public Warc() {
     }
@@ -89,5 +90,13 @@ public class Warc {
 
     public void setSha256(String sha256) {
         this.sha256 = sha256;
+    }
+
+    public void setBlobId(Long blobId) {
+        this.blobId = blobId;
+    }
+
+    public Long getBlobId() {
+        return blobId;
     }
 }

@@ -149,7 +149,7 @@ public class SolrIndexer implements Runnable {
         }
 
         List<SolrInputDocument> batch = new ArrayList<>();
-        try (ArchiveReader reader = WarcUtils.open(warc.getPath())) {
+        try (ArchiveReader reader = warcs.openReader(warc)) {
             for (ArchiveRecord record : reader) {
                 if (record.getHeader().getUrl() == null) continue;
                 String surt = SURT.toSURT(WarcUtils.getCleanUrl(record.getHeader()));

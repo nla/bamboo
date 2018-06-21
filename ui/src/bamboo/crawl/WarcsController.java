@@ -4,6 +4,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -16,19 +17,22 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import bamboo.app.Bamboo;
+import bamboo.core.Streams;
 import bamboo.task.*;
 import bamboo.util.Freemarker;
 import bamboo.util.Parsing;
 import bamboo.util.SurtFilter;
+import com.github.junrar.Archive;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonWriter;
-import net.didion.jwnl.data.Exc;
-import org.apache.log4j.lf5.util.StreamUtils;
+import doss.BlobStore;
 import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.ArchiveRecord;
+import org.archive.io.arc.ARCReaderFactory;
 import org.archive.url.SURT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +47,7 @@ public class WarcsController {
     private static final Logger log = LoggerFactory.getLogger(WarcsController.class);
 
     final Bamboo wa;
+
     public void routes() {
         Spark.get("/warcs/:id", this::serve);
         Spark.get("/warcs/:id/cdx", this::showCdx);
@@ -134,65 +139,61 @@ public class WarcsController {
                 response.header("Content-Disposition", "filename=" + warc.getFilename());
                 response.header("Accept-Ranges", "bytes");
 
-                try (InputStream src = Files.newInputStream(warc.getPath());
+                try (InputStream src = wa.warcs.openStream(warc);
                      OutputStream dst = response.raw().getOutputStream()) {
-                    byte[] buf = new byte[16384];
-                    for (int n = src.read(buf); n >= 0; n = src.read(buf)) {
-                        dst.write(buf, 0, n);
-                    }
+                    Streams.copy(src, dst);
                 }
 
                 return "";
             } else if (ranges.size() == 1) {
-                return singleRangeResponse(response, warc.getPath(), ranges.get(0));
+                return singleRangeResponse(response, warc, ranges.get(0));
             } else {
-                return multipleRangeResponse(response, warc.getPath(), ranges);
+                return multipleRangeResponse(response, warc, ranges);
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    private String singleRangeResponse(Response response, Path path, Range range) throws IOException {
+
+    private String singleRangeResponse(Response response, Warc warc, Range range) throws IOException {
         response.status(206);
         response.type("application/warc");
         response.header("Content-Range", range.toString());
         response.header("Content-Length", Long.toString(range.length));
-        try (WritableByteChannel out = Channels.newChannel(response.raw().getOutputStream());
-             FileChannel in = FileChannel.open(path, StandardOpenOption.READ)) {
-            in.transferTo(range.start, range.length, out);
+        try (OutputStream out = response.raw().getOutputStream();
+             SeekableByteChannel in = wa.warcs.openChannel(warc)) {
+            in.position(range.start);
+            Streams.copy(Channels.newInputStream(in), out, range.length);
         }
         return "";
     }
 
     private static final String boundary = "Te2akaimeeThe8eip5oh";
 
-    private String multipleRangeResponse(Response response, Path path, List<Range> ranges) throws IOException {
+    private String multipleRangeResponse(Response response, Warc warc, List<Range> ranges) throws IOException {
         response.status(206);
         response.type("multipart/byteranges; boundary=" + boundary);
-        try (WritableByteChannel out = Channels.newChannel(response.raw().getOutputStream());
-             FileChannel in = FileChannel.open(path, StandardOpenOption.READ)) {
+        try (OutputStream out = response.raw().getOutputStream();
+             SeekableByteChannel in = wa.warcs.openChannel(warc);
+             InputStream ins = Channels.newInputStream(in)) {
             for (Range range : ranges) {
-                out.write(asciiBuffer("--" + boundary + "\r\nContent-Type: application/warc\r\nContent-Range: " + range.toString() + "\r\n\r\n"));
-                in.transferTo(range.start, range.length, out);
-                out.write(asciiBuffer("\r\n"));
+                out.write(("--" + boundary + "\r\nContent-Type: application/warc\r\nContent-Range: " + range.toString() + "\r\n\r\n").getBytes(US_ASCII));
+                in.position(range.start);
+                Streams.copy(ins, out, range.length);
+                out.write("\r\n".getBytes(US_ASCII));
             }
-            out.write(asciiBuffer("--" + boundary + "--\r\n"));
+            out.write(("--" + boundary + "--\r\n").getBytes(US_ASCII));
             return "";
         }
     }
 
-    private static ByteBuffer asciiBuffer(String s) {
-        return ByteBuffer.wrap(s.getBytes(Charsets.UTF_8));
-    }
-
     private String showCdx(Request request, Response response) throws IOException {
         Warc warc = findWarc(request);
-        Path path = warc.getPath();
-        String filename = path.getFileName().toString();
         response.type("text/plain");
-        try (Writer out = new BufferedWriter(new OutputStreamWriter(response.raw().getOutputStream(), UTF_8))) {
-            Cdx.writeCdx(path, warc.getFilename(), out);
+        try (Writer out = new BufferedWriter(new OutputStreamWriter(response.raw().getOutputStream(), UTF_8));
+             ArchiveReader reader = wa.warcs.openReader(warc)) {
+            Cdx.writeCdx(reader, warc.getFilename(), warc.getSize(), out);
             out.flush();
         }
         return "";
@@ -252,7 +253,7 @@ public class WarcsController {
         OutputStream outputStream = GzipUtils.checkAndWrap(request.raw(), response.raw(), false);
         OutputStreamWriter streamWriter = new OutputStreamWriter(outputStream, UTF_8);
         String url = null;
-        try (ArchiveReader reader = WarcUtils.open(warc.getPath())) {
+        try (ArchiveReader reader = wa.warcs.openReader(warc)) {
             JsonWriter writer = gson.newJsonWriter(streamWriter);
             writer.beginArray();
             for (ArchiveRecord record : reader) {

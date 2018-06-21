@@ -15,6 +15,12 @@ import bamboo.app.Bamboo;
 
 public class Scrub {
 
+    private final Bamboo bamboo;
+
+    public Scrub(Bamboo bamboo) {
+        this.bamboo = bamboo;
+    }
+
     enum ResultType {NEW, OK, MISMATCH, ERROR}
 
     ;
@@ -77,11 +83,11 @@ public class Scrub {
         }
     }
 
-    static Result scrub(Warc warc) {
+    Result scrub(Warc warc) {
         String digest;
         try {
-            digest = calculateDigest("SHA-256", warc.getPath());
-        } catch (IOException e) {
+            digest = calculateDigest("SHA-256", bamboo.warcs.openChannel(warc));
+        } catch (IOException | NoSuchAlgorithmException e) {
             return new Result(ResultType.ERROR, warc.getId(), warc.getPath(), warc.getSha256(), e);
         }
 
@@ -94,16 +100,20 @@ public class Scrub {
         }
     }
 
-    public static void scrub(Bamboo bamboo) {
+    void scrub() {
         List<Warc> warcs = bamboo.warcs.listAll();
 
         warcs.parallelStream()
-                .map(Scrub::scrub)
+                .map(this::scrub)
                 .forEach(result -> {
                     System.out.println(result);
                     if (result.type == ResultType.NEW) {
                         bamboo.warcs.updateSha256(result.warcId, result.calculatedDigest);
                     }
                 });
+    }
+
+    public static void scrub(Bamboo bamboo) {
+        new Scrub(bamboo).scrub();
     }
 }

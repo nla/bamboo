@@ -17,6 +17,7 @@ import spark.Request;
 import spark.Response;
 import spark.Spark;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Date;
@@ -70,7 +71,7 @@ public class Webapp implements AutoCloseable {
         return out.toString();
     }
 
-    public Webapp() {
+    public Webapp() throws IOException {
         this(new Bamboo());
     }
 
