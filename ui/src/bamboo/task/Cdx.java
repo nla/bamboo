@@ -78,11 +78,11 @@ public class Cdx {
                                 urlMapIterator = parseUrlMap(record, m.group(1)).iterator();
                                 return next();
                             }
-                        }
 
-                        // Save PANDORA index pages for extra aliasing at the end.
-                        if (urlMapIterator == null && url.endsWith("/index.html")) {
-                            panIndexPages.add(url);
+                            // Save PANDORA index pages for extra aliasing at the end.
+                            if (urlMapIterator == null && url.endsWith("/index.html")) {
+                                panIndexPages.add(url);
+                            }
                         }
                     }
 

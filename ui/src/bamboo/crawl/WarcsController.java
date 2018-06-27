@@ -195,6 +195,8 @@ public class WarcsController {
              ArchiveReader reader = wa.warcs.openReader(warc)) {
             Cdx.writeCdx(reader, warc.getFilename(), warc.getSize(), out);
             out.flush();
+        } catch (Exception e) {
+            log.error("Unable to produce CDX for warc " + warc.getId(), e);
         }
         return "";
     }
