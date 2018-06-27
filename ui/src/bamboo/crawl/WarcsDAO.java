@@ -23,7 +23,8 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
             warc.setId(rs.getLong("id"));
             warc.setCrawlId(rs.getLong("crawl_id"));
             warc.setStateId(rs.getInt("warc_state_id"));
-            warc.setPath(Paths.get(rs.getString("path")));
+            String path = rs.getString("path");
+            warc.setPath(path == null ? null : Paths.get(path));
             warc.setSize(rs.getLong("size"));
             warc.setRecords(rs.getLong("records"));
             warc.setRecordBytes(rs.getLong("record_bytes"));
