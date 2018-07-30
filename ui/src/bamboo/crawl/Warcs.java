@@ -243,11 +243,11 @@ public class Warcs {
             InetAddress[] addresses = InetAddress.getAllByName(host);
             if (addresses.length > 1) {
                 try {
-                    String robinHost = addresses[roundRobin.getAndIncrement()].toString();
+                    String robinHost = addresses[roundRobin.getAndIncrement() % addresses.length].toString();
                     uri = new URI(uri.getScheme(), uri.getUserInfo(), robinHost, uri.getPort(), uri.getPath(),
                             uri.getQuery(), uri.getFragment());
                 } catch (URISyntaxException e) {
-                    throw new RuntimeException(e);
+                    throw new IOException(e);
                 }
             }
 
