@@ -72,6 +72,10 @@ public class Config {
         return Paths.get(value);
     }
 
+    public String getWarcUrl() {
+        return getEnv("WARC_URL", null);
+    }
+
     public static class Watch {
         public final long crawlId;
         public final Path dir;

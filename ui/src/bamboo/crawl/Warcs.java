@@ -3,12 +3,16 @@ package bamboo.crawl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.sql.Timestamp;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -20,17 +24,21 @@ import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.warc.WARCReaderFactory;
 import org.skife.jdbi.v2.sqlobject.Bind;
 
+import static java.nio.charset.StandardCharsets.*;
+
 public class Warcs {
     private final WarcsDAO dao;
     private final BlobStore blobStore;
+    private final String baseUrl;
 
     public Warcs(WarcsDAO warcsDAO) {
-        this(warcsDAO, null);
+        this(warcsDAO, null, null);
     }
 
-    public Warcs(WarcsDAO warcsDAO, BlobStore blobStore) {
+    public Warcs(WarcsDAO warcsDAO, BlobStore blobStore, String baseUrl) {
         this.dao = warcsDAO;
         this.blobStore = blobStore;
+        this.baseUrl = baseUrl;
     }
 
     public List<Warc> findByCrawlId(long crawlId) {
@@ -225,6 +233,15 @@ public class Warcs {
     public InputStream openStream(Warc warc) throws IOException {
         if (warc.getBlobId() != null) {
             return blobStore.get(warc.getBlobId()).openStream();
+        }
+        if (baseUrl != null) {
+            URL url = new URL(baseUrl + warc.getPath());
+            URLConnection conn = url.openConnection();
+            if (url.getUserInfo() != null) {
+                String auth = Base64.getEncoder().encodeToString(url.getUserInfo().getBytes(UTF_8));
+                conn.setRequestProperty("Authorization", "Basic " + auth);
+            }
+            return conn.getInputStream();
         }
         return Files.newInputStream(warc.getPath());
     }
