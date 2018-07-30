@@ -246,12 +246,13 @@ public class Warcs {
         String host = uri.getHost();
         InetAddress[] addresses = InetAddress.getAllByName(host);
         if (addresses.length > 1) {
+            int index = Math.floorMod(roundRobin.getAndIncrement(), addresses.length);
+            String selectedHost = addresses[index].getHostAddress();
             try {
-                String robinHost = addresses[Math.floorMod(roundRobin.getAndIncrement(), addresses.length)].getHostAddress();
-                uri = new URI(uri.getScheme(), uri.getUserInfo(), robinHost, uri.getPort(), uri.getPath(),
+                uri = new URI(uri.getScheme(), uri.getUserInfo(), selectedHost, uri.getPort(), uri.getPath(),
                         uri.getQuery(), uri.getFragment());
             } catch (URISyntaxException e) {
-                throw new IOException(e);
+                throw new IOException("building round-robin URL", e);
             }
         }
 
