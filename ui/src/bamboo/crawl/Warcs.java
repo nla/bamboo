@@ -6,7 +6,6 @@ import java.io.PrintWriter;
 import java.net.*;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -22,7 +21,6 @@ import doss.BlobStore;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.warc.WARCReaderFactory;
-import org.skife.jdbi.v2.sqlobject.Bind;
 
 import static java.nio.charset.StandardCharsets.*;
 
@@ -238,30 +236,35 @@ public class Warcs {
             return blobStore.get(warc.getBlobId()).openStream();
         }
         if (baseUrl != null) {
-            URI uri = URI.create(baseUrl + warc.getPath());
-            String host = uri.getHost();
-            InetAddress[] addresses = InetAddress.getAllByName(host);
-            if (addresses.length > 1) {
-                try {
-                    String robinHost = addresses[Math.floorMod(roundRobin.getAndIncrement(), addresses.length)].getHostAddress();
-                    uri = new URI(uri.getScheme(), uri.getUserInfo(), robinHost, uri.getPort(), uri.getPath(),
-                            uri.getQuery(), uri.getFragment());
-                } catch (URISyntaxException e) {
-                    throw new IOException(e);
-                }
-            }
-
-            URLConnection conn = uri.toURL().openConnection();
-            if (uri.getUserInfo() != null) {
-                String auth = Base64.getEncoder().encodeToString(uri.getUserInfo().getBytes(UTF_8));
-                conn.setRequestProperty("Authorization", "Basic " + auth);
-            }
-            if (addresses.length > 1) {
-                conn.setRequestProperty("Host", host);
-            }
-            return conn.getInputStream();
+            return openStreamViaRoundRobinHttp(warc);
         }
         return Files.newInputStream(warc.getPath());
+    }
+
+    private InputStream openStreamViaRoundRobinHttp(Warc warc) throws IOException {
+        URI uri = URI.create(baseUrl + warc.getPath());
+        String host = uri.getHost();
+        InetAddress[] addresses = InetAddress.getAllByName(host);
+        if (addresses.length > 1) {
+            try {
+                String robinHost = addresses[Math.floorMod(roundRobin.getAndIncrement(), addresses.length)].getHostAddress();
+                uri = new URI(uri.getScheme(), uri.getUserInfo(), robinHost, uri.getPort(), uri.getPath(),
+                        uri.getQuery(), uri.getFragment());
+            } catch (URISyntaxException e) {
+                throw new IOException(e);
+            }
+        }
+
+        URLConnection conn = uri.toURL().openConnection();
+        if (uri.getUserInfo() != null) {
+            String auth = Base64.getEncoder().encodeToString(uri.getUserInfo().getBytes(UTF_8));
+            conn.setRequestProperty("Authorization", "Basic " + auth);
+        }
+
+        if (addresses.length > 1) {
+            conn.setRequestProperty("Host", host);
+        }
+        return conn.getInputStream();
     }
 
     public SeekableByteChannel openChannel(Warc warc) throws IOException {
