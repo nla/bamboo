@@ -3,8 +3,7 @@ package bamboo.crawl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.*;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +14,7 @@ import java.sql.Timestamp;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
@@ -230,16 +230,34 @@ public class Warcs {
         return dao.resumptionByCollectionIdAndStateId(collectionId, stateId, Timestamp.from(after.time), after.id, limit);
     }
 
+
+    private AtomicInteger roundRobin = new AtomicInteger(0);
+
     public InputStream openStream(Warc warc) throws IOException {
         if (warc.getBlobId() != null) {
             return blobStore.get(warc.getBlobId()).openStream();
         }
         if (baseUrl != null) {
-            URL url = new URL(baseUrl + warc.getPath());
-            URLConnection conn = url.openConnection();
-            if (url.getUserInfo() != null) {
-                String auth = Base64.getEncoder().encodeToString(url.getUserInfo().getBytes(UTF_8));
+            URI uri = URI.create(baseUrl + warc.getPath());
+            String host = uri.getHost();
+            InetAddress[] addresses = InetAddress.getAllByName(host);
+            if (addresses.length > 1) {
+                try {
+                    String robinHost = addresses[roundRobin.getAndIncrement()].toString();
+                    uri = new URI(uri.getScheme(), uri.getUserInfo(), robinHost, uri.getPort(), uri.getPath(),
+                            uri.getQuery(), uri.getFragment());
+                } catch (URISyntaxException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            URLConnection conn = uri.toURL().openConnection();
+            if (uri.getUserInfo() != null) {
+                String auth = Base64.getEncoder().encodeToString(uri.getUserInfo().getBytes(UTF_8));
                 conn.setRequestProperty("Authorization", "Basic " + auth);
+            }
+            if (addresses.length > 1) {
+                conn.setRequestProperty("Host", host);
             }
             return conn.getInputStream();
         }
