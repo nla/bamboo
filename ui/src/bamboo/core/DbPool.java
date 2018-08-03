@@ -36,17 +36,19 @@ public class DbPool implements Closeable {
         dbi = new DBI(ds);
         dbi.registerArgumentFactory(new PathArgumentFactory());
 
-        dbi.setSQLLog(new PrintStreamLog() {
-            @Override
-            public void logReleaseHandle(Handle h) {
-                // suppress
-            }
+        if (System.getenv("SQL_LOG") != null) {
+            dbi.setSQLLog(new PrintStreamLog() {
+                @Override
+                public void logReleaseHandle(Handle h) {
+                    // suppress
+                }
 
-            @Override
-            public void logObtainHandle(long time, Handle h) {
-                // suppress
-            }
-        });
+                @Override
+                public void logObtainHandle(long time, Handle h) {
+                    // suppress
+                }
+            });
+        }
 
         dao = dbi.onDemand(DAO.class);
     }
