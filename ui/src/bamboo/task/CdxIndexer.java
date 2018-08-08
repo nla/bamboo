@@ -8,6 +8,8 @@ import bamboo.util.SurtFilter;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.url.SURT;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -27,11 +29,10 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipException;
 
 import static bamboo.task.WarcUtils.cleanUrl;
-import static java.nio.file.StandardOpenOption.DELETE_ON_CLOSE;
-import static java.nio.file.StandardOpenOption.READ;
-import static java.nio.file.StandardOpenOption.WRITE;
+import static java.nio.file.StandardOpenOption.*;
 
 public class CdxIndexer implements Runnable {
+    private static final Logger log = LoggerFactory.getLogger(CdxIndexer.class);
     private static final int BATCH_SIZE = 1024;
     private final Warcs warcs;
     private final Crawls crawls;
@@ -310,6 +311,7 @@ public class CdxIndexer implements Runnable {
                 try {
                     time = WarcUtils.parseArcDate(capture.date);
                 } catch (DateTimeParseException e) {
+                    log.warn("Unable to parse time " + filename + " in " + capture.url, e);
                     return; // skip record if we can't get a sane time
                 }
                 stats.update(capture.compressedLength, time);
