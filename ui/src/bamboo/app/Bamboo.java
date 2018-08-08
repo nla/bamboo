@@ -1,9 +1,5 @@
 package bamboo.app;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.nio.file.Path;
-
 import bamboo.core.*;
 import bamboo.crawl.Collections;
 import bamboo.crawl.Crawls;
@@ -17,6 +13,9 @@ import bamboo.task.SolrIndexer;
 import bamboo.task.WatchImporter;
 import doss.BlobStore;
 import doss.DOSS;
+
+import java.io.IOException;
+import java.io.PrintWriter;
 
 public class Bamboo implements AutoCloseable {
 
@@ -71,6 +70,7 @@ public class Bamboo implements AutoCloseable {
         solrIndexer = new SolrIndexer(collections, crawls, warcs, lockManager);
         taskmaster.add(solrIndexer);
         taskmaster.add(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
+        taskmaster.startAll();
 
         // pandas package
         if (config.getPandasDbUrl() != null) {

@@ -1,10 +1,5 @@
 package bamboo.core;
 
-import bamboo.core.Config;
-import bamboo.core.DbPool;
-import bamboo.task.CdxIndexer;
-import bamboo.task.Importer;
-import bamboo.task.SolrIndexer;
 import bamboo.task.Task;
 
 import java.util.ArrayList;
@@ -34,6 +29,12 @@ public class Taskmaster {
     public void close() {
         for (Task task : tasks) {
             task.disable();
+        }
+    }
+
+    public void startAll() {
+        for (Task task : tasks) {
+            task.enable();
         }
     }
 }
