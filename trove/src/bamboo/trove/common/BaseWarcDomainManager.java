@@ -63,7 +63,14 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   public static void setFreeHeapLimitParser(long freeHeapLimit){
     BaseWarcDomainManager.freeHeapLimit = freeHeapLimit;
   }
-
+	private static boolean disableIndexing = true;
+	public static void setDisableIndexing(boolean disableIndexing){
+		BaseWarcDomainManager.disableIndexing = disableIndexing;
+	}
+	public static boolean isDisableIndexing(){
+		return disableIndexing;
+	}
+	
   // Reading data from Bamboo
   private static Timer bambooReadTimer; 
   private static Timer bambooParseTimer;

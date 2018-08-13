@@ -40,4 +40,14 @@ public class TransformWorkerTest{
 		assertEquals("the quick brown fox", TransformWorker.removeExtraSpaces("the \t\r\nquick\tbrown\rfox"));
 		assertEquals("the quick", TransformWorker.removeExtraSpaces("the   \r\r\r\r\r\r\r\t\t\t\nquick"));
 	}
+	
+	@Test
+	public void testShortenTextWords(){
+		assertEquals("the quick", TransformWorker.shortenTextWords(text, 2));
+		assertEquals(text, TransformWorker.shortenTextWords(text, 140));
+		assertEquals(text, TransformWorker.shortenTextWords(text, 9));
+		assertEquals("the quick brown", TransformWorker.shortenTextWords(text, 3));
+		assertEquals("the", TransformWorker.shortenTextWords(text, 1));
+		assertEquals("", TransformWorker.shortenTextWords(text, 0));
+	}
 }

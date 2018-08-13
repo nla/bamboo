@@ -269,6 +269,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   @Override
   public void start() {
+  	if(BaseWarcDomainManager.isDisableIndexing()){
+  		throw new IllegalStateException("Cannot start because indexing is disabled.");
+  	}
+  	
     if (!running && !starting && !stopping)  {
       starting = true;
     	// use new thread to start so we don't block on the lock and leave the ui hanging.

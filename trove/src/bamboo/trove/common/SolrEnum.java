@@ -37,6 +37,7 @@ public enum SolrEnum {
   SEARCH_CATEGORY("searchCategory"),
   SITE("site"),
   OG_SITE("ogSite"),
+  SITE_HASH("siteHashAndYear"),
   TEXT_ERROR("textError"),
   TITLE("title"),
   OG_TITLE("ogTitle"),

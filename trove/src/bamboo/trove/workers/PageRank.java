@@ -7,6 +7,7 @@ import bamboo.trove.common.SolrEnum;
 
 public class PageRank{
 
+	public static final float PAGE_RANK_THRESHOLD = 0.8f;
 	private static final byte QUEUED_FOR_CLASSIFICATION  = 0b00000001;
 	private static final byte CLASSIFICATION_FAILED      = 0b00000010;
 	private static final byte IMAGE_HUMAN_SAFE           = 0b00000100; // text inherits worst from contents
@@ -58,14 +59,18 @@ public class PageRank{
 	private LinkTextScore[] linkText = null;
 	private float ranking;
 	private byte classification;
+	private long siteHashAndYear;
+	private boolean restricted;
 	
-	public PageRank(final String[] linkText, final float[] score, int size, float ranking, byte classification){
+	public PageRank(final String[] linkText, final float[] score, int size, float ranking, byte classification, long siteHashAndYear){
 		this.ranking = ranking;
+		restricted = ranking < PAGE_RANK_THRESHOLD;
 		this.classification = classification;
 		this.linkText = new LinkTextScore[size];
 		for(int i=0;i<size;i++){
 			this.linkText[i] = new LinkTextScore(linkText[i], score[i]);
 		}
+		this.siteHashAndYear = siteHashAndYear;
 	}
 	
 	public LinkTextScore[] getLinkText(){
@@ -74,8 +79,14 @@ public class PageRank{
 	public float getRanking(){
 		return ranking;
 	}
+	public boolean isRestricted(){
+		return restricted;
+	}
 	public byte getClassification(){
 		return classification;
+	}
+	public long getSiteHashAndYear(){
+		return siteHashAndYear;
 	}
 	
 	public List<SolrEnum> getClassifications(){

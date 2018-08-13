@@ -16,6 +16,7 @@
 package bamboo.trove.periodic;
 
 import bamboo.task.WarcToIndexResumption;
+import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.ToIndex;
 import bamboo.trove.db.FullPersistenceDAO;
 import bamboo.trove.full.FullReindexWarcManager;
@@ -203,6 +204,9 @@ public class PeriodicWarcManager extends FullReindexWarcManager {
   
   @Override
   public void start(){
+  	if(BaseWarcDomainManager.isDisableIndexing()){
+  		throw new IllegalStateException("Cannot start because indexing is disabled.");
+  	}
   	synchronized (startStopLock){
   		if(pStarting == true){
   			return;

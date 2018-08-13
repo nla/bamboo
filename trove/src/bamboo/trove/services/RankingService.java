@@ -12,6 +12,9 @@ public class RankingService{
 	private String rankingServiceUrl; 
 	
 	public LookupPageRankLinkTextClassification getLookupService() throws Exception{
+		if(BaseWarcDomainManager.isDisableIndexing()){
+			return null;
+		}
 		return new LookupPageRankLinkTextClassification(BaseWarcDomainManager.rankingService.getRankingServiceUrl());
 	}
 

@@ -33,7 +33,6 @@ import org.slf4j.LoggerFactory;
 import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 
-import bamboo.task.CollectionInfo;
 import bamboo.trove.common.BaseWarcDomainManager;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
@@ -55,9 +54,8 @@ public class TransformWorker implements Runnable {
   
   private static final float[] LINK_TEXT_SCORE_RANGE = {3.0f, 1.5f, 0.8f};
   
-  public static final long PANDORA_COLLECTION = 4;
-
-  public static final int TEXT_LIMIT = 3000;
+  public static final int TEXT_LIMIT = 1000;
+  public static final int TEXT_LIMIT_SMALL = 50;
 
 	private static final Pattern PATTERN_WHITE_SPACE = Pattern.compile("\\s");
 	private static final Pattern PATTERN_MULTI_SPACE = Pattern.compile(" +");
@@ -79,7 +77,9 @@ public class TransformWorker implements Runnable {
 		}
 		catch (Exception e){
 			log.error("Error starting Page Rank lookup service.", e);
-			System.exit(5);
+			if(!BaseWarcDomainManager.isDisableIndexing()){
+				System.exit(5);
+			}
 		}
   }
 
@@ -134,15 +134,15 @@ public class TransformWorker implements Runnable {
     SolrInputDocument solr = new SolrInputDocument();
     
     int sec = (int)(document.getBambooDocument().getDate().getTime() / 1000);
-    pageRanker.lookupUrl(document.getBambooDocument().getUrl(), sec);
+    pageRanker.lookupUrl(document.getBambooDocument().getUrl(), sec, document.getBambooDocument().getSite());
     PageRank ranking = new PageRank(pageRanker.linkCaptionTexts, pageRanker.linkCaptionTextPageRanks, 
-    		pageRanker.linkCaptionTextCount, pageRanker.pageRank, pageRanker.classification);
+    		pageRanker.linkCaptionTextCount, pageRanker.pageRank, pageRanker.classification, pageRanker.siteHashAndYear);
 
     basicMetadata(solr, document, ranking);
     classificationMetadata(solr, document, ranking);
     restrictions(solr, document);
     errorHandling(solr, document);
-    fullText(solr, document);
+    fullText(solr, document, ranking);
 
     // We store the boost in the index too. It lets us look at it for debugging, but also restrictions
     // rules don't need to re-process boost constantly, they can just read it from Solr.
@@ -184,11 +184,8 @@ public class TransformWorker implements Runnable {
     }
 
     // check if from the pandora collection.
-    for(CollectionInfo c : document.getBambooDocument().getCollections()){
-    	if(c.getId() == PANDORA_COLLECTION){
-        solr.addField(SolrEnum.PANDORA.toString(), true);
-        break;
-    	}
+    if(document.isPandora()){
+    	solr.addField(SolrEnum.PANDORA.toString(), true);
     }
     
     String filename = FilenameFinder.getFilename(url);
@@ -204,20 +201,23 @@ public class TransformWorker implements Runnable {
     domainAndTitleMetadata(solr, document, ranking);
 
     // Optional metadata we _might_ get from html
-    optionalMetadata(solr, document.getBambooDocument().getDescription());
-    optionalMetadata(solr, document.getBambooDocument().getKeywords());
-    optionalMetadata(solr, document.getBambooDocument().getPublisher());
-    optionalMetadata(solr, document.getBambooDocument().getCreator());
-    optionalMetadata(solr, document.getBambooDocument().getContributor());
-    optionalMetadata(solr, document.getBambooDocument().getCoverage());
+    if(!ranking.isRestricted()){
+      optionalMetadata(solr, document.getBambooDocument().getDescription());
+      optionalMetadata(solr, document.getBambooDocument().getKeywords());
+      optionalMetadata(solr, document.getBambooDocument().getPublisher());
+      optionalMetadata(solr, document.getBambooDocument().getCreator());
+      optionalMetadata(solr, document.getBambooDocument().getContributor());
+      optionalMetadata(solr, document.getBambooDocument().getCoverage());
+    }
   }
   
   private void domainAndTitleMetadata(SolrInputDocument solr, IndexerDocument document, PageRank ranking) {
     solr.addField(SolrEnum.SITE.toString(), document.getBambooDocument().getSite());
-    if(document.getBambooDocument().getOgSiteName() != null 
-    		&& !document.getBambooDocument().getOgSiteName().isEmpty()){
-    	solr.addField(SolrEnum.OG_SITE.toString(), document.getBambooDocument().getOgSiteName());
-    }
+    solr.addField(SolrEnum.SITE_HASH.toString(), ranking.getSiteHashAndYear());
+//    if(document.getBambooDocument().getOgSiteName() != null 
+//    		&& !document.getBambooDocument().getOgSiteName().isEmpty()){
+//    	solr.addField(SolrEnum.OG_SITE.toString(), document.getBambooDocument().getOgSiteName());
+//    }
     solr.addField(SolrEnum.HOST.toString(), document.getBambooDocument().getHost());
     // We reverse the hostname (which is site + sub-domain) for efficient sub-domain wildcarding in Solr
     solr.addField(SolrEnum.HOST_REVERSED.toString(),
@@ -240,23 +240,25 @@ public class TransformWorker implements Runnable {
     {    
     	solr.addField(SolrEnum.TITLE.toString(), title);
     }
-    if(document.getBambooDocument().getOgTitle() != null 
-    		&& !document.getBambooDocument().getOgTitle().isEmpty()){
-    	solr.addField(SolrEnum.OG_TITLE.toString(), document.getBambooDocument().getOgTitle());
-    }
+//    if(document.getBambooDocument().getOgTitle() != null 
+//    		&& !document.getBambooDocument().getOgTitle().isEmpty()){
+//    	solr.addField(SolrEnum.OG_TITLE.toString(), document.getBambooDocument().getOgTitle());
+//    }
     // add link text
-    for(LinkTextScore t : ranking.getLinkText()){
-    	if(t.getScore() >= LINK_TEXT_SCORE_RANGE[0]){
-    		solr.addField(SolrEnum.LINK_TEXT_1.toString(), t.getLinkText());    	
-    	}
-    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[1]){
-    		solr.addField(SolrEnum.LINK_TEXT_2.toString(), t.getLinkText());
-    	}
-    	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[2]){
-    		solr.addField(SolrEnum.LINK_TEXT_3.toString(), t.getLinkText());    	
-    	}
-    	else{
-    		solr.addField(SolrEnum.LINK_TEXT_4.toString(), t.getLinkText());
+    if(!ranking.isRestricted()){
+      for(LinkTextScore t : ranking.getLinkText()){
+      	if(t.getScore() >= LINK_TEXT_SCORE_RANGE[0]){
+      		solr.addField(SolrEnum.LINK_TEXT_1.toString(), t.getLinkText());    	
+      	}
+      	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[1]){
+      		solr.addField(SolrEnum.LINK_TEXT_2.toString(), t.getLinkText());
+      	}
+      	else if(t.getScore() >= LINK_TEXT_SCORE_RANGE[2]){
+      		solr.addField(SolrEnum.LINK_TEXT_3.toString(), t.getLinkText());    	
+      	}
+      	else{
+      		solr.addField(SolrEnum.LINK_TEXT_4.toString(), t.getLinkText());
+        }
       }
     }
     
@@ -316,7 +318,7 @@ public class TransformWorker implements Runnable {
     }
   }
 
-  private void fullText(SolrInputDocument solr, IndexerDocument document) {
+  private void fullText(SolrInputDocument solr, IndexerDocument document, PageRank pageRank) {
     if (ContentThreshold.METADATA_ONLY.equals(document.getThreshold())) {
       document.modifyBoost(MALUS_SEARCH_CATEGORY);
       solr.addField(SolrEnum.SEARCH_CATEGORY.toString(), SearchCategory.NONE.toString());
@@ -332,14 +334,19 @@ public class TransformWorker implements Runnable {
       
       text = removeExtraSpaces(text);
       text = text.trim();
-      text = shortenText(text, TEXT_LIMIT);
+      if(pageRank.isRestricted()){
+      	text = shortenTextWords(text, TEXT_LIMIT_SMALL);
+      }
+      else{
+      	text = shortenTextWords(text, TEXT_LIMIT);
+      }
     }
     
     //if (ContentThreshold.UNIQUE_TERMS_ONLY.equals(document.getTheshold())) {
       // TODO: Full text == Only unique terms
     //}
     
-    if (ContentThreshold.FULL_TEXT.equals(document.getThreshold())) {
+    else if (ContentThreshold.FULL_TEXT.equals(document.getThreshold())) {
       text = document.getBambooDocument().getText();
       if (text == null) return;
 
@@ -379,6 +386,32 @@ public class TransformWorker implements Runnable {
   		return "";
   	}
   	return text.substring(0, pos);
+  }
+  
+  /**
+   * Shorten the text to the size(words) but keep full word. 
+   * @param text
+   * @param size
+   * @return
+   */
+  protected static String shortenTextWords(String text, int size){
+  	if(size < 1){
+  		return "";
+  	}
+  	String[] array = text.split("\\W");
+  	if(array.length <= size){
+  		return text;
+  	}
+  	StringBuilder sb = new StringBuilder();
+		sb.append(array[0]);
+		if(size == 1){
+	  	return sb.toString();
+		}
+  	for(int i=1;i<size;i++){
+  		sb.append(" ");
+  		sb.append(array[i]);
+  	}
+  	return sb.toString();
   }
   
   private void searchCategory(SolrInputDocument solr, IndexerDocument document) {

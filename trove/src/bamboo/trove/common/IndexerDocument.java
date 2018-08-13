@@ -62,6 +62,7 @@ public class IndexerDocument implements AcknowledgeWorker {
   // Step 2) Filtering
   private CdxRule rule = null;
   private ContentThreshold threshold = null;
+  private boolean pandora = false;
   public StateTracker filter = new StateTracker("Filtering");
   public void applyFiltering(CdxRule rule, ContentThreshold threshold) {
     this.rule = rule;
@@ -87,7 +88,13 @@ public class IndexerDocument implements AcknowledgeWorker {
       filter.finish();
     }
   }
-
+  public boolean isPandora(){
+  	return pandora;
+  }
+  public void setPandora(boolean pandora){
+		this.pandora = pandora;
+	}
+  
   //***********************************
   // Step 3) Conversion work
   private SolrInputDocument solrDocument;

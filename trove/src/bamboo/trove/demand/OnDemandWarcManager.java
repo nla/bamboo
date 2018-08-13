@@ -147,6 +147,9 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
 
   @Override
   public void start() {
+  	if(BaseWarcDomainManager.isDisableIndexing()){
+  		throw new IllegalStateException("Cannot start because indexing is disabled.");
+  	}
     // Spawn a new thread to start/restart the domain. The restrictions domain should/may be holding the lock so it won't
     // do anything yet, but we do it in another thread to allow this thread to return after the stop() call.
     Thread thread = new Thread(this);
