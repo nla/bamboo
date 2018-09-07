@@ -41,7 +41,7 @@ public class Oidc {
                 if (now.isAfter(accessTokenExpiry)) {
                     log.info("Refreshing OIDC service account access token");
                     accessToken = refreshAccessToken();
-                    accessTokenExpiry = now.plusSeconds(Math.min(0, accessToken.getLifetime() - TIME_SLOP_SECS));
+                    accessTokenExpiry = now.plusSeconds(Math.max(0, accessToken.getLifetime() - TIME_SLOP_SECS));
                 }
             }
         }
