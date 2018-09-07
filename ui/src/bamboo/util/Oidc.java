@@ -9,6 +9,8 @@ import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderConfigurationRequest;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -17,6 +19,7 @@ import java.time.Instant;
  * OpenID Connect client
  */
 public class Oidc {
+    private static final Logger log = LoggerFactory.getLogger(Oidc.class);
     private static final int TIME_SLOP_SECS = 10;
     private final Issuer authServer;
     private final ClientID clientId;
@@ -36,6 +39,7 @@ public class Oidc {
         if (now.isAfter(accessTokenExpiry)) {
             synchronized (this) {
                 if (now.isAfter(accessTokenExpiry)) {
+                    log.info("Refreshing OIDC service account access token");
                     accessToken = refreshAccessToken();
                     accessTokenExpiry = now.plusSeconds(Math.min(0, accessToken.getLifetime() - TIME_SLOP_SECS));
                 }
