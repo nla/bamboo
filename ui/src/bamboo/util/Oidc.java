@@ -7,6 +7,7 @@ import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import com.nimbusds.oauth2.sdk.id.ClientID;
 import com.nimbusds.oauth2.sdk.id.Issuer;
 import com.nimbusds.oauth2.sdk.token.AccessToken;
+import com.nimbusds.oauth2.sdk.token.Tokens;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderConfigurationRequest;
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata;
 import org.slf4j.Logger;
@@ -25,7 +26,7 @@ public class Oidc {
     private final ClientID clientId;
     private final Secret clientSecret;
     private OIDCProviderMetadata metadata;
-    private AccessToken accessToken;
+    private Tokens tokens;
     private Instant accessTokenExpiry = Instant.MIN;
 
     public Oidc(String authServerUrl, String clientId, String clientSecret) {
@@ -40,16 +41,32 @@ public class Oidc {
             synchronized (this) {
                 if (now.isAfter(accessTokenExpiry)) {
                     log.info("Refreshing OIDC service account access token");
-                    accessToken = refreshAccessToken();
-                    accessTokenExpiry = now.plusSeconds(Math.max(0, accessToken.getLifetime() - TIME_SLOP_SECS));
+                    tokens = refreshTokens();
+                    accessTokenExpiry = now.plusSeconds(Math.max(0, tokens.getAccessToken().getLifetime() - TIME_SLOP_SECS));
                 }
             }
         }
-        return accessToken;
+        return tokens.getAccessToken();
     }
 
-    private AccessToken refreshAccessToken() throws IOException {
+    private Tokens refreshTokens() throws IOException {
         try {
+            // if we have a refresh token try that first
+            if (tokens != null && tokens.getRefreshToken() != null) {
+                TokenRequest request = new TokenRequest(metadata().getTokenEndpointURI(),
+                        new ClientSecretBasic(clientId, clientSecret),
+                        new RefreshTokenGrant(tokens.getRefreshToken()));
+                TokenResponse response = TokenResponse.parse(request.toHTTPRequest().send());
+
+                if (response.indicatesSuccess()) {
+                    return response.toSuccessResponse().getTokens();
+                }
+
+                ErrorObject error = response.toErrorResponse().getErrorObject();
+                log.info("OIDC service account token refresh failed. Reauthenticating. (" + error.getDescription() + ")");
+            }
+
+
             TokenRequest request = new TokenRequest(metadata().getTokenEndpointURI(),
                     new ClientSecretBasic(clientId, clientSecret),
                     new ClientCredentialsGrant(),
@@ -62,7 +79,7 @@ public class Oidc {
             }
 
             AccessTokenResponse successResponse = response.toSuccessResponse();
-            return successResponse.getTokens().getAccessToken();
+            return successResponse.getTokens();
         } catch (ParseException e) {
             throw new IOException("OIDC parse error", e);
         }
