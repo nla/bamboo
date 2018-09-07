@@ -11,6 +11,7 @@ import bamboo.task.CdxIndexer;
 import bamboo.task.Importer;
 import bamboo.task.SolrIndexer;
 import bamboo.task.WatchImporter;
+import bamboo.util.Oidc;
 import doss.BlobStore;
 import doss.DOSS;
 
@@ -44,6 +45,11 @@ public class Bamboo implements AutoCloseable {
 
         this.config = config;
 
+        Oidc oidc = null;
+        if (config.getOidcUrl() != null) {
+            oidc = new Oidc(config.getOidcUrl(), config.getOidcClientId(), config.getOidcClientSecret());
+        }
+
         String dossUrl = config.getDossUrl();
         blobStore = dossUrl == null ? null : DOSS.open(dossUrl);
 
@@ -65,7 +71,7 @@ public class Bamboo implements AutoCloseable {
 
         // task package
         taskmaster.add(new Importer(config, crawls));
-        cdxIndexer = new CdxIndexer(warcs, crawls, serieses, collections, lockManager);
+        cdxIndexer = new CdxIndexer(warcs, crawls, collections, lockManager, oidc);
         taskmaster.add(cdxIndexer);
         solrIndexer = new SolrIndexer(collections, crawls, warcs, lockManager);
         taskmaster.add(solrIndexer);

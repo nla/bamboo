@@ -76,6 +76,18 @@ public class Config {
         return getEnv("WARC_URL", null);
     }
 
+    public String getOidcUrl() {
+        return getEnv("OIDC_URL", null);
+    }
+
+    public String getOidcClientId() {
+        return getEnv("OIDC_CLIENT_ID", null);
+    }
+
+    public String getOidcClientSecret() {
+        return getEnv("OIDC_CLIENT_SECRET", null);
+    }
+
     public static class Watch {
         public final long crawlId;
         public final Path dir;

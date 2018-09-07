@@ -53,3 +53,11 @@ into crawl 42's archive directory when the file is renamed to *.warc.gz.
 ### Tuning
 
     CDX_INDEXER_THREADS=4
+
+### OpenID Connect
+
+If your CDX server requires a bearer token from the OpenID auth server set the following:
+
+    OIDC_URL=https://kc.example.org/auth/realms/myrealm
+    OIDC_CLIENT_ID=
+    OIDC_CLIENT_SECRET=

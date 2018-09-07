@@ -4,6 +4,7 @@ import bamboo.core.LockManager;
 import bamboo.crawl.Collection;
 import bamboo.crawl.*;
 import bamboo.crawl.Collections;
+import bamboo.util.Oidc;
 import bamboo.util.SurtFilter;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
@@ -36,21 +37,17 @@ public class CdxIndexer implements Runnable {
     private static final int BATCH_SIZE = 1024;
     private final Warcs warcs;
     private final Crawls crawls;
-    private final Serieses serieses;
     private final Collections collections;
-    private final List<Consumer<Long>> warcIndexedListeners = new ArrayList<>();
     private final LockManager lockManager;
+    private final Oidc oidc;
 
-    public CdxIndexer(Warcs warcs, Crawls crawls, Serieses serieses, Collections collections, LockManager lockManager) {
+    public CdxIndexer(Warcs warcs, Crawls crawls, Collections collections, LockManager lockManager,
+                      Oidc oidc) {
         this.warcs = warcs;
         this.crawls = crawls;
-        this.serieses = serieses;
         this.collections = collections;
         this.lockManager = lockManager;
-    }
-
-    public void onWarcIndexed(Consumer<Long> callback) {
-        warcIndexedListeners.add(callback);
+        this.oidc = oidc;
     }
 
     public void run() {
@@ -65,7 +62,7 @@ public class CdxIndexer implements Runnable {
         }
     }
 
-    public void indexWarcs(List<Warc> candidates) {
+    private void indexWarcs(List<Warc> candidates) {
         int threads = Runtime.getRuntime().availableProcessors();
         if (System.getenv("CDX_INDEXER_THREADS") != null) {
             threads = Integer.parseInt(System.getenv("CDX_INDEXER_THREADS"));
@@ -157,13 +154,6 @@ public class CdxIndexer implements Runnable {
         warcs.updateState(warc.getId(), Warc.CDX_INDEXED);
 
         System.out.println("Finished CDX indexing " + warc.getId() + " " + warc.getPath() + " " + stats);
-        sendWarcIndexedNotification(warc.getId());
-    }
-
-    private void sendWarcIndexedNotification(long warcId) {
-        for (Consumer<Long> listener : warcIndexedListeners) {
-            listener.accept(warcId);
-        }
     }
 
     void indexWarc(long warcId) throws IOException {
@@ -200,7 +190,7 @@ public class CdxIndexer implements Runnable {
         return ok;
     }
 
-    public static class CdxBuffer implements Closeable {
+    private class CdxBuffer implements Closeable {
         final Collection collection;
         final URL cdxServer;
         final SurtFilter filter;
@@ -240,6 +230,9 @@ public class CdxIndexer implements Runnable {
             HttpURLConnection conn = (HttpURLConnection) cdxServer.openConnection();
             conn.setRequestMethod("POST");
             conn.addRequestProperty("Content-Type", "text/plain");
+            if (oidc != null) {
+                conn.addRequestProperty("Authorization", oidc.accessToken().toAuthorizationHeader());
+            }
             conn.setFixedLengthStreamingMode(channel.size());
             conn.setDoOutput(true);
 
@@ -287,7 +280,7 @@ public class CdxIndexer implements Runnable {
         }
     }
 
-    final static Pattern schemeRegex = Pattern.compile("^[a-zA-Z][a-zA-Z+.-]*://?");
+    private final static Pattern schemeRegex = Pattern.compile("^[a-zA-Z][a-zA-Z+.-]*://?");
 
     static String stripScheme(String surt) {
         return schemeRegex.matcher(surt).replaceFirst("");
