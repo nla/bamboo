@@ -49,7 +49,7 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
   public void init() throws InterruptedException {
     waitUntilStarted();
 		log.info("***** OnDemandWarcManager *****");
-		log.info("Run at start       : {}", runAtStart);
+		log.info("Run at start        : {}", runAtStart);
   }
 
   // The UI will call here when it wants to start indexing a warc
@@ -73,6 +73,9 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
 
     WarcProgressManager batch = getAndEnqueueWarc(toIndex);
     IndexerDocument responseDocument = batch.getTrackedDocument();
+    if(responseDocument != null){
+      responseDocument.setHoldSolrDocument(true);
+    }
     log.info("Warc #{} has {} documents. Loading has completed.", warcId, batch.size());
 
     // TODO: A fair bit more thinking needs to go into error handling here. The complexity was increased dramatically
@@ -104,6 +107,9 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
     }
     lastWarcId = warcId;
 
+    if(responseDocument == null){
+      return "<ResultNotFound/>";
+    }
     return ClientUtils.toXML(responseDocument.getSolrDocument());
   }
 
@@ -141,6 +147,9 @@ public class OnDemandWarcManager extends BaseWarcDomainManager {
 
   @Override
   public void start() {
+  	if(BaseWarcDomainManager.isDisableIndexing()){
+  		throw new IllegalStateException("Cannot start because indexing is disabled.");
+  	}
     // Spawn a new thread to start/restart the domain. The restrictions domain should/may be holding the lock so it won't
     // do anything yet, but we do it in another thread to allow this thread to return after the stop() call.
     Thread thread = new Thread(this);

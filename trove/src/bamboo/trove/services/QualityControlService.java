@@ -17,6 +17,8 @@ package bamboo.trove.services;
 
 import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
+import bamboo.trove.common.IndexerDocument;
+
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
@@ -37,7 +39,8 @@ public class QualityControlService {
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/csv", "application/csv",
           "application/vnd.oasis.opendocument.spreadsheet");
 
-  ContentThreshold filterDocument(Document document) {
+  ContentThreshold filterDocument(IndexerDocument indexerDocument) {
+  	Document document = indexerDocument.getBambooDocument();
     // Status code - Unless we actually harvested the content, don't index it
     if (document.getStatusCode() != 200) {
       return ContentThreshold.METADATA_ONLY;
@@ -45,7 +48,7 @@ public class QualityControlService {
 
     // Content Type
     if (isSearchableContentType(document)) {
-    	if(!isFullTextSite(document) && HTML_CONTENT_TYPES.contains(document.getContentType())){
+    	if(!isFullTextSite(indexerDocument)){
     		return ContentThreshold.DOCUMENT_START_ONLY;
     	}
       return ContentThreshold.FULL_TEXT;
@@ -68,7 +71,7 @@ public class QualityControlService {
    * @param document
    * @return
    */
-  private boolean isFullTextSite(Document document){
-  	return !(document.getSite().endsWith(".com.au") || document.getSite().endsWith(".com"));
+  private boolean isFullTextSite(IndexerDocument document){
+    return (document.getBambooDocument().getSite().endsWith(".gov.au") || document.isPandora());
   }
 }

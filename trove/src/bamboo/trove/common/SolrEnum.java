@@ -16,10 +16,8 @@
 package bamboo.trove.common;
 
 public enum SolrEnum {
-  // Keeping them in alphabetical order just
-  // to help readability as the schema grows
   AU_GOV("auGov"),
-  BOOST("boost"),
+  PAGERANK("pageRank"),
   DATE("date"),
   DECADE("decade"),
   DELIVERABLE("deliverable"),
@@ -34,13 +32,37 @@ public enum SolrEnum {
   LAST_INDEXED("lastIndexed"),
   METADATA("metadata"),
   PANDORA_URL("pandoraUrl"),
+  PANDORA("pandora"),
   RULE("ruleId"),
   SEARCH_CATEGORY("searchCategory"),
   SITE("site"),
+  OG_SITE("ogSite"),
+  SITE_HASH("siteHashAndYear"),
   TEXT_ERROR("textError"),
   TITLE("title"),
+  OG_TITLE("ogTitle"),
+  H1("h1"),
+  LINK_TEXT_1("linkText1"),
+  LINK_TEXT_2("linkText2"),
+  LINK_TEXT_3("linkText3"),
+  LINK_TEXT_4("linkText4"),
   URL_TOKENIZED("urlTokenized"),
-  YEAR("year");
+  YEAR("year"),
+  QUEUED_FOR_CLASSIFICATION("queuedForClassification"),
+  CLASSIFICATION_FAILED("classificationFailed"),
+  IMAGE_HUMAN_SAFE("imageHumanSafe"),
+  IMAGE_AUTO_SAFE("imageAutoSafe"),
+  IMAGE_AUTO_MAYBE_SAFE("imageAutoMaybeSafe"),
+  IMAGE_AUTO_MAYBE_UNSAFE("imageAutoMaybeUnsafe"),
+  IMAGE_AUTO_UNSAFE("imageAutoUnsafe"),
+  IMAGE_HUMAN_UNSAFE("imageHumanUnsafe"),
+  TEXT_HUMAN_SAFE("textHumanSafe"),
+  TEXT_AUTO_SAFE("textAutoSafe"),
+  TEXT_AUTO_MAYBE_SAFE("textAutoMaybeSafe"),
+  TEXT_AUTO_MAYBE_UNSAFE("textAutoMaybeUnsafe"),
+  TEXT_AUTO_UNSAFE("textAutoUnsafe"),
+  TEXT_CONTENTKEEPER_UNSAFE("textContentkeeperUnsafe"),
+  TEXT_HUMAN_UNSAFE("textHumanUnsafe");
   
   private String value;
   SolrEnum(String value) {

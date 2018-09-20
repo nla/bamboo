@@ -61,6 +61,7 @@ public class WarcProgressManager {
   private boolean mothballed = false;
 
   // Sometimes we will be asked to hold a reference to a particular document
+  private IndexerDocument firstDocument = null;
   private IndexerDocument trackedDocument = null;
   private long trackedOffset = -1;
 
@@ -87,11 +88,11 @@ public class WarcProgressManager {
   public IndexerDocument add(Document document) {
     IndexerDocument doc = new IndexerDocument(warcId, document);
     enqueueDocument(doc);
-    if (trackedDocument == null) {
+    if(firstDocument == null){
       // Grab the first one through
-      if (this.trackedOffset == -1) {
-        trackedDocument = doc;
-      }
+    	firstDocument = doc;
+    }
+    if (trackedDocument == null) {
       // We are after a specific one
       if (this.trackedOffset == document.getWarcOffset()) {
         trackedDocument = doc;
@@ -101,7 +102,10 @@ public class WarcProgressManager {
   }
 
   public IndexerDocument getTrackedDocument() {
-    return trackedDocument;
+  	if(trackedDocument != null){
+  		return trackedDocument;
+  	}
+  	return firstDocument;
   }
 
   boolean isLoadingComplete() {
