@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -46,6 +47,7 @@ import bamboo.trove.common.DocumentStatus;
  * It would be good to extract these into a common code module and separate the match/access logic from everything else.
  */
 @SuppressWarnings("unused")
+@JsonIgnoreProperties(ignoreUnknown=true)
 public class CdxRule {
   private static final Logger log = LoggerFactory.getLogger(CdxRule.class);
 
