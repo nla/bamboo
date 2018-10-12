@@ -1,6 +1,9 @@
 package bamboo.task;
 
 import com.google.common.net.InternetDomainName;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonWriter;
 import com.lowagie.text.pdf.PdfReader;
 import com.lowagie.text.pdf.parser.PdfTextExtractor;
 import de.l3s.boilerpipe.BoilerpipeProcessingException;
@@ -20,6 +23,8 @@ import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.Link;
 import org.apache.tika.sax.LinkContentHandler;
 import org.apache.tika.sax.TeeContentHandler;
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.archive.util.Base32;
@@ -213,6 +218,7 @@ public class TextExtractor {
     public static void extractTika(InputStream record, Document doc, URI baseUrl) throws TextExtractionException {
         Tika tika = new Tika();
         Metadata metadata = new Metadata();
+        metadata.set(Metadata.CONTENT_TYPE, doc.getContentType());
         try {
             ParseContext parseContext = new ParseContext();
             LinkContentHandler linkHandler = new LinkContentHandler(true);
@@ -465,5 +471,30 @@ public class TextExtractor {
      */
     public void setBoilingEnabled(boolean boilingEnabled) {
         this.boilingEnabled = boilingEnabled;
+    }
+
+    public static void main(String[] args) throws IOException {
+        TextExtractor extractor = new TextExtractor();
+        extractor.setUsePdfBox(true);
+        extractor.setUseTika(true);
+        Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX")
+                .setPrettyPrinting().create();
+        try (ArchiveReader reader = ArchiveReaderFactory.get(args[0])) {
+            JsonWriter writer = gson
+                    .newJsonWriter(new OutputStreamWriter(System.out));
+            writer.beginArray();
+            for (ArchiveRecord record : reader) {
+                String url = record.getHeader().getUrl();
+                if (url == null) continue;
+                try {
+                    Document doc = extractor.extract(record);
+                    gson.toJson(doc, Document.class, writer);
+                } catch (TextExtractionException e) {
+                    continue; // skip it
+                }
+            }
+            writer.endArray();
+            writer.flush();
+        }
     }
 }
