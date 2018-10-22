@@ -32,7 +32,7 @@ public class Bamboo implements AutoCloseable {
     public final Pandas pandas;
 
     public final Taskmaster taskmaster;
-    private final CdxIndexer cdxIndexer;
+    public final CdxIndexer cdxIndexer;
     private final SolrIndexer solrIndexer;
     private final LockManager lockManager;
 

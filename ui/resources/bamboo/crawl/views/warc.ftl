@@ -14,4 +14,8 @@
     <tr><th>SHA-256 Digest</th><td>${warc.sha256!}</td></tr>
 </table>
 
+<form action="warcs/#{warc.id?c}/reindex" method="post">
+    <button type="submit" class="btn btn-default">Reindex</button>
+</form>
+
 [/@page]

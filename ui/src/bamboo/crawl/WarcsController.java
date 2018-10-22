@@ -51,6 +51,7 @@ public class WarcsController {
     public void routes() {
         Spark.get("/warcs/:id", this::serve);
         Spark.get("/warcs/:id/cdx", this::showCdx);
+        Spark.post("/warcs/:id/reindex", this::reindex);
         Spark.get("/warcs/:id/text", this::showText);
         Spark.get("/warcs/:id/details", this::details);
     }
@@ -301,4 +302,11 @@ public class WarcsController {
                 "crawl", wa.crawls.get(warc.getCrawlId()),
                 "state", wa.warcs.stateName(warc.getStateId()));
     }
+
+    private String reindex(Request request, Response response) throws IOException {
+        Warc warc = findWarc(request);
+        RecordStats stats = wa.cdxIndexer.indexWarc(warc);
+        return "CDX indexed " + stats.getRecords() + " records";
+    }
+
 }
