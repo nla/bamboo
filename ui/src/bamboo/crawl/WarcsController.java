@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import bamboo.app.Bamboo;
 import bamboo.core.Streams;
 import bamboo.task.*;
+import bamboo.util.Csrf;
 import bamboo.util.Freemarker;
 import bamboo.util.Parsing;
 import bamboo.util.SurtFilter;
@@ -299,6 +300,7 @@ public class WarcsController {
         Warc warc = findWarc(request);
         return render(request, "warc.ftl",
                 "warc", warc,
+                "csrfToken", Csrf.token(request),
                 "crawl", wa.crawls.get(warc.getCrawlId()),
                 "state", wa.warcs.stateName(warc.getStateId()));
     }
