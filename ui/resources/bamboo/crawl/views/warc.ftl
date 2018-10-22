@@ -15,6 +15,7 @@
 </table>
 
 <form action="warcs/${warc.id?c}/reindex" method="post">
+    <input name="csrfToken" value="${csrfToken}" type="hidden">
     <button type="submit" class="btn btn-default">Reindex</button>
 </form>
 
