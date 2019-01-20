@@ -72,7 +72,7 @@ public class Webapp implements AutoCloseable {
     }
 
     public Webapp() throws IOException {
-        this(new Bamboo());
+        this(new Bamboo(true));
     }
 
     String index(Request request, Response response) {

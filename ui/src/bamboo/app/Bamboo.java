@@ -36,11 +36,11 @@ public class Bamboo implements AutoCloseable {
     private final SolrIndexer solrIndexer;
     private final LockManager lockManager;
 
-    public Bamboo() throws IOException {
-        this(new Config());
+    public Bamboo(boolean runTasks) throws IOException {
+        this(new Config(), runTasks);
     }
 
-    public Bamboo(Config config) throws IOException {
+    public Bamboo(Config config, boolean runTasks) throws IOException {
         long startTime = System.currentTimeMillis();
 
         this.config = config;
@@ -76,7 +76,9 @@ public class Bamboo implements AutoCloseable {
         solrIndexer = new SolrIndexer(collections, crawls, warcs, lockManager);
         taskmaster.add(solrIndexer);
         taskmaster.add(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
-        taskmaster.startAll();
+        if (runTasks) {
+            taskmaster.startAll();
+        }
 
         // pandas package
         if (config.getPandasDbUrl() != null) {

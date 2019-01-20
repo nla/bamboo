@@ -30,7 +30,7 @@ public class CLI {
     }
 
     public static void main(String[] args) throws IOException {
-        Bamboo bamboo = new Bamboo();
+        Bamboo bamboo = new Bamboo(false);
         if (args.length == 0) {
             usage();
             return;
