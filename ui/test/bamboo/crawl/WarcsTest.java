@@ -9,6 +9,9 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Date;
+
+import static org.junit.Assert.assertEquals;
 
 public class WarcsTest {
 
@@ -31,6 +34,12 @@ public class WarcsTest {
         long crawlId = crawls.createInPlace(crawl, Arrays.asList(testFile));
 
         RecordStats stats = new RecordStats();
+        Date time = new Date();
+        stats.update(100, time);
         warcs.updateRecordStats(crawlId, stats);
+
+        Crawl crawl2 = crawls.get(crawlId);
+        assertEquals(time, crawl2.getStartTime());
+        assertEquals(time, crawl2.getEndTime());
     }
 }
