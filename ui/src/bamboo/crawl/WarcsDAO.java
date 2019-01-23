@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
@@ -31,6 +32,8 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
             warc.setFilename(rs.getString("filename"));
             warc.setSha256(rs.getString("sha256"));
             warc.setBlobId((Long)rs.getObject("blob_id"));
+            warc.setStartTime((Date)rs.getObject("start_time"));
+            warc.setEndTime((Date)rs.getObject("end_time"));
             return warc;
         }
     }
@@ -105,8 +108,8 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlUpdate("INSERT INTO warc_history (warc_id, warc_state_id) VALUES (:warcId, :stateId)")
     int insertWarcHistory(@Bind("warcId") long warcId, @Bind("stateId") int stateId);
 
-    @SqlUpdate("UPDATE warc SET records = :records, record_bytes = :record_bytes WHERE id = :id")
-    int updateWarcRecordStats(@Bind("id") long warcId, @Bind("records") long records, @Bind("record_bytes") long recordBytes);
+    @SqlUpdate("UPDATE warc SET records = :stats.records, record_bytes = :stats.recordBytes, start_time = :stats.startTime, end_time = :stats.endTime WHERE id = :id")
+    int updateWarcRecordStats(@Bind("id") long warcId, @BindBean("stats") RecordStats stats);
 
     @SqlUpdate("UPDATE warc SET size = :size WHERE id = :id")
     int updateWarcSizeWithoutRollup(@Bind("id") long warcId, @Bind("size") long size);

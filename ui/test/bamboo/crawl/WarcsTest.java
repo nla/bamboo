@@ -32,13 +32,20 @@ public class WarcsTest {
         Crawl crawl = new Crawl();
         crawl.setName("test crawl");
         long crawlId = crawls.createInPlace(crawl, Arrays.asList(testFile));
+        long warcId = warcs.findByCrawlId(crawlId).get(0).getId();
 
         RecordStats stats = new RecordStats();
         Date time = new Date();
         stats.update(100, time);
-        warcs.updateRecordStats(crawlId, stats);
+        warcs.updateRecordStats(warcId, stats);
+
+        Warc warc = warcs.get(warcId);
+        assertEquals(100, warc.getRecordBytes());
+        assertEquals(time, warc.getStartTime());
+        assertEquals(time, warc.getEndTime());
 
         Crawl crawl2 = crawls.get(crawlId);
+        assertEquals(100, crawl2.getRecordBytes());
         assertEquals(time, crawl2.getStartTime());
         assertEquals(time, crawl2.getEndTime());
     }

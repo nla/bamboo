@@ -118,7 +118,7 @@ public class Warcs {
         dao.inTransaction((dao, ts) -> {
             dao.updateRecordStatsRollupForCrawl(warcId, stats);
             dao.updateRecordStatsRollupForSeries(warcId, stats);
-            int rows = dao.updateWarcRecordStats(warcId, stats.getRecords(), stats.getRecordBytes());
+            int rows = dao.updateWarcRecordStats(warcId, stats);
             if (rows == 0) {
                 throw new NotFoundException("warc", warcId);
             }
