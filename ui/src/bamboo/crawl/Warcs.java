@@ -284,4 +284,8 @@ public class Warcs {
         }
         return ArchiveReaderFactory.get(warc.getFilename(), openStream(warc), true);
     }
+
+    public List<Warc> stream(long fromId, int limit) {
+        return dao.streamWarcs(fromId, limit);
+    }
 }

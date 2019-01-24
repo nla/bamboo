@@ -2,6 +2,7 @@ package bamboo.app;
 
 import bamboo.crawl.Scrub;
 import bamboo.crawl.Warc;
+import bamboo.task.CdxCache;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -69,6 +70,10 @@ public class CLI {
                 bamboo.crawls.recalculateWarcStats();
                 System.out.println("Recalculating WARC stats for serieses");
                 bamboo.serieses.recalculateWarcStats();
+                break;
+
+            case "build-cdx-cache":
+                new CdxCache(Paths.get(args[1]), bamboo.warcs).populateAll();
                 break;
             /* FIXME: restore these
             case "cdx-indexer":

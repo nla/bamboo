@@ -1,7 +1,9 @@
 package bamboo.crawl;
 
+import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.*;
+import org.skife.jdbi.v2.sqlobject.customizers.FetchSize;
 import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
 import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
@@ -65,6 +67,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @Deprecated
     @SqlQuery("SELECT * FROM warc")
     List<Warc> listWarcs();
+
+    @SqlQuery("SELECT * FROM warc WHERE id > :fromId LIMIT :batch")
+    List<Warc> streamWarcs(@Bind("fromId") long fromId, @Bind("limit") int limit);
 
     @SqlQuery("SELECT * FROM warc WHERE id = :warcId FOR UPDATE")
     Warc selectForUpdate(@Bind("warcId") long warcId);
