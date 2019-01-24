@@ -129,7 +129,9 @@ public class CdxIndexer implements Runnable {
                     warcs.updateState(warc.getId(), Warc.CDX_ERROR);
                     return null;
                 } else {
-                    throw e;
+                    e.printStackTrace();
+                    warcs.updateState(warc.getId(), Warc.CDX_ERROR);
+                    return null;
                 }
             }
 
