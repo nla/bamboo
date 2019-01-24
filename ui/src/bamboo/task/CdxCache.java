@@ -28,6 +28,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 
 public class CdxCache {
     private static final Logger log = LoggerFactory.getLogger(CdxCache.class);
@@ -56,7 +57,7 @@ public class CdxCache {
         Path tmpPath = Paths.get(path.toString() + ".tmp");
         try {
             try (ArchiveReader reader = warcs.openReader(warc);
-                 Writer writer = new OutputStreamWriter(new GZIPOutputStream(Files.newOutputStream(tmpPath, CREATE), 8192), UTF_8)) {
+                 Writer writer = new OutputStreamWriter(new GZIPOutputStream(Files.newOutputStream(tmpPath), 8192), UTF_8)) {
                 Cdx.writeCdx(reader, warc.getFilename(), warc.getSize(), writer);
             }
             Files.move(tmpPath, path, ATOMIC_MOVE, REPLACE_EXISTING);
