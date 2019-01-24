@@ -42,7 +42,7 @@ public class CdxCache {
     private Path entryPath(long warcId) {
         String dirs = "";
         for (long x = warcId / 1000; x > 0; x /= 1000) {
-            dirs = (x % 1000) + "/" + dirs;
+            dirs = String.format("%03d/%s", x % 1000, dirs);
         }
         return root.resolve(dirs).resolve(warcId + ".cdx.gz");
     }
