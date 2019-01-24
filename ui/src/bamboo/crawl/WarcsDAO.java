@@ -68,7 +68,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlQuery("SELECT * FROM warc")
     List<Warc> listWarcs();
 
-    @SqlQuery("SELECT * FROM warc WHERE id > :fromId LIMIT :batch")
+    @SqlQuery("SELECT * FROM warc WHERE id > :fromId LIMIT :limit")
     List<Warc> streamWarcs(@Bind("fromId") long fromId, @Bind("limit") int limit);
 
     @SqlQuery("SELECT * FROM warc WHERE id = :warcId FOR UPDATE")
