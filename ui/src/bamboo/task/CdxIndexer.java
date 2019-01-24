@@ -125,7 +125,8 @@ public class CdxIndexer implements Runnable {
                 warcs.updateState(warc.getId(), Warc.CDX_ERROR);
                 return null;
             } catch (IOException e) {
-                if (e.getMessage().endsWith(" is not a WARC file.")) {
+                String message = e.getMessage();
+                if (message != null && message.endsWith(" is not a WARC file.")) {
                     warcs.updateState(warc.getId(), Warc.CDX_ERROR);
                     return null;
                 } else {
