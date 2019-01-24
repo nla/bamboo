@@ -173,6 +173,7 @@ public class SolrIndexer implements Runnable {
             warcs.updateState(warc.getId(), Warc.SOLR_INDEXED);
             System.out.println(new Date() + " Finished Solr indexing " + warc.getId() + " " + warc.getPath());
         } catch (IOException e) {
+            warcs.updateState(warc.getId(), Warc.SOLR_ERROR);
             e.printStackTrace();
             throw new UncheckedIOException(e);
         } catch (RuntimeException e) {
