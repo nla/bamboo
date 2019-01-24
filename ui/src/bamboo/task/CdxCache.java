@@ -79,7 +79,7 @@ public class CdxCache {
             list.parallelStream().forEach(warc -> {
                 try {
                     populate(warc);
-                } catch (IOException e) {
+                } catch (Exception e) {
                     log.error("Error indexing warc " + warc.getId() + " " + warc.getFilename(), e);
                 }
                 long progress = count.incrementAndGet();
