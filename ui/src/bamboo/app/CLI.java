@@ -73,7 +73,15 @@ public class CLI {
                 break;
 
             case "build-cdx-cache":
-                new CdxCache(Paths.get(args[1]), bamboo.warcs).populateAll();
+                long startId = -1;
+                long endId = Long.MAX_VALUE;
+                if (args.length >= 2) {
+                    startId = Long.parseLong(args[2]);
+                    if (args.length >= 3) {
+                        endId = Long.parseLong(args[3]);
+                    }
+                }
+                new CdxCache(Paths.get(args[1]), bamboo.warcs).populateAll(startId, endId);
                 break;
             /* FIXME: restore these
             case "cdx-indexer":

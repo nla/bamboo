@@ -2,11 +2,9 @@ package bamboo.task;
 
 import bamboo.crawl.Warc;
 import bamboo.crawl.Warcs;
-import bamboo.util.Pager;
 import org.archive.io.ArchiveReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.nio.ch.ThreadPool;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -14,21 +12,13 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Spliterators;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.StreamSupport;
 import java.util.zip.GZIPOutputStream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
-import static java.nio.file.StandardOpenOption.CREATE;
-import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 
 public class CdxCache {
     private static final Logger log = LoggerFactory.getLogger(CdxCache.class);
@@ -66,17 +56,20 @@ public class CdxCache {
         }
     }
 
-    public void populateAll() {
-        long lastId = -1;
+    public void populateAll(long startId, long endId) {
+        long lastId = startId;
         AtomicLong count = new AtomicLong(0);
 
-        while (true) {
+        while (lastId < endId) {
             List<Warc> list = warcs.stream(lastId, 1000);
             if (list.isEmpty()) {
                 break;
             }
 
             list.parallelStream().forEach(warc -> {
+                if (warc.getId() >= endId) {
+                    return;
+                }
                 try {
                     populate(warc);
                 } catch (Exception e) {
