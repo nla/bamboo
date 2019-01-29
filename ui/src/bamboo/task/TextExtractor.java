@@ -473,15 +473,13 @@ public class TextExtractor {
         this.boilingEnabled = boilingEnabled;
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void extract(ArchiveReader reader, OutputStream out) throws IOException {
         TextExtractor extractor = new TextExtractor();
         extractor.setUsePdfBox(true);
         extractor.setUseTika(true);
         Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX")
                 .setPrettyPrinting().create();
-        try (ArchiveReader reader = ArchiveReaderFactory.get(args[0])) {
-            JsonWriter writer = gson
-                    .newJsonWriter(new OutputStreamWriter(System.out));
+        try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(out))) {
             writer.beginArray();
             for (ArchiveRecord record : reader) {
                 String url = record.getHeader().getUrl();
@@ -495,6 +493,12 @@ public class TextExtractor {
             }
             writer.endArray();
             writer.flush();
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        try (ArchiveReader reader = ArchiveReaderFactory.get(args[0])) {
+            extract(reader, System.out);
         }
     }
 }

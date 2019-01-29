@@ -276,13 +276,17 @@ public class Warcs {
     }
 
     public ArchiveReader openReader(Warc warc) throws IOException {
+        return openReader(warc.getFilename(), openStream(warc));
+    }
+
+    public static ArchiveReader openReader(String filename, InputStream stream) throws IOException {
         /*
          * ArchiveReaderFactor.get doesn't understand the .open extension.
          */
-        if (warc.getFilename().endsWith(".warc.gz.open")) {
-            return WARCReaderFactory.get(warc.getFilename(), openStream(warc), true);
+        if (filename.endsWith(".warc.gz.open")) {
+            return WARCReaderFactory.get(filename, stream, true);
         }
-        return ArchiveReaderFactory.get(warc.getFilename(), openStream(warc), true);
+        return ArchiveReaderFactory.get(filename, stream, true);
     }
 
     public List<Warc> stream(long fromId, int limit) {
