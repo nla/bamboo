@@ -47,6 +47,8 @@ public class TextCache {
         Path tmpPath = Paths.get(path.toString() + ".tmp");
         try {
             try (InputStream stream = warcs.openStream(warc)) {
+                // we run the text extractor as a child process so that when we hit a PDF or something that causes
+                // tika to run out of memory we don't crash the controlling process
                 ProcessBuilder pb = new ProcessBuilder("java", "-Xmx2048m", "TextCache", warc.getFilename(), tmpPath.toString());
                 pb.environment().put("CLASSPATH", System.getProperty("java.class.path"));
                 pb.redirectInput(ProcessBuilder.Redirect.PIPE);
