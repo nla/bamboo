@@ -74,7 +74,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlQuery("SELECT * FROM warc " +
             "LEFT JOIN crawl ON warc.crawl_id = crawl.id " +
             "WHERE warc.id > :fromId AND " +
-            "crawl.crawl_series_id = :seriesId" +
+            "crawl.crawl_series_id = :seriesId " +
             "LIMIT :limit")
     List<Warc> streamWarcsInSeries(@Bind("fromId") long fromId, @Bind("seriesId") long seriesId, @Bind("limit") int limit);
 
