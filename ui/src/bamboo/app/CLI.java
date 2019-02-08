@@ -98,6 +98,12 @@ public class CLI {
                 new TextCache(Paths.get(args[1]), bamboo.warcs).populateAll(startId, endId);
                 break;
             }
+
+            case "build-text-cache-series": {
+                new TextCache(Paths.get(args[1]), bamboo.warcs).populateSeries(Long.parseLong(args[2]));
+                break;
+            }
+
             /* FIXME: restore these
             case "cdx-indexer":
                 bamboo.runCdxIndexer();

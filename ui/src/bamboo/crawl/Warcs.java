@@ -268,6 +268,10 @@ public class Warcs {
         return conn.getInputStream();
     }
 
+    public URI getUri(Warc warc) {
+        return URI.create(baseUrl + warc.getPath());
+    }
+
     public SeekableByteChannel openChannel(Warc warc) throws IOException {
         if (warc.getBlobId() != null) {
             return blobStore.get(warc.getBlobId()).openChannel();
@@ -291,5 +295,9 @@ public class Warcs {
 
     public List<Warc> stream(long fromId, int limit) {
         return dao.streamWarcs(fromId, limit);
+    }
+
+    public List<Warc> streamSeries(long fromWarcId, long seriesId, int limit) {
+        return dao.streamWarcsInSeries(fromWarcId, seriesId, limit);
     }
 }

@@ -101,6 +101,30 @@ public class TextCache {
         }
     }
 
+    public void populateSeries(long seriesId) {
+        long lastId = -1;
+        AtomicLong count = new AtomicLong(0);
+
+        while (true) {
+            List<Warc> list = warcs.streamSeries(lastId, seriesId, 1000);
+            if (list.isEmpty()) {
+                break;
+            }
+
+            list.parallelStream().forEach(warc -> {
+                try {
+                    populate(warc);
+                } catch (Exception e) {
+                    log.error("Error text extracting warc " + warc.getId() + " " + warc.getFilename(), e);
+                }
+                long progress = count.incrementAndGet();
+                System.out.println(progress);
+            });
+
+            lastId = list.get(list.size() - 1).getId();
+        }
+    }
+
     public static void main(String args[]) throws IOException {
         String warcFilename = args[0];
         Path outPath = Paths.get(args[1]);
@@ -109,4 +133,6 @@ public class TextCache {
             TextExtractor.extract(reader, out);
         }
     }
+
+
 }
