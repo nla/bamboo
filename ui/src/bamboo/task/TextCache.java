@@ -35,7 +35,7 @@ public class TextCache {
         for (long x = warcId / 1000; x > 0; x /= 1000) {
             dirs = String.format("%03d/%s", x % 1000, dirs);
         }
-        return root.resolve(dirs).resolve("nla.warc-" + warcId + ".test.json.gz");
+        return root.resolve(dirs).resolve("nla.warc-" + warcId + ".text.json.gz");
     }
 
     void populate(Warc warc) throws IOException {
