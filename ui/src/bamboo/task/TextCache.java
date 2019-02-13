@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -118,10 +119,10 @@ public class TextCache {
     }
 
     public static void main(String args[]) throws IOException {
-        String warcFilename = args[0];
+        URI uri = URI.create(args[0]);
         Path outPath = Paths.get(args[1]);
-        String filename = warcFilename.replaceFirst("^.*/", "");
-        try (ArchiveReader reader = Warcs.openReader(filename, new URL(warcFilename).openStream());
+        String filename = uri.getPath().replaceFirst("^.*/", "");
+        try (ArchiveReader reader = Warcs.openReader(filename, Warcs.openStreamViaRoundRobinHttp(uri));
              OutputStream out = new GZIPOutputStream(Files.newOutputStream(outPath), 8192)) {
             TextExtractor.extract(reader, out);
         }

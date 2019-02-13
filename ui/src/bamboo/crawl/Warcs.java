@@ -229,7 +229,7 @@ public class Warcs {
     }
 
 
-    private AtomicInteger roundRobin = new AtomicInteger(0);
+    private static AtomicInteger roundRobin = new AtomicInteger(0);
 
     public InputStream openStream(Warc warc) throws IOException {
         if (warc.getBlobId() != null) {
@@ -243,6 +243,10 @@ public class Warcs {
 
     private InputStream openStreamViaRoundRobinHttp(Warc warc) throws IOException {
         URI uri = URI.create(baseUrl + warc.getPath());
+        return openStreamViaRoundRobinHttp(uri);
+    }
+
+    public static InputStream openStreamViaRoundRobinHttp(URI uri) throws IOException {
         String host = uri.getHost();
         InetAddress[] addresses = InetAddress.getAllByName(host);
         if (addresses.length > 1) {
