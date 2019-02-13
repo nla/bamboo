@@ -2,14 +2,13 @@ package bamboo.task;
 
 import bamboo.crawl.Warc;
 import bamboo.crawl.Warcs;
-import org.apache.commons.io.IOUtils;
 import org.archive.io.ArchiveReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -46,27 +45,22 @@ public class TextCache {
         Files.createDirectories(path.getParent());
         Path tmpPath = Paths.get(path.toString() + ".tmp");
         try {
-            try (InputStream stream = warcs.openStream(warc)) {
-                // we run the text extractor as a child process so that when we hit a PDF or something that causes
-                // tika to run out of memory we don't crash the controlling process
-                ProcessBuilder pb = new ProcessBuilder("java", "-Xmx2048m", "bamboo.task.TextCache", warc.getFilename(), tmpPath.toString());
-                pb.environment().put("CLASSPATH", System.getProperty("java.class.path"));
-                pb.redirectInput(ProcessBuilder.Redirect.PIPE);
-                pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-                pb.redirectError(ProcessBuilder.Redirect.INHERIT);
-                Process p = pb.start();
+            // we run the text extractor as a child process so that when we hit a PDF or something that causes
+            // tika to run out of memory we don't crash the controlling process
+            ProcessBuilder pb = new ProcessBuilder("java", "-Xmx2048m", "bamboo.task.TextCache",
+                    warcs.getUri(warc).toString(), tmpPath.toString());
+            pb.environment().put("CLASSPATH", System.getProperty("java.class.path"));
+            pb.inheritIO();
+            Process p = pb.start();
 
-                IOUtils.copy(stream, p.getOutputStream());
-
-                try {
-                    int x = p.waitFor();
-                    if (x != 0) {
-                        throw new IOException("child returned error-code " + x);
-                    }
-                } catch (InterruptedException e) {
-                    p.destroyForcibly();
-                    throw new IOException(e);
+            try {
+                int x = p.waitFor();
+                if (x != 0) {
+                    throw new IOException("child returned error-code " + x);
                 }
+            } catch (InterruptedException e) {
+                p.destroyForcibly();
+                throw new IOException(e);
             }
             Files.move(tmpPath, path, ATOMIC_MOVE, REPLACE_EXISTING);
         } finally {
@@ -88,17 +82,21 @@ public class TextCache {
                 if (warc.getId() >= endId) {
                     return;
                 }
-                try {
-                    populate(warc);
-                } catch (Exception e) {
-                    log.error("Error text extracting warc " + warc.getId() + " " + warc.getFilename(), e);
-                }
-                long progress = count.incrementAndGet();
-                System.out.println(progress);
+                populate(count, warc);
             });
 
             lastId = list.get(list.size() - 1).getId();
         }
+    }
+
+    private void populate(AtomicLong count, Warc warc) {
+        try {
+            populate(warc);
+        } catch (Exception e) {
+            log.error("Error text extracting warc " + warc.getId() + " " + warc.getFilename(), e);
+        }
+        long progress = count.incrementAndGet();
+        System.out.println(progress);
     }
 
     public void populateSeries(long seriesId) {
@@ -112,13 +110,7 @@ public class TextCache {
             }
 
             list.parallelStream().forEach(warc -> {
-                try {
-                    populate(warc);
-                } catch (Exception e) {
-                    log.error("Error text extracting warc " + warc.getId() + " " + warc.getFilename(), e);
-                }
-                long progress = count.incrementAndGet();
-                System.out.println(progress);
+                populate(count, warc);
             });
 
             lastId = list.get(list.size() - 1).getId();
@@ -128,7 +120,8 @@ public class TextCache {
     public static void main(String args[]) throws IOException {
         String warcFilename = args[0];
         Path outPath = Paths.get(args[1]);
-        try (ArchiveReader reader = Warcs.openReader(warcFilename, System.in);
+        String filename = warcFilename.replaceFirst("^.*/", "");
+        try (ArchiveReader reader = Warcs.openReader(filename, new URL(warcFilename).openStream());
              OutputStream out = new GZIPOutputStream(Files.newOutputStream(outPath), 8192)) {
             TextExtractor.extract(reader, out);
         }
