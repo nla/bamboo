@@ -7,14 +7,13 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 
 import bamboo.app.Bamboo;
 import bamboo.core.Streams;
@@ -41,6 +40,7 @@ import spark.Spark;
 import spark.Request;
 import spark.Response;
 import spark.utils.GzipUtils;
+import spark.utils.IOUtils;
 
 import static java.nio.charset.StandardCharsets.*;
 
@@ -48,6 +48,7 @@ public class WarcsController {
     private static final Logger log = LoggerFactory.getLogger(WarcsController.class);
 
     final Bamboo wa;
+    private TextCache textCache;
 
     public void routes() {
         Spark.get("/warcs/:id", this::serve);
@@ -59,6 +60,14 @@ public class WarcsController {
 
     public WarcsController(Bamboo wa) {
         this.wa = wa;
+        String textCachePath = System.getenv("WARC_TEXT_CACHE");
+        if (textCachePath != null) {
+            Path root = Paths.get(textCachePath);
+            if (!Files.exists(root)) {
+                throw new RuntimeException("WARC_TEXT_CACHE not found: " + textCachePath);
+            }
+            textCache = new TextCache(root, wa.warcs);
+        }
     }
 
     String render(Request request, String view, Object... model) {
@@ -233,7 +242,30 @@ public class WarcsController {
         }
     }
 
+    private boolean serveTextFromCache(Request request, Response response, Warc warc) throws IOException {
+        if (textCache == null) return false;
+        Path file = textCache.find(warc.getId());
+        if (file == null) return false;
+
+        response.type("application/json");
+        String acceptEncoding = request.headers("Accept-Encoding");
+        if (acceptEncoding.contains("gzip")) {
+            response.header("Content-Encoding", "gzip");
+            try (OutputStream out = response.raw().getOutputStream()) {
+                Files.copy(file, out);
+            }
+        } else {
+            try (GZIPInputStream stream = new GZIPInputStream(Files.newInputStream(file), 8192);
+                 OutputStream out = response.raw().getOutputStream()) {
+                IOUtils.copy(stream, out);
+            }
+        }
+        return true;
+    }
+
     private String showText(Request request, Response response) throws IOException {
+
+
         TextExtractor extractor = new TextExtractor();
 
         if (Parsing.parseLongOrDefault(request.queryParams("pdfbox"), 0) != 0) {
@@ -249,6 +281,11 @@ public class WarcsController {
         }
 
         Warc warc = findWarc(request);
+
+        if (serveTextFromCache(request, response, warc)) {
+            return "";
+        }
+
         Crawl crawl = wa.crawls.get(warc.getCrawlId());
         List<CollectionMatcher> collections = wa.collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())
                 .stream().map(CollectionMatcher::new).collect(Collectors.toList());

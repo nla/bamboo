@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -129,4 +128,11 @@ public class TextCache {
     }
 
 
+    public Path find(long warcId) {
+        Path path = entryPath(warcId);
+        if (Files.exists(path)) {
+            return path;
+        }
+        return null;
+    }
 }
