@@ -171,7 +171,13 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlUpdate("UPDATE collection SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCollection(@Bind("id") long collectionId, @Bind("records") long records, @Bind("bytes") long bytes);
 
-    @SqlQuery("SELECT w.* FROM warc w, collection_warc cw WHERE cw.warc_id = w.id AND cw.collection_id = :collectionId AND w.id >= :start ORDER BY w.id asc LIMIT :rows")
+    @SqlQuery("SELECT warc.* FROM warc\n" +
+            "LEFT JOIN crawl ON warc.crawl_id = crawl.id\n" +
+            "LEFT JOIN crawl_series ON crawl.crawl_series_id = crawl_series.id\n" +
+            "LEFT JOIN collection_series ON crawl_series.id = collection_series.crawl_series_id\n" +
+            "WHERE collection_series.collection_id = :collectionId\n" +
+            "  AND warc.id >= :start\n" +
+            "ORDER BY warc.id asc LIMIT :rows")
     List<Warc> findByCollectionId(@Bind("collectionId") long collectionId, @Bind("start") long start, @Bind("rows") long rows);
 
 
