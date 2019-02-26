@@ -42,7 +42,7 @@ import bamboo.trove.common.SearchCategory;
 import bamboo.trove.common.SolrEnum;
 import bamboo.trove.common.TitleTools;
 import bamboo.trove.workers.PageRank.LinkTextScore;
-import lookupClient.LookupPageRankLinkTextClassification;
+//import lookupClient.LookupPageRankLinkTextClassification;
 
 public class TransformWorker implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(TransformWorker.class);
@@ -67,20 +67,20 @@ public class TransformWorker implements Runnable {
   private IndexerDocument lastJob = null;
   private IndexerDocument thisJob = null;
   
-  private LookupPageRankLinkTextClassification pageRanker;
+//  private LookupPageRankLinkTextClassification pageRanker;
 
   public TransformWorker(Timer timer, boolean indexFullText) {
     this.timer = timer;
     this.indexFullText = indexFullText;
-    try{
-			pageRanker = BaseWarcDomainManager.rankingService.getLookupService();
-		}
-		catch (Exception e){
-			log.error("Error starting Page Rank lookup service.", e);
-			if(!BaseWarcDomainManager.isDisableIndexing()){
-				System.exit(5);
-			}
-		}
+//    try{
+//			pageRanker = BaseWarcDomainManager.rankingService.getLookupService();
+//		}
+//		catch (Exception e){
+//			log.error("Error starting Page Rank lookup service.", e);
+//			if(!BaseWarcDomainManager.isDisableIndexing()){
+//				System.exit(5);
+//			}
+//		}
   }
 
   @Override
@@ -134,9 +134,12 @@ public class TransformWorker implements Runnable {
     SolrInputDocument solr = new SolrInputDocument();
     
     int sec = (int)(document.getBambooDocument().getDate().getTime() / 1000);
-    pageRanker.lookupUrl(document.getBambooDocument().getUrl(), sec, document.getBambooDocument().getSite());
-    PageRank ranking = new PageRank(pageRanker.linkCaptionTexts, pageRanker.linkCaptionTextPageRanks, 
-    		pageRanker.linkCaptionTextCount, pageRanker.pageRank, pageRanker.classification, pageRanker.siteHashAndYear);
+//    pageRanker.lookupUrl(document.getBambooDocument().getUrl(), sec, document.getBambooDocument().getSite());
+//    PageRank ranking = new PageRank(pageRanker.linkCaptionTexts, pageRanker.linkCaptionTextPageRanks, 
+//    		pageRanker.linkCaptionTextCount, pageRanker.pageRank, pageRanker.classification, pageRanker.siteHashAndYear);
+    float defaultPageRank = 0.847f;
+    PageRank ranking = new PageRank(null, null, 
+    		0, defaultPageRank, (byte)0, 0);
 
     basicMetadata(solr, document, ranking);
     classificationMetadata(solr, document, ranking);
