@@ -12,12 +12,12 @@ import bamboo.task.TasksController;
 import bamboo.util.Csrf;
 import bamboo.util.Freemarker;
 import org.apache.commons.lang.StringEscapeUtils;
-import spark.ExceptionHandler;
 import spark.Request;
 import spark.Response;
 import spark.Spark;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Date;
@@ -29,8 +29,6 @@ public class Webapp implements AutoCloseable {
 
     public Webapp(Bamboo bamboo) {
         this.bamboo = bamboo;
-
-        Spark.staticFileLocation("META-INF/resources");
 
         Spark.exception(NotFoundException.class, (e, request, response) -> {
             response.status(404);
@@ -53,6 +51,8 @@ public class Webapp implements AutoCloseable {
         Spark.get("/import", this::showImportForm);
         Spark.post("/import", this::performImport);
         Spark.get("/healthcheck", this::healthcheck);
+        Spark.get("/assets/*", this::serveStatic);
+        Spark.get("/webjars/*", this::serveStatic);
 
         new CollectionsController(bamboo).routes();
         new CrawlsController(bamboo).routes();
@@ -72,7 +72,7 @@ public class Webapp implements AutoCloseable {
     }
 
     public Webapp() throws IOException {
-        this(new Bamboo());
+        this(new Bamboo(true));
     }
 
     String index(Request request, Response response) {
@@ -100,6 +100,41 @@ public class Webapp implements AutoCloseable {
     @Override
     public void close() {
         bamboo.close();
+    }
+
+    private Object serveStatic(Request request, Response response) {
+        String path = request.uri().replace("/../", "/")
+                .replaceAll("%2[Bb]", "+");
+        if (path.endsWith(".css")) {
+            response.type("text/css");
+        } else if (path.endsWith(".js")) {
+            response.type("application/javascript");
+        } else if (path.endsWith(".woff")) {
+            response.type("font/woff");
+        } else if (path.endsWith(".woff2")) {
+            response.type("font/woff2");
+        } else if (path.endsWith(".svg")) {
+            response.type("image/svg+xml");
+        } else if (path.endsWith(".eot")) {
+            response.type("application/vnd.ms-fontobject");
+        } else if (path.endsWith(".png")) {
+            response.type("image/png");
+        } else if (path.endsWith(".jpg")) {
+            response.type("image/jpeg");
+        } else if (path.endsWith(".gif")) {
+            response.type("image/gif");
+        } else if (path.endsWith(".html")) {
+            response.type("text/html");
+        } else {
+            response.type("application/octet-stream");
+        }
+        InputStream stream = getClass().getResourceAsStream("/META-INF/resources" + path);
+        if (stream == null) {
+            response.status(404);
+            response.body("Not found");
+            return null;
+        }
+        return stream;
     }
 
     public static class NotFound extends RuntimeException {

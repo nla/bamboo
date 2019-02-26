@@ -118,7 +118,7 @@ public class Warcs {
         dao.inTransaction((dao, ts) -> {
             dao.updateRecordStatsRollupForCrawl(warcId, stats);
             dao.updateRecordStatsRollupForSeries(warcId, stats);
-            int rows = dao.updateWarcRecordStats(warcId, stats.getRecords(), stats.getRecordBytes());
+            int rows = dao.updateWarcRecordStats(warcId, stats);
             if (rows == 0) {
                 throw new NotFoundException("warc", warcId);
             }
@@ -229,7 +229,7 @@ public class Warcs {
     }
 
 
-    private AtomicInteger roundRobin = new AtomicInteger(0);
+    private static AtomicInteger roundRobin = new AtomicInteger(0);
 
     public InputStream openStream(Warc warc) throws IOException {
         if (warc.getBlobId() != null) {
@@ -243,6 +243,10 @@ public class Warcs {
 
     private InputStream openStreamViaRoundRobinHttp(Warc warc) throws IOException {
         URI uri = URI.create(baseUrl + warc.getPath());
+        return openStreamViaRoundRobinHttp(uri);
+    }
+
+    public static InputStream openStreamViaRoundRobinHttp(URI uri) throws IOException {
         String host = uri.getHost();
         InetAddress[] addresses = InetAddress.getAllByName(host);
         if (addresses.length > 1) {
@@ -268,6 +272,10 @@ public class Warcs {
         return conn.getInputStream();
     }
 
+    public URI getUri(Warc warc) {
+        return URI.create(baseUrl + warc.getPath());
+    }
+
     public SeekableByteChannel openChannel(Warc warc) throws IOException {
         if (warc.getBlobId() != null) {
             return blobStore.get(warc.getBlobId()).openChannel();
@@ -276,12 +284,24 @@ public class Warcs {
     }
 
     public ArchiveReader openReader(Warc warc) throws IOException {
+        return openReader(warc.getFilename(), openStream(warc));
+    }
+
+    public static ArchiveReader openReader(String filename, InputStream stream) throws IOException {
         /*
          * ArchiveReaderFactor.get doesn't understand the .open extension.
          */
-        if (warc.getFilename().endsWith(".warc.gz.open")) {
-            return WARCReaderFactory.get(warc.getFilename(), openStream(warc), true);
+        if (filename.endsWith(".warc.gz.open")) {
+            return WARCReaderFactory.get(filename, stream, true);
         }
-        return ArchiveReaderFactory.get(warc.getFilename(), openStream(warc), true);
+        return ArchiveReaderFactory.get(filename, stream, true);
+    }
+
+    public List<Warc> stream(long fromId, int limit) {
+        return dao.streamWarcs(fromId, limit);
+    }
+
+    public List<Warc> streamSeries(long fromWarcId, long seriesId, int limit) {
+        return dao.streamWarcsInSeries(fromWarcId, seriesId, limit);
     }
 }

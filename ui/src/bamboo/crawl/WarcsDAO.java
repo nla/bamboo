@@ -1,7 +1,9 @@
 package bamboo.crawl;
 
+import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.*;
+import org.skife.jdbi.v2.sqlobject.customizers.FetchSize;
 import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
 import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
@@ -10,6 +12,7 @@ import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
@@ -31,6 +34,8 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
             warc.setFilename(rs.getString("filename"));
             warc.setSha256(rs.getString("sha256"));
             warc.setBlobId((Long)rs.getObject("blob_id"));
+            warc.setStartTime((Date)rs.getObject("start_time"));
+            warc.setEndTime((Date)rs.getObject("end_time"));
             return warc;
         }
     }
@@ -62,6 +67,16 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @Deprecated
     @SqlQuery("SELECT * FROM warc")
     List<Warc> listWarcs();
+
+    @SqlQuery("SELECT * FROM warc WHERE id > :fromId LIMIT :limit")
+    List<Warc> streamWarcs(@Bind("fromId") long fromId, @Bind("limit") int limit);
+
+    @SqlQuery("SELECT * FROM warc " +
+            "LEFT JOIN crawl ON warc.crawl_id = crawl.id " +
+            "WHERE warc.id > :fromId AND " +
+            "crawl.crawl_series_id = :seriesId " +
+            "LIMIT :limit")
+    List<Warc> streamWarcsInSeries(@Bind("fromId") long fromId, @Bind("seriesId") long seriesId, @Bind("limit") int limit);
 
     @SqlQuery("SELECT * FROM warc WHERE id = :warcId FOR UPDATE")
     Warc selectForUpdate(@Bind("warcId") long warcId);
@@ -105,8 +120,8 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlUpdate("INSERT INTO warc_history (warc_id, warc_state_id) VALUES (:warcId, :stateId)")
     int insertWarcHistory(@Bind("warcId") long warcId, @Bind("stateId") int stateId);
 
-    @SqlUpdate("UPDATE warc SET records = :records, record_bytes = :record_bytes WHERE id = :id")
-    int updateWarcRecordStats(@Bind("id") long warcId, @Bind("records") long records, @Bind("record_bytes") long recordBytes);
+    @SqlUpdate("UPDATE warc SET records = :stats.records, record_bytes = :stats.recordBytes, start_time = :stats.startTime, end_time = :stats.endTime WHERE id = :id")
+    int updateWarcRecordStats(@Bind("id") long warcId, @BindBean("stats") RecordStats stats);
 
     @SqlUpdate("UPDATE warc SET size = :size WHERE id = :id")
     int updateWarcSizeWithoutRollup(@Bind("id") long warcId, @Bind("size") long size);
@@ -122,8 +137,8 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
             "UPDATE crawl SET " +
             "  records = records + :stats.records - (SELECT records FROM warc WHERE id = :warcId), " +
             "  record_bytes = record_bytes + :stats.recordBytes - (SELECT record_bytes FROM warc WHERE id = :warcId), " +
-            "  start_time = LEAST(start_time, :stats.startTime), " +
-            "  end_time = GREATEST(end_time, :stats.endTime) " +
+            "  start_time = COALESCE(LEAST(start_time, :stats.startTime), :stats.startTime), " +
+            "  end_time = COALESCE(GREATEST(end_time, :stats.endTime), :stats.endTime) " +
             "WHERE id = (SELECT crawl_id FROM warc WHERE id = :warcId)")
     int updateRecordStatsRollupForCrawl(@Bind("warcId") long warcId, @BindBean("stats") RecordStats stats);
 

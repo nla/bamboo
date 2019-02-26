@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import bamboo.app.Bamboo;
 import bamboo.core.Streams;
 import bamboo.task.*;
+import bamboo.util.Csrf;
 import bamboo.util.Freemarker;
 import bamboo.util.Parsing;
 import bamboo.util.SurtFilter;
@@ -51,6 +52,7 @@ public class WarcsController {
     public void routes() {
         Spark.get("/warcs/:id", this::serve);
         Spark.get("/warcs/:id/cdx", this::showCdx);
+        Spark.post("/warcs/:id/reindex", this::reindex);
         Spark.get("/warcs/:id/text", this::showText);
         Spark.get("/warcs/:id/details", this::details);
     }
@@ -298,7 +300,15 @@ public class WarcsController {
         Warc warc = findWarc(request);
         return render(request, "warc.ftl",
                 "warc", warc,
+                "csrfToken", Csrf.token(request),
                 "crawl", wa.crawls.get(warc.getCrawlId()),
                 "state", wa.warcs.stateName(warc.getStateId()));
     }
+
+    private String reindex(Request request, Response response) throws IOException {
+        Warc warc = findWarc(request);
+        RecordStats stats = wa.cdxIndexer.indexWarc(warc);
+        return "CDX indexed " + stats.getRecords() + " records";
+    }
+
 }

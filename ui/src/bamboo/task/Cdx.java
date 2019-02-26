@@ -20,6 +20,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static bamboo.task.WarcUtils.cleanUrl;
+
 public class Cdx {
 
     public static Stream<CdxRecord> records(ArchiveReader warcReader, String filename, long warcLength) {
@@ -211,7 +213,7 @@ public class Cdx {
 
         @Override
         public String toCdxLine() {
-            return "@alias " + alias + " " + target;
+            return "@alias " + cleanUrl(alias) + " " + cleanUrl(target);
         }
 
         public boolean isSane() {

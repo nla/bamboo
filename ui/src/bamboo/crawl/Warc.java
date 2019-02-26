@@ -1,6 +1,7 @@
 package bamboo.crawl;
 
 import java.nio.file.Path;
+import java.util.Date;
 
 public class Warc {
     public final static int OPEN = 0, IMPORTED = 1, CDX_INDEXED = 2, SOLR_INDEXED = 3;
@@ -16,6 +17,8 @@ public class Warc {
     private String filename;
     private String sha256;
     private Long blobId;
+    private Date startTime;
+    private Date endTime;
 
     public Warc() {
     }
@@ -98,5 +101,21 @@ public class Warc {
 
     public Long getBlobId() {
         return blobId;
+    }
+
+    public Date getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(Date startTime) {
+        this.startTime = startTime;
+    }
+
+    public Date getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(Date endTime) {
+        this.endTime = endTime;
     }
 }

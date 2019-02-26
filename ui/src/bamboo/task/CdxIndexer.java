@@ -25,7 +25,6 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.zip.ZipException;
 
@@ -96,7 +95,7 @@ public class CdxIndexer implements Runnable {
         }
     }
 
-    private void indexWarc(Warc warc) throws IOException {
+    public RecordStats indexWarc(Warc warc) throws IOException {
         System.out.println("\nCDX indexing " + warc.getId() + " " + warc.getPath());
 
         // fetch the list of collections from the database
@@ -118,19 +117,22 @@ public class CdxIndexer implements Runnable {
             } catch (RuntimeException e) {
                 if (e.getCause() != null && e.getCause() instanceof ZipException) {
                     warcs.updateState(warc.getId(), Warc.CDX_ERROR);
-                    return;
+                    return null;
                 } else {
                     throw e;
                 }
             } catch (ZipException | FileNotFoundException e) {
                 warcs.updateState(warc.getId(), Warc.CDX_ERROR);
-                return;
+                return null;
             } catch (IOException e) {
-                if (e.getMessage().endsWith(" is not a WARC file.")) {
+                String message = e.getMessage();
+                if (message != null && message.endsWith(" is not a WARC file.")) {
                     warcs.updateState(warc.getId(), Warc.CDX_ERROR);
-                    return;
+                    return null;
                 } else {
-                    throw e;
+                    e.printStackTrace();
+                    warcs.updateState(warc.getId(), Warc.CDX_ERROR);
+                    return null;
                 }
             }
 
@@ -154,6 +156,7 @@ public class CdxIndexer implements Runnable {
         warcs.updateState(warc.getId(), Warc.CDX_INDEXED);
 
         System.out.println("Finished CDX indexing " + warc.getId() + " " + warc.getPath() + " " + stats);
+        return stats;
     }
 
     void indexWarc(long warcId) throws IOException {

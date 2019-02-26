@@ -2,12 +2,14 @@ package bamboo.app;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.util.thread.ThreadPool;
 import spark.Spark;
 import spark.embeddedserver.EmbeddedServer;
 import spark.embeddedserver.EmbeddedServers;
 import spark.embeddedserver.jetty.EmbeddedJettyFactory;
 import spark.embeddedserver.jetty.EmbeddedJettyServer;
 import spark.embeddedserver.jetty.JettyHandler;
+import spark.embeddedserver.jetty.JettyServerFactory;
 import spark.http.matching.MatcherFilter;
 import spark.route.Routes;
 import spark.staticfiles.StaticFilesConfiguration;
@@ -94,9 +96,16 @@ public class Main {
                     ServletContextHandler servletContextHandler = new ServletContextHandler();
                     servletContextHandler.setContextPath(path);
                     servletContextHandler.setHandler(handler);
-                    return new EmbeddedJettyServer((i, j, k) -> {
-                        Server server = new Server();
-                        return server;
+                    return new EmbeddedJettyServer(new JettyServerFactory() {
+                        @Override
+                        public Server create(int i, int i1, int i2) {
+                            return new Server();
+                        }
+
+                        @Override
+                        public Server create(ThreadPool threadPool) {
+                            return new Server(threadPool);
+                        }
                     }, servletContextHandler);
                 }
             });

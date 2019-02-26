@@ -32,15 +32,15 @@ public class Bamboo implements AutoCloseable {
     public final Pandas pandas;
 
     public final Taskmaster taskmaster;
-    private final CdxIndexer cdxIndexer;
-    private final SolrIndexer solrIndexer;
+    public final CdxIndexer cdxIndexer;
+    private SolrIndexer solrIndexer;
     private final LockManager lockManager;
 
-    public Bamboo() throws IOException {
-        this(new Config());
+    public Bamboo(boolean runTasks) throws IOException {
+        this(new Config(), runTasks);
     }
 
-    public Bamboo(Config config) throws IOException {
+    public Bamboo(Config config, boolean runTasks) throws IOException {
         long startTime = System.currentTimeMillis();
 
         this.config = config;
@@ -73,10 +73,14 @@ public class Bamboo implements AutoCloseable {
         taskmaster.add(new Importer(config, crawls));
         cdxIndexer = new CdxIndexer(warcs, crawls, collections, lockManager, oidc);
         taskmaster.add(cdxIndexer);
-        solrIndexer = new SolrIndexer(collections, crawls, warcs, lockManager);
-        taskmaster.add(solrIndexer);
+        if (!config.getNoSolr()) {
+            solrIndexer = new SolrIndexer(collections, crawls, warcs, lockManager);
+            taskmaster.add(solrIndexer);
+        }
         taskmaster.add(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
-        taskmaster.startAll();
+        if (runTasks) {
+            taskmaster.startAll();
+        }
 
         // pandas package
         if (config.getPandasDbUrl() != null) {
@@ -99,7 +103,7 @@ public class Bamboo implements AutoCloseable {
         boolean allOk = dbPool.healthcheck(out) &
                 warcs.healthcheck(out) &
                 cdxIndexer.healthcheck(out) &
-                solrIndexer.healthcheck(out);
+                (solrIndexer == null || solrIndexer.healthcheck(out));
         if (allOk) {
             out.println("\nALL OK");
         }

@@ -2,6 +2,8 @@ package bamboo.app;
 
 import bamboo.crawl.Scrub;
 import bamboo.crawl.Warc;
+import bamboo.task.CdxCache;
+import bamboo.task.TextCache;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,7 +32,7 @@ public class CLI {
     }
 
     public static void main(String[] args) throws IOException {
-        Bamboo bamboo = new Bamboo();
+        Bamboo bamboo = new Bamboo(false);
         if (args.length == 0) {
             usage();
             return;
@@ -70,6 +72,38 @@ public class CLI {
                 System.out.println("Recalculating WARC stats for serieses");
                 bamboo.serieses.recalculateWarcStats();
                 break;
+
+            case "build-cdx-cache": {
+                long startId = -1;
+                long endId = Long.MAX_VALUE;
+                if (args.length > 2) {
+                    startId = Long.parseLong(args[2]);
+                    if (args.length > 3) {
+                        endId = Long.parseLong(args[3]);
+                    }
+                }
+                new CdxCache(Paths.get(args[1]), bamboo.warcs).populateAll(startId, endId);
+                break;
+            }
+
+            case "build-text-cache": {
+                long startId = -1;
+                long endId = Long.MAX_VALUE;
+                if (args.length > 2) {
+                    startId = Long.parseLong(args[2]);
+                    if (args.length > 3) {
+                        endId = Long.parseLong(args[3]);
+                    }
+                }
+                new TextCache(Paths.get(args[1]), bamboo.warcs).populateAll(startId, endId);
+                break;
+            }
+
+            case "build-text-cache-series": {
+                new TextCache(Paths.get(args[1]), bamboo.warcs).populateSeries(Long.parseLong(args[2]));
+                break;
+            }
+
             /* FIXME: restore these
             case "cdx-indexer":
                 bamboo.runCdxIndexer();
