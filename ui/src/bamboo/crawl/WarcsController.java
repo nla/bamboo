@@ -249,7 +249,7 @@ public class WarcsController {
 
         response.type("application/json");
         String acceptEncoding = request.headers("Accept-Encoding");
-        if (acceptEncoding.contains("gzip")) {
+        if (acceptEncoding != null && acceptEncoding.contains("gzip")) {
             response.header("Content-Encoding", "gzip");
             try (OutputStream out = response.raw().getOutputStream()) {
                 Files.copy(file, out);
