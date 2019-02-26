@@ -15,10 +15,12 @@
  */
 package bamboo.trove.services;
 
+import bamboo.task.CollectionInfo;
 import bamboo.task.Document;
 import bamboo.trove.common.ContentThreshold;
 import bamboo.trove.common.DocumentStatus;
 import bamboo.trove.common.IndexerDocument;
+import bamboo.trove.common.SolrEnum;
 import bamboo.trove.common.cdx.CdxRule;
 import bamboo.util.SurtFilter;
 import bamboo.util.Urls;
@@ -46,6 +48,8 @@ import java.util.stream.Collectors;
 public class FilteringCoordinationService {
   private static Logger log = LoggerFactory.getLogger(FilteringCoordinationService.class);
   private boolean collectMetrics = true;
+
+  public static final long PANDORA_COLLECTION = 4;
 
   @Autowired
   private CdxRestrictionService cdxRestrictionService;
@@ -108,7 +112,15 @@ public class FilteringCoordinationService {
   }
 
   public void filterDocument(IndexerDocument document) throws CdxRestrictionService.RulesOutOfDateException {
-    ContentThreshold threshold = qualityControlService.filterDocument(document.getBambooDocument());
+    // check if from the pandora collection.
+    for(CollectionInfo c : document.getBambooDocument().getCollections()){
+    	if(c.getId() == PANDORA_COLLECTION){
+    		document.setPandora(true);
+        break;
+    	}
+    }
+
+    ContentThreshold threshold = qualityControlService.filterDocument(document);
     DocumentStatus status = DocumentStatus.NOT_APPLICABLE;
     CdxRule rule = null;
     if (!threshold.equals(ContentThreshold.NONE)) {

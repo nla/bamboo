@@ -52,6 +52,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 
 @Service
 public class FullReindexWarcManager extends BaseWarcDomainManager {
@@ -163,6 +164,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
   @SuppressWarnings("unused")
   public void setFreeHeapLimit(long freeHeapLimit) {
     this.freeHeapLimit = freeHeapLimit;
+    BaseWarcDomainManager.setFreeHeapLimitParser(freeHeapLimit);
   }
 
   @SuppressWarnings("unused")
@@ -189,10 +191,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     log.info("***** FullReindexWarcManager *****");
     bambooCollectionsUrl = getBambooApiBaseUrl() + "collections/" + bambooCollectionId + "/warcs/json";
 
-    log.info("Bamboo Collection : {}", bambooCollectionsUrl);
-    log.info("Warc read threads : {}", bambooReadThreads);
-    log.info("Warc queue limit  : {}", queueLimit);
-    log.info("Run at start      : {}", runAtStart);
+    log.info("Bamboo Collection   : {}", bambooCollectionsUrl);
+    log.info("Warc read threads   : {}", bambooReadThreads);
+    log.info("Warc queue limit    : {}", queueLimit);
+    log.info("Run at start        : {}", runAtStart);
 
     dao = database.getDao().fullPersistence();
     persistedWarcId = dao.getLastId(moduloRemainder);
@@ -267,13 +269,17 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   @Override
   public void start() {
+  	if(BaseWarcDomainManager.isDisableIndexing()){
+  		throw new IllegalStateException("Cannot start because indexing is disabled.");
+  	}
+  	
     if (!running && !starting && !stopping)  {
+      starting = true;
     	// use new thread to start so we don't block on the lock and leave the ui hanging.
     	Thread thread = new Thread(()->{      
     		acquireDomainStartLock();
         try {
-          if (!running && !starting && !stopping)  {
-            starting = true;
+          if (!running && starting && !stopping)  {
             startInnner();
             starting = false;
           }
@@ -285,7 +291,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     }
   }
 
-  private void startInnner() {
+  public void startInnner() {
     log.info("Starting...");
     running = true;
     tick();
@@ -302,6 +308,10 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
 
   @Override
   public void stop() {
+  	stopInner();
+  }
+  
+  public void stopInner() {
     if (running && !stopping)  {
       stopping = true;
       log.info("Stopping domain... {} Bamboo read threads still need to stop", readWorkers.size());
@@ -361,7 +371,12 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     URL url = new URL(bambooCollectionsUrl + "?start=" + startOfNextBatch + "&rows=" + bambooBatchSize);
     log.info("Contacting Bamboo for more IDs. start={}, rows={}", startOfNextBatch, bambooBatchSize);
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestProperty("Accept-Encoding", "gzip");
+
     InputStream in = new BufferedInputStream(connection.getInputStream());
+    if("gzip".equals(connection.getHeaderField("Content-Encoding"))){
+    	in = new GZIPInputStream(in);
+    }
 
     ObjectMapper om = getObjectMapper();
     JsonParser json = createParser(in);
@@ -443,10 +458,11 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
       return;
     }
 
-    // Saturated heap? But only if the queue is large as well
+    // Saturated heap? 
     long unusedHeap = (Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory())
             + Runtime.getRuntime().freeMemory();
-    if (queueSize >= 10 && unusedHeap < freeHeapLimit) {
+//    if (queueSize >= 10 && unusedHeap < freeHeapLimit) {
+    if (unusedHeap < freeHeapLimit) {
       Thread.sleep(1000);
       return;
     }
@@ -489,7 +505,7 @@ public class FullReindexWarcManager extends BaseWarcDomainManager {
     if (!(finishedFinding && warcTracking.isEmpty() && allBatches.isEmpty())) {
       setTick();
     } else {
-      stop();
+      stopInner();
     }
 
   }

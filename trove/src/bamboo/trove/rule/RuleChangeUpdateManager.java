@@ -64,18 +64,21 @@ import bamboo.trove.common.cdx.CdxRule;
 import bamboo.trove.common.cdx.RulesDiff;
 import bamboo.trove.services.CdxRestrictionService;
 import bamboo.trove.services.FilteringCoordinationService;
+import bamboo.trove.services.RankingService;
 
 @Service
 public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Runnable, AcknowledgeWorker {
   private static final Logger log = LoggerFactory.getLogger(RuleChangeUpdateManager.class);
 
   private static final String[] SOLR_FIELDS = new String[] {SolrEnum.ID.toString(), SolrEnum.DISPLAY_URL.toString(),
-          SolrEnum.DELIVERY_URL.toString(), SolrEnum.DATE.toString(), SolrEnum.BOOST.toString(),
+          SolrEnum.DELIVERY_URL.toString(), SolrEnum.DATE.toString(), SolrEnum.PAGERANK.toString(),
           SolrEnum.RULE.toString(), SolrEnum.DELIVERABLE.toString(), SolrEnum.DISCOVERABLE.toString()};
   private static final SimpleDateFormat format = new SimpleDateFormat("yyy-MM-dd'T'HH:mm:ss'Z'");
   private static int NUMBER_OF_WORKERS = 5;
   private static final ZoneId TZ = ZoneId.systemDefault();
 
+  @Autowired
+  public RankingService rankingService;
 
   @Autowired
   private CdxRestrictionService restrictionsService;
@@ -92,6 +95,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   private FilteringCoordinationService filteringService;
 
   private String bambooBaseUrl;
+  
   private int maxFilterWorkers;
   private int maxTransformWorkers;
   private int maxIndexWorkers;
@@ -149,7 +153,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
   public void setMaxIndexWorkers(int maxIndexWorkers) {
     this.maxIndexWorkers = maxIndexWorkers;
   }
-
+  
   public boolean isMinimizingWriteTraffic() {
     return minimizeWriteTraffic;
   }
@@ -174,6 +178,8 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
     // and init (via statics) the base class all of the other domains extend. They will wait until we are done.
     BaseWarcDomainManager.setBambooApiBaseUrl(bambooBaseUrl);
     BaseWarcDomainManager.setWorkerCounts(maxFilterWorkers, maxTransformWorkers, maxIndexWorkers);
+    BaseWarcDomainManager.rankingService = this.rankingService;
+    
     // We must acquire the start lock before letting the other domains complete their init() methods.
 
     log.info("Solr zk path          : {}", zookeeperConfig);
@@ -653,7 +659,7 @@ public class RuleChangeUpdateManager extends BaseWarcDomainManager implements Ru
       }
       String deliveryUrl = (String) doc.getFieldValue(SolrEnum.DELIVERY_URL.toString());
       Date capture = (Date) doc.getFieldValue(SolrEnum.DATE.toString());
-      float boost = (Float) doc.getFieldValue(SolrEnum.BOOST.toString());
+      float boost = (Float) doc.getFieldValue(SolrEnum.PAGERANK.toString());
       int ruleId = (Integer) doc.getFieldValue(SolrEnum.RULE.toString());
       Boolean deliverable = (Boolean) doc.getFieldValue(SolrEnum.DELIVERABLE.toString());
       Boolean discoverable = (Boolean) doc.getFieldValue(SolrEnum.DELIVERABLE.toString());

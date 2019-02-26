@@ -19,6 +19,7 @@ import au.gov.nla.trove.indexer.api.BaseDomainManager;
 import au.gov.nla.trove.indexer.api.WorkProcessor;
 import bamboo.task.Document;
 import bamboo.trove.services.FilteringCoordinationService;
+import bamboo.trove.services.RankingService;
 import bamboo.trove.workers.FilterWorker;
 import bamboo.trove.workers.IndexerWorker;
 import bamboo.trove.workers.TransformWorker;
@@ -35,6 +36,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Required;
 
 import java.io.BufferedInputStream;
@@ -47,6 +49,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.zip.GZIPInputStream;
 
 public abstract class BaseWarcDomainManager extends BaseDomainManager implements Runnable {
   private static Logger log = LoggerFactory.getLogger(BaseWarcDomainManager.class);
@@ -56,7 +59,18 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   public void setRunAtStart(boolean runAtStart) {
     this.runAtStart = runAtStart;
   }
-
+  private static long freeHeapLimit = 0;
+  public static void setFreeHeapLimitParser(long freeHeapLimit){
+    BaseWarcDomainManager.freeHeapLimit = freeHeapLimit;
+  }
+	private static boolean disableIndexing = true;
+	public static void setDisableIndexing(boolean disableIndexing){
+		BaseWarcDomainManager.disableIndexing = disableIndexing;
+	}
+	public static boolean isDisableIndexing(){
+		return disableIndexing;
+	}
+	
   // Reading data from Bamboo
   private static Timer bambooReadTimer; 
   private static Timer bambooParseTimer;
@@ -81,6 +95,8 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
   private static int filterPoolLimit;
   private static int transformPoolLimit;
   private static int indexPoolLimit;
+  
+  public static RankingService rankingService;
 
   private static void notAlreadyStarted() {
     if (imStarted) {
@@ -286,6 +302,7 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
       }
       URL url = new URL(urlString);
       connection = (HttpURLConnection) url.openConnection();
+      connection.setRequestProperty("Accept-Encoding", "gzip");
 
       String cacheStatus = connection.getHeaderField("X-Cache-Status");
       // HIT is most likely when the cache is full and we are the bottleneck. test first
@@ -307,6 +324,10 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
       }
 
       InputStream in = new BufferedInputStream(connection.getInputStream());
+      if("gzip".equals(connection.getHeaderField("Content-Encoding"))){
+        in = new GZIPInputStream(in);
+      }
+
       parseJson(warc, in);
       warc.setLoadComplete();
       return warc;
@@ -361,6 +382,15 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
         IndexerDocument doc = warc.add(d);
         // Enqueue it for work
         filterQueue.offer(doc);
+        // we need to check memory usage
+        while (getFreeHeap() < freeHeapLimit) {
+          try{
+            Thread.sleep(1000);
+          }
+          catch (InterruptedException e){
+          }
+        }
+
       }
       warcDocCountHistogram.update(warc.size());
       warcSizeHistogram.update(warcSize);
@@ -371,6 +401,10 @@ public abstract class BaseWarcDomainManager extends BaseDomainManager implements
     }
   }
 
+  private long getFreeHeap(){
+    return(Runtime.getRuntime().maxMemory() - Runtime.getRuntime().totalMemory())
+        + Runtime.getRuntime().freeMemory();  	
+  }
   public void restartForRestrictionsDomain() {
     if (isRunning()) {
       log.info("restartForRestrictionsDomain() : Restarting '{}'", getName());
