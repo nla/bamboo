@@ -1,6 +1,6 @@
 # Bamboo Run Sheet
 
-## Recovering form runaway access control rule changes
+## Recovering the Trove Solr indexer from runaway access control rule changes
 
 If an access control rule is overlay broad, for example "\*" or some variant like "\*.au" it may force the Solr indexer to
 process large parts of the index. This will cause indexing to get stuck in the rules change phase. Stopping the indexer
