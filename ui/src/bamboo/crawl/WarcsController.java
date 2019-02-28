@@ -249,29 +249,22 @@ public class WarcsController {
         if (file == null) return false;
 
         response.type("application/json");
-        String acceptEncoding = request.headers("Accept-Encoding");
-        if (acceptEncoding != null && acceptEncoding.contains("gzip")) {
-            response.header("Content-Encoding", "gzip");
-            try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.raw().getOutputStream(), UTF_8));
-                 JsonReader reader = gson.newJsonReader(Files.newBufferedReader(file, UTF_8))) {
-                reader.beginArray();
-                writer.beginArray();
-                while (reader.hasNext()) {
-                    Document doc = gson.fromJson(reader, Document.class);
-                    populateCollectionInfo(collections, doc);
-                    gson.toJson(doc, Document.class, writer);
-                }
-                reader.endArray();
-                writer.endArray();
-                writer.flush();
+
+        OutputStream outputStream = GzipUtils.checkAndWrap(request.raw(), response.raw(), false);
+        try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(outputStream, UTF_8));
+             JsonReader reader = gson.newJsonReader(new InputStreamReader(new GZIPInputStream(Files.newInputStream(file), 8192), UTF_8))) {
+            reader.beginArray();
+            writer.beginArray();
+            while (reader.hasNext()) {
+                Document doc = gson.fromJson(reader, Document.class);
+                populateCollectionInfo(collections, doc);
+                gson.toJson(doc, Document.class, writer);
             }
-        } else {
-            try (GZIPInputStream stream = new GZIPInputStream(Files.newInputStream(file), 8192);
-                 OutputStream out = response.raw().getOutputStream()) {
-                IOUtils.copy(stream, out);
-            }
+            reader.endArray();
+            writer.endArray();
+            writer.flush();
+            return true;
         }
-        return true;
     }
 
     private String showText(Request request, Response response) throws IOException {
