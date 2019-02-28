@@ -27,6 +27,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import doss.BlobStore;
 import org.archive.io.ArchiveReader;
@@ -242,7 +243,7 @@ public class WarcsController {
         }
     }
 
-    private boolean serveTextFromCache(Request request, Response response, Warc warc) throws IOException {
+    private boolean serveTextFromCache(Request request, Response response, Warc warc, List<CollectionMatcher> collections) throws IOException {
         if (textCache == null) return false;
         Path file = textCache.find(warc.getId());
         if (file == null) return false;
@@ -251,8 +252,18 @@ public class WarcsController {
         String acceptEncoding = request.headers("Accept-Encoding");
         if (acceptEncoding != null && acceptEncoding.contains("gzip")) {
             response.header("Content-Encoding", "gzip");
-            try (OutputStream out = response.raw().getOutputStream()) {
-                Files.copy(file, out);
+            try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.raw().getOutputStream(), UTF_8));
+                 JsonReader reader = gson.newJsonReader(Files.newBufferedReader(file, UTF_8))) {
+                reader.beginArray();
+                writer.beginArray();
+                while (reader.hasNext()) {
+                    Document doc = gson.fromJson(reader, Document.class);
+                    populateCollectionInfo(collections, doc);
+                    gson.toJson(doc, Document.class, writer);
+                }
+                reader.endArray();
+                writer.endArray();
+                writer.flush();
             }
         } else {
             try (GZIPInputStream stream = new GZIPInputStream(Files.newInputStream(file), 8192);
@@ -282,13 +293,14 @@ public class WarcsController {
 
         Warc warc = findWarc(request);
 
-        if (serveTextFromCache(request, response, warc)) {
-            return "";
-        }
 
         Crawl crawl = wa.crawls.get(warc.getCrawlId());
         List<CollectionMatcher> collections = wa.collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())
                 .stream().map(CollectionMatcher::new).collect(Collectors.toList());
+
+        if (serveTextFromCache(request, response, warc, collections)) {
+            return "";
+        }
 
         response.type("application/json");
         OutputStream outputStream = GzipUtils.checkAndWrap(request.raw(), response.raw(), false);
@@ -302,18 +314,7 @@ public class WarcsController {
                 if (url == null) continue;
                 try {
                     Document doc = extractor.extract(record);
-
-                    // add collections info
-                    String surt = SURT.toSURT(doc.getUrl());
-                    List<CollectionInfo> docCollections = new ArrayList<>();
-                    for (CollectionMatcher matcher: collections) {
-                        if (matcher.matches(surt)) {
-                            docCollections.add(matcher.info);
-                        }
-                    }
-                    doc.setCollections(docCollections);
-
-                    // return as JSON
+                    populateCollectionInfo(collections, doc);
                     gson.toJson(doc, Document.class, writer);
                 } catch (TextExtractionException e) {
                     continue; // skip it
@@ -331,6 +332,18 @@ public class WarcsController {
         } finally {
             streamWriter.close(); // ensure output stream always closed to avoid gzip issues
         }
+    }
+
+    private void populateCollectionInfo(List<CollectionMatcher> collections, Document doc) {
+        // add collections info
+        String surt = SURT.toSURT(doc.getUrl());
+        List<CollectionInfo> docCollections = new ArrayList<>();
+        for (CollectionMatcher matcher: collections) {
+            if (matcher.matches(surt)) {
+                docCollections.add(matcher.info);
+            }
+        }
+        doc.setCollections(docCollections);
     }
 
     String details(Request request, Response response) {
