@@ -2,7 +2,7 @@
 
 ## Recovering form runaway access control rule changes
 
-If an access control rule is overlay broad, for example "*" or some variant like "*.au" it may force the Solr indexer to
+If an access control rule is overlay broad, for example "\*" or some variant like "\*.au" it may force the Solr indexer to
 process large parts of the index. This will cause indexing to get stuck in the rules change phase. Stopping the indexer
 and changing the rules in OutbackCDX will not solve the problem as the indexer stores its own copy of the rules and
 will enter "recovery mode" and will simply resume processing where it left off.
