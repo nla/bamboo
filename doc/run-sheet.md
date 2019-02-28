@@ -13,7 +13,7 @@ Instead:
 2. Remove the offending pattern from the JSON in  the indexer's copy of the rule in MySQL table
   index_persistence_web_archives_restrictions_rules (make sure you select the row with the correct ruleSetId).
 3. Delete the offending rule from OutbackCDX.
-4. Recreate the offending rule with a new rule id.
+4. Recreate the offending rule with the incorrect pattern removed under a new rule id.
 5. Start the indexer.
 
 This will cause the indexer to:
