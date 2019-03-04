@@ -1,5 +1,9 @@
 # Bamboo Run Sheet
 
+## Retrying failed indexing
+
+To retry a record that is in error update the `index_persistance_web_archives_errors` table and set the count to -1 and restart the indexer and those records will be tried first. The number of retries was reduced to 0 retries as retrying was just taking time for no result.
+
 ## Recovering the Trove Solr indexer from runaway access control rule changes
 
 If an access control rule is overlay broad, for example "\*" or some variant like "\*.au" it may force the Solr indexer to
