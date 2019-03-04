@@ -1,6 +1,6 @@
 # Bamboo Run Sheet
 
-## Retrying failed indexing
+## Retrying WARCs that errored indexing
 
 To retry a record that is in error update the `index_persistance_web_archives_errors` table and set the count to -1 and restart the indexer and those records will be tried first. The number of retries was reduced to 0 retries as retrying was just taking time for no result.
 
