@@ -15,34 +15,13 @@ public class Importer implements Runnable {
     public Importer(Config config, Crawls crawls) {
         this.config = config;
         this.crawls = crawls;
-
-        crawls.onStateChange((crawlId, stateId) -> {
-            if (stateId == Crawl.IMPORTING) {
-                synchronized (this) {
-                    notify();
-                }
-            }
-        });
     }
 
     @Override
     public void run() {
-        try {
-            for (;;) {
-                List<Crawl> candidates = crawls.listByStateId(Crawl.IMPORTING);
-                if (candidates.isEmpty()) {
-                    synchronized (this) {
-                        TimeUnit.MINUTES.timedWait(this, 1);
-                    }
-                    continue;
-                }
-
-                for (Crawl crawl : candidates) {
-                    new ImportJob(config, crawls, crawl.getId()).run();
-                }
-            }
-        } catch (InterruptedException e) {
-            // shutdown
+        List<Crawl> candidates = crawls.listByStateId(Crawl.IMPORTING);
+        for (Crawl crawl : candidates) {
+            new ImportJob(config, crawls, crawl.getId()).run();
         }
     }
 }

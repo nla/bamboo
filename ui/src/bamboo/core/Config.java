@@ -25,7 +25,7 @@ public class Config {
     }
 
     public String getDbUrl() {
-        return getEnv("BAMBOO_DB_URL", "jdbc:h2:mem:bamboo");
+        return getEnv("BAMBOO_DB_URL", "jdbc:h2:mem:bamboo;mode=mysql;db_close_delay=-1");
     }
 
     public Path getHeritrixJobs() {

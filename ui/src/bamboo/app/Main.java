@@ -1,6 +1,8 @@
 package bamboo.app;
 
+import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.handler.HandlerWrapper;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.util.thread.ThreadPool;
 import spark.Spark;
@@ -50,7 +52,7 @@ public class Main {
     public static void server(String[] args) throws IOException, InterruptedException {
         int port = 8080;
         String host = null;
-        String contextPath = null;
+        String contextPath = "";
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "-p":
@@ -72,8 +74,8 @@ public class Main {
             Spark.ipAddress(host);
         }
 
-        if (contextPath != null) {
-            String path = contextPath;
+        {
+            String path = contextPath.replaceFirst("/+$", "");
             EmbeddedServers.add(EmbeddedServers.Identifiers.JETTY, new EmbeddedJettyFactory() {
                 @Override
                 public EmbeddedServer create(Routes routeMatcher, StaticFilesConfiguration staticFilesConfiguration, boolean hasMultipleHandler) {
@@ -96,6 +98,19 @@ public class Main {
                     ServletContextHandler servletContextHandler = new ServletContextHandler();
                     servletContextHandler.setContextPath(path);
                     servletContextHandler.setHandler(handler);
+
+                    HandlerWrapper wrapper = new HandlerWrapper() {
+                        @Override
+                        public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+                            if (target.equals("/")) {
+                                response.sendRedirect(path);
+                            } else {
+                                super.handle(target, baseRequest, request, response);
+                            }
+                        }
+                    };
+                    wrapper.setHandler(servletContextHandler);
+
                     return new EmbeddedJettyServer(new JettyServerFactory() {
                         @Override
                         public Server create(int i, int i1, int i2) {
@@ -106,7 +121,7 @@ public class Main {
                         public Server create(ThreadPool threadPool) {
                             return new Server(threadPool);
                         }
-                    }, servletContextHandler);
+                    }, path.isEmpty() ? servletContextHandler : wrapper);
                 }
             });
         }

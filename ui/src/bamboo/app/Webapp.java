@@ -59,7 +59,7 @@ public class Webapp implements AutoCloseable {
         new JobsController(bamboo).routes();
         new SeedlistsController(bamboo).routes();
         new SeriesController(bamboo).routes();
-        new TasksController(bamboo).routes();
+        new TasksController(bamboo.warcs, bamboo.dao.tasks()).routes();
         new WarcsController(bamboo).routes();
     }
 
@@ -72,7 +72,7 @@ public class Webapp implements AutoCloseable {
     }
 
     public Webapp() throws IOException {
-        this(new Bamboo(true));
+        this(new Bamboo(System.getenv("NO_TASKS") != null));
     }
 
     String index(Request request, Response response) {

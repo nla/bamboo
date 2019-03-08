@@ -50,13 +50,8 @@ public class CdxIndexer implements Runnable {
     }
 
     public void run() {
-        while (true) {
-            List<Warc> candidates = warcs.findByState(Warc.IMPORTED, BATCH_SIZE);
-
-            if (candidates.isEmpty()) {
-                break;
-            }
-
+        List<Warc> candidates = warcs.findByState(Warc.IMPORTED, BATCH_SIZE);
+        if (!candidates.isEmpty()) {
             indexWarcs(candidates);
         }
     }

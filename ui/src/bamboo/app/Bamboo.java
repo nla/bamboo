@@ -7,10 +7,7 @@ import bamboo.crawl.Serieses;
 import bamboo.crawl.Warcs;
 import bamboo.pandas.Pandas;
 import bamboo.seedlist.Seedlists;
-import bamboo.task.CdxIndexer;
-import bamboo.task.Importer;
-import bamboo.task.SolrIndexer;
-import bamboo.task.WatchImporter;
+import bamboo.task.*;
 import bamboo.util.Oidc;
 import doss.BlobStore;
 import doss.DOSS;
@@ -23,6 +20,7 @@ public class Bamboo implements AutoCloseable {
     public final Config config;
     private final DbPool dbPool;
     private final BlobStore blobStore;
+    final DAO dao;
 
     public final Crawls crawls;
     public final Serieses serieses;
@@ -31,7 +29,7 @@ public class Bamboo implements AutoCloseable {
     public final Seedlists seedlists;
     public final Pandas pandas;
 
-    public final Taskmaster taskmaster;
+    public final TaskManager taskManager;
     public final CdxIndexer cdxIndexer;
     private SolrIndexer solrIndexer;
     private final LockManager lockManager;
@@ -55,9 +53,9 @@ public class Bamboo implements AutoCloseable {
 
         dbPool = new DbPool(config);
         dbPool.migrate();
-        DAO dao = dbPool.dao();
+        dao = dbPool.dao();
 
-        this.taskmaster = new Taskmaster();
+        this.taskManager = new TaskManager(dao.tasks());
         this.lockManager = new LockManager(dao.lockManager());
 
         // crawl package
@@ -70,16 +68,23 @@ public class Bamboo implements AutoCloseable {
         this.seedlists = new Seedlists(dao.seedlists());
 
         // task package
-        taskmaster.add(new Importer(config, crawls));
+        taskManager.register(new Importer(config, crawls));
         cdxIndexer = new CdxIndexer(warcs, crawls, collections, lockManager, oidc);
-        taskmaster.add(cdxIndexer);
+        taskManager.register(cdxIndexer);
         if (!config.getNoSolr()) {
             solrIndexer = new SolrIndexer(collections, crawls, warcs, lockManager);
-            taskmaster.add(solrIndexer);
+            taskManager.register(solrIndexer);
         }
-        taskmaster.add(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
+        taskManager.register(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
+        taskManager.register(() -> {
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        });
         if (runTasks) {
-            taskmaster.startAll();
+            taskManager.start();
         }
 
         // pandas package
@@ -93,7 +98,7 @@ public class Bamboo implements AutoCloseable {
     }
 
     public void close() {
-        taskmaster.close();
+        taskManager.close();
         dbPool.close();
         pandas.close();
         lockManager.close();

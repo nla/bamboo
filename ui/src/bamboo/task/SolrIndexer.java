@@ -32,7 +32,6 @@ public class SolrIndexer implements Runnable {
     private final Crawls crawls;
     private final Warcs warcs;
     private final Collections collections;
-    private SolrServer solr;
 
     private static TextExtractor extractor = new TextExtractor();
     private final LockManager lockManager;
@@ -45,13 +44,8 @@ public class SolrIndexer implements Runnable {
     }
 
     public void run() {
-        while (true) {
-            List<Warc> warcList = warcs.findByState(Warc.CDX_INDEXED, BATCH_SIZE);
-
-            if (warcList.isEmpty()) {
-                break;
-            }
-
+        List<Warc> warcList = warcs.findByState(Warc.CDX_INDEXED, BATCH_SIZE);
+        if (!warcList.isEmpty()) {
             indexWarcs(warcList);
         }
     }
@@ -136,7 +130,7 @@ public class SolrIndexer implements Runnable {
     }
 
     void indexWarc(Warc warc) {
-        System.out.println(new Date() +  " Solr indexing " + warc.getId() + " " + warc.getPath());
+        System.out.println(new Date() + " Solr indexing " + warc.getId() + " " + warc.getPath());
 
         List<Solr> solrs = new ArrayList<>();
 
