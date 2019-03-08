@@ -72,7 +72,7 @@ public class Webapp implements AutoCloseable {
     }
 
     public Webapp() throws IOException {
-        this(new Bamboo(System.getenv("NO_TASKS") != null));
+        this(new Bamboo(System.getenv("NO_TASKS") == null));
     }
 
     String index(Request request, Response response) {

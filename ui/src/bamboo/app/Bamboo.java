@@ -76,13 +76,6 @@ public class Bamboo implements AutoCloseable {
             taskManager.register(solrIndexer);
         }
         taskManager.register(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
-        taskManager.register(() -> {
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        });
         if (runTasks) {
             taskManager.start();
         }
