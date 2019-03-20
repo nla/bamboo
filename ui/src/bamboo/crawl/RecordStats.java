@@ -11,7 +11,7 @@ public class RecordStats {
     public void update(long recordLength, Date time) {
         records += 1;
         recordBytes += recordLength;
-
+        
         if (startTime == null || time.before(startTime)) {
             startTime = time;
         }

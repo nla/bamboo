@@ -169,7 +169,7 @@ public class Cdx {
         String line;
         while ((line = reader.readLine()) != null) {
             Alias alias = parseUrlMapLine(line, piAndDate);
-            if (alias.isSane()) {
+            if (alias != null && alias.isSane()) {
                 aliases.add(alias);
             }
         }
@@ -181,6 +181,7 @@ public class Cdx {
      */
     static Alias parseUrlMapLine(String line, String piAndDate) {
         String[] fields = line.trim().split("\\^\\^");
+        if (fields.length < 2) return null;
         String targetUrl = Urls.addImplicitScheme(fields[0]);
         String instanceBaseUrl = "http://pandora.nla.gov.au/pan/" + piAndDate + "/";
         String aliasUrl = instanceBaseUrl + cleanHttrackPath(fields[1], piAndDate);
