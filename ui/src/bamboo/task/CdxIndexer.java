@@ -32,6 +32,8 @@ import static bamboo.task.WarcUtils.cleanUrl;
 import static java.nio.file.StandardOpenOption.*;
 
 public class CdxIndexer implements Runnable {
+    private static final Date YEAR1990 = new Date(631152000L);
+
     private static final Logger log = LoggerFactory.getLogger(CdxIndexer.class);
     private static final int BATCH_SIZE = 1024;
     private final Warcs warcs;
@@ -304,6 +306,9 @@ public class CdxIndexer implements Runnable {
                 } catch (DateTimeParseException e) {
                     log.warn("Unable to parse time " + filename + " in " + capture.url, e);
                     return; // skip record if we can't get a sane time
+                }
+                if (time.before(YEAR1990)) {
+                    return; // garbage. skip.
                 }
                 stats.update(capture.compressedLength, time);
                 String surt = toSchemalessSURT(capture.url);
