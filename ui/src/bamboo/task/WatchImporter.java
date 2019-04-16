@@ -40,7 +40,7 @@ public class WatchImporter implements Runnable {
 
 
             for (Config.Watch watch : watches.values()) {
-                log.finest("Watching " + watch.dir + " for new WARCs");
+                log.info("Watching " + watch.dir + " for modified WARCs");
                 watch.dir.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
             }
 
@@ -111,7 +111,7 @@ public class WatchImporter implements Runnable {
             prevSize = 0;
         }
         if (currentSize > prevSize) {
-            log.finest("Indexing " + warcId + " " + path);
+            log.info("Indexing " + warcId + " " + path);
             cdxIndexer.indexWarc(warcId);
             warcs.updateSize(warcId, currentSize);
         }
@@ -130,6 +130,7 @@ public class WatchImporter implements Runnable {
         long size = Files.size(path);
         String digest = Scrub.calculateDigest("SHA-256", path);
 
+        log.info("Moving now-closed WARC " + path);
         Path dest = moveWarcToCrawlDir(path, crawl);
 
         if (warc == null) {
