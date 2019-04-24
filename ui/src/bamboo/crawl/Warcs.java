@@ -225,7 +225,7 @@ public class Warcs {
 
     public List<WarcResumptionToken> resumptionByCollectionIdAndStateId(
             long collectionId, int stateAtLeast, WarcResumptionToken after, int limit) {
-        return dao.resumptionByCollectionIdAndStateId(collectionId, stateId, Timestamp.from(after.time), after.id, limit);
+        return dao.resumptionByCollectionIdAndStateId(collectionId, stateAtLeast, Timestamp.from(after.time), after.id, limit);
     }
 
 
