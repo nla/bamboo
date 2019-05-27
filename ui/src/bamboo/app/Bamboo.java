@@ -68,7 +68,7 @@ public class Bamboo implements AutoCloseable {
         this.seedlists = new Seedlists(dao.seedlists());
 
         // task package
-        taskManager.register(new Importer(config, crawls));
+        taskManager.register(new Importer(config, crawls, lockManager));
         cdxIndexer = new CdxIndexer(warcs, crawls, collections, lockManager, oidc);
         taskManager.register(cdxIndexer);
         if (!config.getNoSolr()) {
