@@ -168,13 +168,18 @@ public class PeriodicWarcManager extends FullReindexWarcManager {
    * @return
    */
   protected boolean canRunTime(){
-    return canRunTime(startHour, startMinute, stopHour, stopMinute);
+    return canRunTime(Calendar.getInstance(), startHour, startMinute, stopHour, stopMinute);
   }
-  private boolean canRunTime(int startHour, int startMinute, int stopHour, int stopMinute){
+
+  // for unit tests
+  boolean canRunTime(Calendar now){
+      return canRunTime(now, startHour, startMinute, stopHour, stopMinute);
+  }
+
+  private boolean canRunTime(Calendar now, int startHour, int startMinute, int stopHour, int stopMinute){
     if(!limitRunningTime){
       return true;
     }
-    Calendar now = Calendar.getInstance();
     int nowHour = now.get(Calendar.HOUR_OF_DAY);
     int nowMinute = now.get(Calendar.MINUTE);
     if(startHour < stopHour || ((startHour == stopHour) && (startMinute < stopMinute))){
@@ -198,7 +203,7 @@ public class PeriodicWarcManager extends FullReindexWarcManager {
     }
     else{
       // outside range (durations over midnight)
-      return !canRunTime(stopHour, stopMinute, startHour, startMinute);
+      return !canRunTime(now, stopHour, stopMinute, startHour, startMinute);
     }
   }
   

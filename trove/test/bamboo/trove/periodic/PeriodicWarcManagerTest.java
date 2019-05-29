@@ -114,18 +114,20 @@ public class PeriodicWarcManagerTest{
 }
 	
 	private void checkStart(int startHourMod, int startMinuteMod, int stopHourMod, int stopMinuteMod, boolean expected){
-		Calendar time = Calendar.getInstance();
+		Calendar now = Calendar.getInstance();
+		now.set(2017, 1,2, 3, 4, 5);
+		Calendar time = (Calendar) now.clone();
 		time.add(Calendar.HOUR, startHourMod);
 		time.add(Calendar.MINUTE, startMinuteMod);
 		manager.setLimitStartHour(time.get(Calendar.HOUR_OF_DAY));
 		manager.setLimitStartMinute(time.get(Calendar.MINUTE));
-		time = Calendar.getInstance();
+		time = (Calendar) now.clone();
 		time.add(Calendar.HOUR, stopHourMod);
 		time.add(Calendar.MINUTE, stopMinuteMod);
 		manager.setLimitStopHour(time.get(Calendar.HOUR_OF_DAY));
 		manager.setLimitStopMinute(time.get(Calendar.MINUTE));
 		String msg = "check time should " + (expected?"pass":"fail") + " h:" + startHourMod + " m:" + startMinuteMod + " h:" + stopHourMod + " m:" + stopMinuteMod;
-		assertEquals(msg, expected, manager.canRunTime());
+		assertEquals(msg, expected, manager.canRunTime(now));
 
 	}
 }
