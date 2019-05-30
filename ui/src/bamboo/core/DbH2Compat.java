@@ -22,8 +22,6 @@ public class DbH2Compat {
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE ALIAS IF NOT EXISTS SUBSTRING_INDEX DETERMINISTIC FOR \"" + DbH2Compat.class.getName() + ".substringIndex\"");
-            stmt.execute("CREATE ALIAS IF NOT EXISTS FROM_UNIXTIME DETERMINISTIC FOR \"" + DbH2Compat.class.getName() + ".fromUnixtime\"");
-            stmt.execute("CREATE ALIAS IF NOT EXISTS UNIX_TIMESTAMP FOR \"" + DbH2Compat.class.getName() + ".unixTimestamp\"");
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -59,16 +57,5 @@ public class DbH2Compat {
         } else {
             return "";
         }
-    }
-
-    /**
-     * Java implementation of MySQL's FROM_UNIXTIME for use by H2.
-     */
-    public static Date fromUnixtime(long time) {
-        return new Date(time);
-    }
-
-    public static long unixTimestamp() {
-        return System.currentTimeMillis() / 1000;
     }
 }
