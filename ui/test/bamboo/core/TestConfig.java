@@ -8,7 +8,7 @@ public class TestConfig extends Config {
 
     @Override
     public String getDbUrl() {
-        return "jdbc:h2:mem:bamboo-unit-test-" + Thread.currentThread().getId();
+        return "jdbc:h2:mem:bamboo-unit-test-" + Thread.currentThread().getId() + ";mode=MySQL";
     }
 
     @Override
