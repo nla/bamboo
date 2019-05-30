@@ -57,10 +57,7 @@ public class DbPool implements Closeable {
         if (ds.getJdbcUrl().startsWith("jdbc:h2:")) {
             DbH2Compat.register(ds);
         }
-        Flyway flyway = new Flyway();
-        flyway.setDataSource(ds);
-        flyway.setLocations("bamboo/migrations");
-        flyway.migrate();
+        Flyway.configure().dataSource(ds).locations("bamboo/migrations").load().migrate();
     }
 
 
