@@ -15,6 +15,7 @@ import org.apache.pdfbox.io.MemoryUsageSetting;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.tika.Tika;
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
@@ -66,6 +67,16 @@ public class TextExtractor {
     private boolean useTika = false;
 
     public static final Pattern PANDORA_REGEX = Pattern.compile("http://pandora.nla.gov.au/pan/[0-9]+/[0-9-]+/([^/.]+\\.[^/]+/.*)");
+    private static final TikaConfig tikaConfig;
+
+    static {
+        try {
+            tikaConfig = new TikaConfig(TextExtractor.class.getResource("tika.xml"));
+        } catch (Exception e) {
+            throw new RuntimeException("Error configuring tika via tika.xml", e);
+        }
+    }
+
     public static void setUrls(Document doc, String url) throws TextExtractionException {
         String deliveryUrl = url;
         Matcher m = PANDORA_REGEX.matcher(url);
@@ -216,7 +227,7 @@ public class TextExtractor {
     }
 
     public static void extractTika(InputStream record, Document doc, URI baseUrl) throws TextExtractionException {
-        Tika tika = new Tika();
+        Tika tika = new Tika(tikaConfig);
         Metadata metadata = new Metadata();
         metadata.set(Metadata.CONTENT_TYPE, doc.getContentType());
         try {
