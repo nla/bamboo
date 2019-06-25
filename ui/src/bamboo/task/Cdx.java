@@ -261,7 +261,8 @@ public class Cdx {
                 capture.contentType = HttpHeader.cleanContentType(http.contentType);
                 capture.status = http.status;
                 capture.location = http.location;
-            } else if (WarcUtils.isResourceRecord(header)) {
+            } else if (WarcUtils.isResourceRecord(header) ||
+                    (WarcUtils.isMetadataRecord(header) && header.getUrl().startsWith("youtube-dl:"))) {
                 capture.url = WarcUtils.getCleanUrl(header);
                 capture.contentType = header.getMimetype();
                 capture.status = 200;

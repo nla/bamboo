@@ -44,6 +44,14 @@ public class WarcUtils {
         return false;
     }
 
+    static boolean isMetadataRecord(ArchiveRecordHeader h) {
+        String warcType = (String)h.getHeaderValue("WARC-Type");
+        if (warcType != null && warcType.equals("metadata")) {
+            return true;
+        }
+        return false;
+    }
+
     static String cleanUrl(String url) {
         ParsedUrl parsedUrl = ParsedUrl.parseUrl(url);
         Canonicalizer.WHATWG.canonicalize(parsedUrl);
