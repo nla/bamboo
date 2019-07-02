@@ -92,6 +92,18 @@ public class CrawlsController {
         long id = Long.parseLong(request.params(":id"));
         Crawl crawl = bamboo.crawls.get(id);
         Pager<Warc> pager = bamboo.warcs.paginateWithCrawlId(Parsing.parseLongOrDefault(request.queryParams("page"), 1), id);
+
+        if ("ids".equals(request.queryParams("format"))) {
+            response.type("text/plain");
+            response.header("Total", String.valueOf(pager.totalItems));
+            StringBuilder sb = new StringBuilder();
+            for (Warc warc: pager.items) {
+                sb.append(warc.getId());
+                sb.append('\n');
+            }
+            return sb.toString();
+        }
+
         return render(request, "bamboo/crawl/views/crawls/warcs.ftl",
                 "crawl", crawl,
                 "warcs", pager.items,
