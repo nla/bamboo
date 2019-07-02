@@ -1,6 +1,7 @@
 package bamboo.util;
 
 import bamboo.core.Config;
+import com.google.gson.Gson;
 import freemarker.core.HTMLOutputFormat;
 import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.Configuration;
@@ -15,6 +16,7 @@ import java.util.Map;
 import spark.Request;
 
 public class Freemarker {
+    private static final Gson gson = new Gson();
     public static Configuration config = init();
 
     private static Configuration init() {
@@ -33,6 +35,10 @@ public class Freemarker {
     }
 
     public static String render(Request request, String view, Object... keysAndValues) {
+        if ("json".equals(request.queryParams("format"))) {
+            return gson.toJson(keysAndValues);
+        }
+
         Map<String, Object> model = new HashMap<>();
         model.put("request", request);
         for (int i = 0; i < keysAndValues.length; i += 2) {
