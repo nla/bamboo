@@ -53,9 +53,15 @@ public class WarcUtils {
     }
 
     static String cleanUrl(String url) {
-        ParsedUrl parsedUrl = ParsedUrl.parseUrl(url);
-        Canonicalizer.WHATWG.canonicalize(parsedUrl);
-        return parsedUrl.toString().replace(" ", "%20").replace("\r", "%0a").replace("\n", "%0d");
+        String canon;
+        try {
+            ParsedUrl parsedUrl = ParsedUrl.parseUrl(url);
+            Canonicalizer.WHATWG.canonicalize(parsedUrl);
+            canon = parsedUrl.toString();
+        } catch (Exception e) {
+            canon = url.replaceFirst("#.*", "");
+        }
+        return canon.replace(" ", "%20").replace("\r", "%0a").replace("\n", "%0d");
     }
 
     static String getCleanUrl(ArchiveRecordHeader h) {
