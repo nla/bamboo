@@ -41,7 +41,7 @@ public class TextExtractorTest {
             new TextExtractor().extractTika(stream, doc, URI.create("http://example.net/subdir/example.odt"));
         }
         assertEquals("Visible title\n" +
-                "This is an example.\n", doc.getText());
+                "This is an example.", doc.getText());
 //        assertEquals("Metadata title", doc.getTitle()); // FIXME: doesn't seem to work with ForkParser
     }
 
