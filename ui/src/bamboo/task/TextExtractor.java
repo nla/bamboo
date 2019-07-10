@@ -53,10 +53,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -78,6 +75,9 @@ public class TextExtractor {
             TikaConfig config = new TikaConfig(getClass().getResource("tika.xml"));
             ForkParser parser = new ForkParser(getClass().getClassLoader(), new AutoDetectParser(config));
             parser.setJavaCommand(Arrays.asList("java", "-Xmx512m"));
+            if (System.getenv("TIKA_POOL_SIZE") != null) {
+                parser.setPoolSize(Integer.parseInt(System.getenv("TIKA_POOL_SIZE")));
+            }
             this.parser = parser;
         } catch (Exception e) {
             throw new RuntimeException("Error configuring tika via tika.xml", e);
