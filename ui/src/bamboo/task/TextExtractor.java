@@ -245,17 +245,17 @@ public class TextExtractor {
 
             parser.parse(record, teeHandler, metadata, parseContext);
 
-            doc.setText(bodyHandler.toString());
-            doc.setTitle(getAny(metadata, TikaCoreProperties.TITLE.getName()));
-            doc.setDescription(getAny(metadata, "description", "DC.description", "DC.Description", "dcterms.description"));
-            doc.setKeywords(getAny(metadata, "keywords", "DC.keywords", "DC.Keywords", "dcterms.keywords"));
-            doc.setPublisher(getAny(metadata, "publisher", "DC.publisher", "DC.Publisher", "dcterms.publisher"));
-            doc.setCreator(getAny(metadata, "creator", "DC.creator", "DC.Creator", "dcterms.creator"));
-            doc.setContributor(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor", "dcterms.contributor"));
-            doc.setCoverage(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage"));
+            doc.setText(clean(bodyHandler.toString()));
+            doc.setTitle(clean(getAny(metadata, TikaCoreProperties.TITLE.getName())));
+            doc.setDescription(clean(getAny(metadata, "description", "DC.description", "DC.Description", "dcterms.description")));
+            doc.setKeywords(clean(getAny(metadata, "keywords", "DC.keywords", "DC.Keywords", "dcterms.keywords")));
+            doc.setPublisher(clean(getAny(metadata, "publisher", "DC.publisher", "DC.Publisher", "dcterms.publisher")));
+            doc.setCreator(clean(getAny(metadata, "creator", "DC.creator", "DC.Creator", "dcterms.creator")));
+            doc.setContributor(clean(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor", "dcterms.contributor")));
+            doc.setCoverage(clean(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage")));
             doc.setH1(headingHandler.getHeadings());
-            doc.setOgSiteName(metadata.get("og:site_name"));
-            doc.setOgTitle(metadata.get("og:title"));
+            doc.setOgSiteName(clean(metadata.get("og:site_name")));
+            doc.setOgTitle(clean(metadata.get("og:title")));
 
             List<LinkInfo> links = new ArrayList<>();
             for (Link link: linkHandler.getLinks()) {
@@ -291,6 +291,12 @@ public class TextExtractor {
         } catch (IOException | TikaException | SAXException e) {
             throw new TextExtractionException("Tika failed", e);
         }
+    }
+
+    public static final Pattern MULTISPACE = Pattern.compile("\\s{2,}");
+    private String clean(String s) {
+        if (s == null) return null;
+        return MULTISPACE.matcher(s.trim()).replaceAll(" ");
     }
 
     private static boolean startsWithIgnoreCase(String str, String prefix) {
