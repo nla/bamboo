@@ -38,6 +38,10 @@ public class TextCache {
     }
 
     void populate(Warc warc) throws IOException {
+        TextExtractor extractor = new TextExtractor();
+        extractor.setUsePdfBox(true);
+        extractor.setUseTika(true);
+
         Path path = entryPath(warc.getId());
         if (Files.exists(path)) {
             return;
@@ -45,22 +49,9 @@ public class TextCache {
         Files.createDirectories(path.getParent());
         Path tmpPath = Paths.get(path.toString() + ".tmp");
         try {
-            // we run the text extractor as a child process so that when we hit a PDF or something that causes
-            // tika to run out of memory we don't crash the controlling process
-            ProcessBuilder pb = new ProcessBuilder("java", "-Xmx2048m", "bamboo.task.TextCache",
-                    warcs.getUri(warc).toString(), tmpPath.toString());
-            pb.environment().put("CLASSPATH", System.getProperty("java.class.path"));
-            pb.inheritIO();
-            Process p = pb.start();
-
-            try {
-                int x = p.waitFor();
-                if (x != 0) {
-                    throw new IOException("child returned error-code " + x);
-                }
-            } catch (InterruptedException e) {
-                p.destroyForcibly();
-                throw new IOException(e);
+            try (ArchiveReader reader = warcs.openReader(warc);
+                 OutputStream out = new GZIPOutputStream(Files.newOutputStream(tmpPath), 8192)) {
+                extractor.extractAll(reader, out);
             }
             Files.move(tmpPath, path, ATOMIC_MOVE, REPLACE_EXISTING);
         } finally {

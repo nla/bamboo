@@ -17,9 +17,12 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.tika.Tika;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.fork.ForkParser;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.Link;
 import org.apache.tika.sax.LinkContentHandler;
@@ -51,6 +54,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -67,11 +71,14 @@ public class TextExtractor {
     private boolean useTika = false;
 
     public static final Pattern PANDORA_REGEX = Pattern.compile("http://pandora.nla.gov.au/pan/[0-9]+/[0-9-]+/([^/.]+\\.[^/]+/.*)");
-    private static final TikaConfig tikaConfig;
+    private final Parser parser;
 
-    static {
+    public TextExtractor() {
         try {
-            tikaConfig = new TikaConfig(TextExtractor.class.getResource("tika.xml"));
+            TikaConfig config = new TikaConfig(getClass().getResource("tika.xml"));
+            ForkParser parser = new ForkParser(getClass().getClassLoader(), new AutoDetectParser(config));
+            parser.setJavaCommand(Arrays.asList("java", "-Xmx512m"));
+            this.parser = parser;
         } catch (Exception e) {
             throw new RuntimeException("Error configuring tika via tika.xml", e);
         }
@@ -226,8 +233,7 @@ public class TextExtractor {
         }
     }
 
-    public static void extractTika(InputStream record, Document doc, URI baseUrl) throws TextExtractionException {
-        Tika tika = new Tika(tikaConfig);
+    public void extractTika(InputStream record, Document doc, URI baseUrl) throws TextExtractionException {
         Metadata metadata = new Metadata();
         metadata.set(Metadata.CONTENT_TYPE, doc.getContentType());
         try {
@@ -237,7 +243,7 @@ public class TextExtractor {
             HeadingContentHandler headingHandler = new HeadingContentHandler();
             TeeContentHandler teeHandler = new TeeContentHandler(linkHandler, bodyHandler, headingHandler);
 
-            tika.getParser().parse(record, teeHandler, metadata, parseContext);
+            parser.parse(record, teeHandler, metadata, parseContext);
 
             doc.setText(bodyHandler.toString());
             doc.setTitle(getAny(metadata, TikaCoreProperties.TITLE.getName()));
@@ -488,6 +494,10 @@ public class TextExtractor {
         TextExtractor extractor = new TextExtractor();
         extractor.setUsePdfBox(true);
         extractor.setUseTika(true);
+        extractor.extractAll(reader, out);
+    }
+
+    void extractAll(ArchiveReader reader, OutputStream out) throws IOException {
         Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX")
                 .setPrettyPrinting().create();
         try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(out))) {
@@ -496,7 +506,7 @@ public class TextExtractor {
                 String url = record.getHeader().getUrl();
                 if (url == null) continue;
                 try {
-                    Document doc = extractor.extract(record);
+                    Document doc = extract(record);
                     gson.toJson(doc, Document.class, writer);
                 } catch (TextExtractionException e) {
                     continue; // skip it
