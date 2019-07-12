@@ -181,7 +181,9 @@ public class TextExtractor {
                     }
                     break;
                 case "application/pdf":
-                    if (usePdfBox) {
+                    if (useTika) {
+                        extractTika(contentStream, doc, uri);
+                    } else if (usePdfBox) {
                         extractPdfBox(contentStream, doc);
                     } else {
                         extractPdf(contentStream, record, doc);
