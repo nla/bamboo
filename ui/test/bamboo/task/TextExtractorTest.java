@@ -1,6 +1,5 @@
 package bamboo.task;
 
-import com.lowagie.text.pdf.PdfReader;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -13,22 +12,12 @@ import static org.junit.Assert.assertEquals;
 public class TextExtractorTest {
 
     @Test
-    public void testExtractPdfContent() throws IOException, TextExtractionException {
-        Document doc = new Document();
-        TextExtractor.extractPdfContent(new PdfReader(getClass().getResource("example.pdf")), doc);
-        assertEquals("The title of a test PDF\n" +
-                "This is a test PDF file. It was created by LibreOffice. ", doc.getText());
-        assertEquals("The title field in the metadata", doc.getTitle());
-    }
-
-    @Test
     public void textExtractPdfBox() throws IOException, TextExtractionException {
         Document doc = new Document();
         try (InputStream stream = getClass().getResourceAsStream("example.pdf")) {
-            TextExtractor.extractPdfBox(stream, doc);
+            new TextExtractor().extractTika(stream, doc,  URI.create("http://example.net/subdir/example.pdf"));
         }
-        assertEquals("The title of a test PDF" + System.lineSeparator()  +
-                "This is a test PDF file. It was created by LibreOffice." + System.lineSeparator(), doc.getText());
+        assertEquals("The title of a test PDF This is a test PDF file. It was created by LibreOffice. The title of a test PDF", doc.getText());
         assertEquals("The title field in the metadata", doc.getTitle());
         assertEquals("The keywords field in the metadata", doc.getKeywords());
         assertEquals("The subject field in the metadata", doc.getCoverage());

@@ -4,17 +4,6 @@ import com.google.common.net.InternetDomainName;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonWriter;
-import com.lowagie.text.pdf.PdfReader;
-import com.lowagie.text.pdf.parser.PdfTextExtractor;
-import de.l3s.boilerpipe.BoilerpipeProcessingException;
-import de.l3s.boilerpipe.document.TextDocument;
-import de.l3s.boilerpipe.extractors.DefaultExtractor;
-import de.l3s.boilerpipe.sax.BoilerpipeSAXInput;
-import org.apache.commons.io.input.BoundedInputStream;
-import org.apache.pdfbox.io.MemoryUsageSetting;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
-import org.apache.tika.Tika;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.fork.ForkParser;
@@ -36,7 +25,6 @@ import org.netpreserve.urlcanon.Canonicalizer;
 import org.netpreserve.urlcanon.ParsedUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 import java.io.*;
@@ -44,9 +32,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -59,13 +44,7 @@ import java.util.regex.Pattern;
 
 public class TextExtractor {
     private static final Logger log = LoggerFactory.getLogger(TextExtractor.class);
-    static final int pdfDiskOffloadThreshold = 32 * 1024 * 1024;
     static final int maxDocSize = 0x100000;
-    static final long timeLimitMillis = 5000;
-
-    private boolean boilingEnabled = false;
-    private boolean usePdfBox = false;
-    private boolean useTika = false;
 
     public static final Pattern PANDORA_REGEX = Pattern.compile("http://pandora.nla.gov.au/pan/[0-9]+/[0-9-]+/([^/.]+\\.[^/]+/.*)");
     private final Parser parser;
@@ -174,21 +153,7 @@ public class TextExtractor {
         try {
             switch (doc.getContentType()) {
                 case "text/html":
-                    if (useTika) {
-                        extractTika(contentStream, doc, uri);
-                    } else {
-                        extractHtml(contentStream, doc);
-                    }
-                    break;
                 case "application/pdf":
-                    if (useTika) {
-                        extractTika(contentStream, doc, uri);
-                    } else if (usePdfBox) {
-                        extractPdfBox(contentStream, doc);
-                    } else {
-                        extractPdf(contentStream, record, doc);
-                    }
-                    break;
                 case "application/vnd.ms-excel":
                 case "text/csv":
                 case "application/csv":
@@ -201,11 +166,7 @@ public class TextExtractor {
                 case "application/vnd.oasis.opendocument.presentation":
                 case "application/vnd.oasis.opendocument.text":
                 case "application/vnd.oasis.opendocument.spreadsheet":
-                    if (useTika) {
-                        extractTika(contentStream, doc, uri);
-                    } else {
-                        doc.setTextError("not implemented for content-type");
-                    }
+                    extractTika(contentStream, doc, uri);
                     break;
                 default:
                     doc.setTextError("not implemented for content-type");
@@ -250,11 +211,11 @@ public class TextExtractor {
             doc.setText(clean(bodyHandler.toString()));
             doc.setTitle(clean(getAny(metadata, TikaCoreProperties.TITLE.getName())));
             doc.setDescription(clean(getAny(metadata, "description", "DC.description", "DC.Description", "dcterms.description")));
-            doc.setKeywords(clean(getAny(metadata, "keywords", "DC.keywords", "DC.Keywords", "dcterms.keywords")));
+            doc.setKeywords(clean(getAny(metadata, "Keywords", "keywords", "DC.keywords", "DC.Keywords", "dcterms.keywords")));
             doc.setPublisher(clean(getAny(metadata, "publisher", "DC.publisher", "DC.Publisher", "dcterms.publisher")));
             doc.setCreator(clean(getAny(metadata, "creator", "DC.creator", "DC.Creator", "dcterms.creator")));
             doc.setContributor(clean(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor", "dcterms.contributor")));
-            doc.setCoverage(clean(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage")));
+            doc.setCoverage(clean(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage", "subject", "Subject")));
             doc.setH1(headingHandler.getHeadings());
             doc.setOgSiteName(clean(metadata.get("og:site_name")));
             doc.setOgTitle(clean(metadata.get("og:title")));
@@ -315,119 +276,10 @@ public class TextExtractor {
         return null;
     }
 
-    private void extractHtml(InputStream record, Document doc) throws TextExtractionException {
-        try {
-            BoundedInputStream in = new BoundedInputStream(record, maxDocSize);
-            TextDocument textDoc = new BoilerpipeSAXInput(new InputSource(in)).getTextDocument();
-            doc.setTitle(textDoc.getTitle());
-            doc.setText(textDoc.getText(true, true).replace("\uFFFF", ""));
-            if (boilingEnabled) {
-                DefaultExtractor.INSTANCE.process(textDoc);
-                doc.setBoiled(textDoc.getContent().replace("\uFFFF", ""));
-            }
-        } catch (SAXException | BoilerpipeProcessingException | IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
-            throw new TextExtractionException(e);
-        }
-    }
-
-    private static void extractPdf(InputStream stream, ArchiveRecord record, Document doc) throws TextExtractionException {
-        doc.setTitle(record.getHeader().getUrl());
-
-        try {
-            if (record.getHeader().getLength() > pdfDiskOffloadThreshold) {
-                // PDFReader needs (uncompressed) random access to the file.  When given a stream it loads the whole
-                // lot into a memory buffer. So for large records let's decompress to a temporary file first.
-                Path tmp = Files.createTempFile("bamboo-solr-tmp", ".pdf");
-                Files.copy(stream, tmp, StandardCopyOption.REPLACE_EXISTING);
-                try {
-                    extractPdfContent(new PdfReader(tmp.toString()), doc);
-                } finally {
-                    try {
-                        Files.deleteIfExists(tmp);
-                    } catch (IOException e) {
-                        // we can't do anything
-                    }
-                }
-            } else {
-                extractPdfContent(new PdfReader(stream), doc);
-            }
-        } catch (NoClassDefFoundError | RuntimeException | IOException e) {
-            throw new TextExtractionException(e);
-        }
-    }
-
-    static void extractPdfContent(PdfReader pdfReader, Document doc) throws TextExtractionException, IOException {
-        try {
-            long deadline = System.currentTimeMillis() + timeLimitMillis;
-            StringWriter sw = new StringWriter();
-            TruncatingWriter tw = new TruncatingWriter(sw, maxDocSize, deadline);
-            PdfTextExtractor extractor = new PdfTextExtractor(pdfReader);
-            try {
-                for (int i = 1; i <= pdfReader.getNumberOfPages(); ++i) {
-                    String text = extractor.getTextFromPage(i);
-                    tw.append(text.replace("\uFFFF", ""));
-                    tw.append(' ');
-                }
-                doc.setText(sw.toString());
-            } catch (TruncatedException e) {
-                // reached limits, stop early and save what we got
-                doc.setText(sw.toString());
-                doc.setTextError("truncatedPdf " + e.getMessage());
-            }
-
-            // extract the title from the metadata if it has one
-            Object metadataTitle = pdfReader.getInfo().get("Title");
-            if (metadataTitle != null && metadataTitle instanceof String) {
-                doc.setTitle((String) metadataTitle);
-            }
-        } catch (Error e) {
-            if (e.getClass() == Error.class && (e.getMessage() == null || e.getMessage().startsWith("Unable to process ToUnicode map"))) {
-                // pdf reader abuses java.lang.Error sometimes to indicate a parse error
-                throw new TextExtractionException(e);
-            } else {
-                // let everything else (eg OutOfMemoryError) through
-                throw e;
-            }
-        }
-    }
-
-    static void extractPdfBox(InputStream stream, Document doc) throws TextExtractionException {
-        long deadline = System.currentTimeMillis() + timeLimitMillis;
-        StringWriter sw = new StringWriter();
-        try (PDDocument pdf = PDDocument.load(stream, MemoryUsageSetting.setupTempFileOnly())) {
-            String title = pdf.getDocumentInformation().getTitle();
-            if (title != null) {
-                doc.setTitle(title);
-            }
-
-            doc.setKeywords(pdf.getDocumentInformation().getKeywords());
-            doc.setPublisher(pdf.getDocumentInformation().getAuthor());
-            doc.setCoverage(pdf.getDocumentInformation().getSubject());
-
-            PDFTextStripper stripper = new PDFTextStripper();
-            stripper.writeText(pdf, new TruncatingWriter(sw, maxDocSize, deadline));
-            doc.setText(sw.toString());
-        } catch (TruncatedException e) {
-            // reached limits, write what we got and then stop early
-            doc.setText(sw.toString());
-            doc.setTextError("truncatedPdf " + e.getMessage());
-        } catch (Exception e) {
-            throw new TextExtractionException(e);
-        }
-    }
-
-    public void setUsePdfBox(boolean usePdfBox) {
-        this.usePdfBox = usePdfBox;
-    }
-
     static class TruncatedException extends RuntimeException {
         public TruncatedException(String message) {
             super(message);
         }
-    }
-
-    public void setUseTika(boolean useTika) {
-        this.useTika = useTika;
     }
 
     static class TruncatingWriter extends FilterWriter {
@@ -490,18 +342,8 @@ public class TextExtractor {
         }
     }
 
-    /**
-     * Sets whether to use boilerpipe's article extractor to try to filter out the main article from a page. The article
-     * text will be stored in Document.boiled.
-     */
-    public void setBoilingEnabled(boolean boilingEnabled) {
-        this.boilingEnabled = boilingEnabled;
-    }
-
     public static void extract(ArchiveReader reader, OutputStream out) throws IOException {
         TextExtractor extractor = new TextExtractor();
-        extractor.setUsePdfBox(true);
-        extractor.setUseTika(true);
         extractor.extractAll(reader, out);
     }
 

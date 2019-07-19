@@ -39,9 +39,6 @@ public class TextCache {
 
     void populate(Warc warc) throws IOException {
         TextExtractor extractor = new TextExtractor();
-        extractor.setUsePdfBox(true);
-        extractor.setUseTika(true);
-
         Path path = entryPath(warc.getId());
         if (Files.exists(path)) {
             return;

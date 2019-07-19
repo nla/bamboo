@@ -268,21 +268,7 @@ public class WarcsController {
     }
 
     private String showText(Request request, Response response) throws IOException {
-
-
         TextExtractor extractor = new TextExtractor();
-
-        if (Parsing.parseLongOrDefault(request.queryParams("pdfbox"), 0) != 0) {
-            extractor.setUsePdfBox(true);
-        }
-
-        if (Parsing.parseLongOrDefault(request.queryParams("boiled"), 0) != 0) {
-            extractor.setBoilingEnabled(true);
-        }
-
-        if (Parsing.parseLongOrDefault(request.queryParams("tika"), 0) != 0) {
-            extractor.setUseTika(true);
-        }
 
         Warc warc = findWarc(request);
 
