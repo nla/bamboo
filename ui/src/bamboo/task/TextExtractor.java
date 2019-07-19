@@ -220,7 +220,6 @@ public class TextExtractor {
             doc.setOgSiteName(clean(metadata.get("og:site_name")));
             doc.setOgTitle(clean(metadata.get("og:title")));
 
-            List<LinkInfo> links = new ArrayList<>();
             for (Link link: linkHandler.getLinks()) {
                 if ("".equals(link.getUri()) ||
                         startsWithIgnoreCase(link.getUri(), "data:")) {
@@ -274,59 +273,6 @@ public class TextExtractor {
             }
         }
         return null;
-    }
-
-    static class TruncatedException extends RuntimeException {
-        public TruncatedException(String message) {
-            super(message);
-        }
-    }
-
-    static class TruncatingWriter extends FilterWriter {
-        private final long limit;
-        private final long deadline;
-        private long written;
-
-        TruncatingWriter(Writer out, long limit, long deadline) {
-            super(out);
-            this.limit = limit;
-            this.deadline = deadline;
-        }
-
-        @Override
-        public void write(int i) throws IOException {
-            checkLimits();
-            super.write(i);
-            written++;
-        }
-
-        @Override
-        public void write(String s, int off, int len) throws IOException {
-            checkLimits();
-            int clamped = (int)Math.min(len, remaining());
-            super.write(s, off, clamped);
-            written += clamped;
-        }
-
-        @Override
-        public void write(char[] chars, int off, int len) throws IOException {
-            checkLimits();
-            int clamped = (int)Math.min(len, remaining());
-            super.write(chars, off, clamped);
-            written += clamped;
-        }
-
-        private void checkLimits() {
-            if (remaining() <= 0) {
-                throw new TruncatedException("space");
-            } else if (System.currentTimeMillis() >= deadline) {
-                throw new TruncatedException("time");
-            }
-        }
-
-        private long remaining() {
-            return limit - written;
-        }
     }
 
     private final static Pattern WWW_PREFIX = Pattern.compile("^www[0-9]*\\.");
