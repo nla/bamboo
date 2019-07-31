@@ -39,6 +39,9 @@ public class Document {
     private List<String> h1;
     private String ogSiteName;
     private String ogTitle;
+    private Float pagerank;
+    private Byte contentClassification;
+    private List<Linktext> linktext;
 
     public String getUrl() {
         return url;
@@ -253,5 +256,29 @@ public class Document {
 
     public String getOgTitle() {
         return ogTitle;
+    }
+
+    public Float getPagerank() {
+        return pagerank;
+    }
+
+    public void setPagerank(Float pagerank) {
+        this.pagerank = pagerank;
+    }
+
+    public Byte getContentClassification() {
+        return contentClassification;
+    }
+
+    public void setContentClassification(Byte contentClassification) {
+        this.contentClassification = contentClassification;
+    }
+
+    public List<Linktext> getLinktext() {
+        return linktext;
+    }
+
+    public void setLinktext(List<Linktext> linktext) {
+        this.linktext = linktext;
     }
 }
