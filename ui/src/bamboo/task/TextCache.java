@@ -118,6 +118,10 @@ public class TextCache {
 
     public Path find(long warcId) {
         Path path = entryPath(warcId);
+        Path rankedPath = Paths.get(path.toString().replace("text", "ranked"));
+        if (Files.exists(rankedPath)) {
+            return rankedPath;
+        }
         if (Files.exists(path)) {
             return path;
         }
