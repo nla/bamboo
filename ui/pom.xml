@@ -71,7 +71,7 @@
         <dependency>
             <groupId>org.vibur</groupId>
             <artifactId>vibur-dbcp</artifactId>
-            <version>8.0</version>
+            <version>22.2</version>
         </dependency>
 
 
