@@ -22,7 +22,6 @@
                 </td></tr>
             <tr>
             <tr><th>CDX</th><td>${collection.cdxUrl!"None"}</td></tr>
-            <tr><th>Solr</th><td>${collection.solrUrl!"None"}</td></tr>
         </table>
     </div>
 </div>

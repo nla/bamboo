@@ -18,7 +18,6 @@ public class TasksController {
     public void routes() {
         Spark.get("/tasks", this::index);
         Spark.get("/tasks/CdxIndexer/queue", this::cdxQueue);
-        Spark.get("/tasks/SolrIndexer/queue", this::solrQueue);
         Spark.post("/tasks/:id/disable", this::disable);
         Spark.post("/tasks/:id/enable", this::enable);
     }
@@ -35,7 +34,7 @@ public class TasksController {
     }
 
     String disable(Request request, Response response) {
-        if (taskDAO.setEnabled(request.params(":id"), false) == 0 ) {
+        if (taskDAO.setEnabled(request.params(":id"), false) == 0) {
             throw Spark.halt(404, "No such task");
         }
         response.redirect(request.contextPath() + "/tasks", 303);
@@ -43,7 +42,7 @@ public class TasksController {
     }
 
     String enable(Request request, Response response) {
-        if (taskDAO.setEnabled(request.params(":id"), true) == 0 ) {
+        if (taskDAO.setEnabled(request.params(":id"), true) == 0) {
             throw Spark.halt(404, "No such task");
         }
         response.redirect(request.contextPath() + "/tasks", 303);
@@ -54,14 +53,6 @@ public class TasksController {
         Pager<Warc> pager = warcs.paginateWithState(Parsing.parseLongOrDefault(request.queryParams("page"), 1), Warc.IMPORTED);
         return render(request, "bamboo/views/tasks/warcs.ftl",
                 "queueName", "CDX Indexing",
-                "warcs", pager.items,
-                "warcsPager", pager);
-    }
-
-    String solrQueue(Request request, Response response) {
-        Pager<Warc> pager = warcs.paginateWithState(Parsing.parseLongOrDefault(request.queryParams("page"), 1), Warc.CDX_INDEXED);
-        return render(request, "bamboo/views/tasks/warcs.ftl",
-                "queueName", "Solr Indexing",
                 "warcs", pager.items,
                 "warcsPager", pager);
     }

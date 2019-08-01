@@ -108,9 +108,6 @@ public class CLI {
             case "cdx-indexer":
                 bamboo.runCdxIndexer();
                 break;
-            case "solr-indexer":
-                bamboo.runSolrIndexer();
-                break;
             case "recalc-crawl-times":
                 bamboo.recalcCrawlTimes();
                 break;

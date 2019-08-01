@@ -21,10 +21,3 @@
     </div>
 </div>
 
-<div class="form-group">
-    <label for="solrUrl" class="col-lg-2 control-label">Solr URL</label>
-    <div class="col-lg-10">
-        <input class="form-control" id="solrUrl" value="${(collection.solrUrl)!}" name="solrUrl" type="url">
-    </div>
-</div>
-

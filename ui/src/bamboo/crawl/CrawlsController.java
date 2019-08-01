@@ -65,7 +65,6 @@ public class CrawlsController {
                 "crawl", crawl,
                 "series", bamboo.serieses.get(crawl.getCrawlSeriesId()),
                 "warcsToBeCdxIndexed", stats.getWarcsToBeCdxIndexed(),
-                "warcsToBeSolrIndexed", stats.getWarcsToBeSolrIndexed(),
                 "corruptWarcs", stats.getCorruptWarcs(),
                 "descriptionHtml", Markdown.render(crawl.getDescription(), request.uri()),
                 "pandasInstance", instance

@@ -88,10 +88,6 @@ public class Config {
         return getEnv("OIDC_CLIENT_SECRET", null);
     }
 
-    public boolean getNoSolr() {
-        return Integer.parseInt(getEnv("NO_SOLR", "0")) > 0;
-    }
-
     public static class Watch {
         public final long crawlId;
         public final Path dir;

@@ -31,7 +31,6 @@ public class Bamboo implements AutoCloseable {
 
     public final TaskManager taskManager;
     public final CdxIndexer cdxIndexer;
-    private SolrIndexer solrIndexer;
     private final LockManager lockManager;
 
     public Bamboo(boolean runTasks) throws IOException {
@@ -71,10 +70,6 @@ public class Bamboo implements AutoCloseable {
         taskManager.register(new Importer(config, crawls, lockManager));
         cdxIndexer = new CdxIndexer(warcs, crawls, collections, lockManager, oidc);
         taskManager.register(cdxIndexer);
-        if (!config.getNoSolr()) {
-            solrIndexer = new SolrIndexer(collections, crawls, warcs, lockManager);
-            taskManager.register(solrIndexer);
-        }
         taskManager.register(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
         if (runTasks) {
             taskManager.start();
@@ -100,8 +95,7 @@ public class Bamboo implements AutoCloseable {
     public boolean healthcheck(PrintWriter out) {
         boolean allOk = dbPool.healthcheck(out) &
                 warcs.healthcheck(out) &
-                cdxIndexer.healthcheck(out) &
-                (solrIndexer == null || solrIndexer.healthcheck(out));
+                cdxIndexer.healthcheck(out);
         if (allOk) {
             out.println("\nALL OK");
         }

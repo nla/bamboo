@@ -70,7 +70,6 @@ public class CollectionsController {
         collection.setName(request.queryParams("name"));
         collection.setDescription(request.queryParams("description"));
         collection.setCdxUrl(request.queryParams("cdxUrl"));
-        collection.setSolrUrl(request.queryParams("solrUrl"));
         return collection;
     }
 

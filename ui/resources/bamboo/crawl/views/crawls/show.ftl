@@ -24,13 +24,8 @@
     </div>
 [/#if]
 
-[#if warcsToBeCdxIndexed > 0 || warcsToBeSolrIndexed > 0]
-    [#if warcsToBeCdxIndexed > 0]
-        [@indexingProgress "CDX" warcsToBeCdxIndexed /]
-    [/#if]
-    [#if warcsToBeSolrIndexed > 0]
-        [@indexingProgress "Solr" warcsToBeSolrIndexed /]
-    [/#if]
+[#if warcsToBeCdxIndexed > 0]
+    [@indexingProgress "CDX" warcsToBeCdxIndexed /]
 [/#if]
 
 

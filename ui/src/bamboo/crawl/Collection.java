@@ -7,7 +7,6 @@ public class Collection {
     private long id;
     private String name;
     private String cdxUrl;
-    private String solrUrl;
     private long records;
     private long recordBytes;
     private String description;
@@ -19,7 +18,6 @@ public class Collection {
         setId(rs.getLong("id"));
         setName(rs.getString("name"));
         setCdxUrl(rs.getString("cdx_url"));
-        setSolrUrl(rs.getString("solr_url"));
         setRecords(rs.getLong("records"));
         setRecordBytes(rs.getLong("record_bytes"));
         setDescription(rs.getString("description"));
@@ -47,14 +45,6 @@ public class Collection {
 
     public void setCdxUrl(String cdxUrl) {
         this.cdxUrl = cdxUrl;
-    }
-
-    public String getSolrUrl() {
-        return solrUrl;
-    }
-
-    public void setSolrUrl(String solrUrl) {
-        this.solrUrl = solrUrl;
     }
 
     public long getRecords() {

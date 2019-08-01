@@ -45,11 +45,11 @@ public interface CollectionsDAO {
     @SqlQuery("SELECT * FROM collection WHERE id = :id")
     Collection findCollection(@Bind("id") long id);
 
-    @SqlUpdate("INSERT INTO collection(name, description, cdx_url, solr_url) VALUES (:name, :description, :cdxUrl, :solrUrl)")
+    @SqlUpdate("INSERT INTO collection(name, description, cdx_url) VALUES (:name, :description, :cdxUrl)")
     @GetGeneratedKeys
     long createCollection(@BindBean Collection collection);
 
-    @SqlUpdate("UPDATE collection SET name = :coll.name, description = :coll.description, cdx_url = :coll.cdxUrl, solr_url = :coll.solrUrl WHERE id = :id")
+    @SqlUpdate("UPDATE collection SET name = :coll.name, description = :coll.description, cdx_url = :coll.cdxUrl WHERE id = :id")
     int updateCollection(@Bind("id") long collectionId, @BindBean("coll") Collection coll);
 
 }

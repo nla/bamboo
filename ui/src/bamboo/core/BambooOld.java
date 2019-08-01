@@ -50,10 +50,6 @@ public class BambooOld {
 //        new CdxIndexer(dbPool).run();
 //    }
 //
-//    public void runSolrIndexer() throws Exception {
-//        new SolrIndexer(dbPool).run();
-//    }
-//
 //    public void refreshWarcStats() throws IOException {
 //        try (DAO DAO = dbPool.take()) {
 //            DAO.refreshWarcStatsOnCrawls();
