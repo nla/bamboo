@@ -70,7 +70,7 @@
 </div>
 
 <script src="webjars/jquery/2.1.3/jquery.min.js"></script>
-<script src="webjars/chosen/1.2.0/chosen.jquery.min.js"></script>
+<script src="webjars/chosen/1.8.7/chosen.jquery.min.js"></script>
 <link rel="stylesheet" href="webjars/chosen/1.2.0/chosen.min.css">
 <script>
 $(".chosen").chosen();
