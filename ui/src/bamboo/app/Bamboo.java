@@ -17,6 +17,9 @@ import bamboo.task.WatchImporter;
 import bamboo.util.Oidc;
 import doss.BlobStore;
 import doss.DOSS;
+import doss.http.Credentials;
+import doss.http.HttpBlobStore;
+import doss.http.OAuthClientCredentials;
 import doss.trivial.TrivialBlobStore;
 
 import java.io.IOException;
@@ -58,6 +61,14 @@ public class Bamboo implements AutoCloseable {
         String dossUrl = config.getDossUrl();
         if (dossUrl == null) {
             blobStore = new TrivialBlobStore(Paths.get("data/blobs"));
+        } else if (dossUrl.startsWith("http:") || dossUrl.startsWith("https:")) {
+            Credentials dossCredentials;
+            if (config.getOidcUrl() != null) {
+                dossCredentials = new OAuthClientCredentials(config.getOidcUrl(), config.getOidcClientId(), config.getOidcClientSecret());
+            } else {
+                dossCredentials = null;
+            }
+            blobStore = new HttpBlobStore(dossUrl, dossCredentials);
         } else {
             blobStore = DOSS.open(dossUrl);
         }
