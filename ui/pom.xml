@@ -247,12 +247,17 @@
         <dependency>
             <groupId>au.gov.nla</groupId>
             <artifactId>doss-http</artifactId>
-            <version>1.5.3</version>
+            <version>1.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>au.gov.nla</groupId>
+            <artifactId>doss-trivial</artifactId>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>au.gov.nla</groupId>
             <artifactId>doss-local</artifactId>
-            <version>1.5.3</version>
+            <version>1.6.0</version>
         </dependency>
 
         <dependency>

@@ -1,19 +1,27 @@
 package bamboo.app;
 
-import bamboo.core.*;
+import bamboo.core.Config;
+import bamboo.core.DAO;
+import bamboo.core.DbPool;
+import bamboo.core.LockManager;
 import bamboo.crawl.Collections;
 import bamboo.crawl.Crawls;
 import bamboo.crawl.Serieses;
 import bamboo.crawl.Warcs;
 import bamboo.pandas.Pandas;
 import bamboo.seedlist.Seedlists;
-import bamboo.task.*;
+import bamboo.task.CdxIndexer;
+import bamboo.task.Importer;
+import bamboo.task.TaskManager;
+import bamboo.task.WatchImporter;
 import bamboo.util.Oidc;
 import doss.BlobStore;
 import doss.DOSS;
+import doss.trivial.TrivialBlobStore;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Paths;
 
 public class Bamboo implements AutoCloseable {
 
@@ -48,7 +56,11 @@ public class Bamboo implements AutoCloseable {
         }
 
         String dossUrl = config.getDossUrl();
-        blobStore = dossUrl == null ? null : DOSS.open(dossUrl);
+        if (dossUrl == null) {
+            blobStore = new TrivialBlobStore(Paths.get("data/blobs"));
+        } else {
+            blobStore = DOSS.open(dossUrl);
+        }
 
         dbPool = new DbPool(config);
         dbPool.migrate();
