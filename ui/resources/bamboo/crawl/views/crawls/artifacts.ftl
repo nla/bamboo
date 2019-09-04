@@ -20,7 +20,7 @@
         <tr>
             <td><a href="crawls/${crawl.id?c}/artifacts/${artifact.relpath}">${artifact.relpath}</a></td>
             <td>${artifact.type}</td>
-            <td>${artifact.blobId}</td>
+            <td>[#if artifact.blobId??]nla.doss-${artifact.blobId?c}[/#if]</td>
             <td><abbr title="${artifact.sha256}">${artifact.sha256?substring(0, 8)}...</abbr></td>
             <td>${si(artifact.size)}</td>
         </tr>
