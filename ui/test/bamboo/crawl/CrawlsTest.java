@@ -27,7 +27,7 @@ public class CrawlsTest {
     @Test
     public void testCRUD() throws IOException {
         Serieses serieses = new Serieses(fixtures.dao.serieses());
-        Crawls crawls = new Crawls(fixtures.dao.crawls(), serieses, new Warcs(fixtures.dao.warcs()));
+        Crawls crawls = new Crawls(fixtures.dao.crawls(), serieses, new Warcs(fixtures.dao.warcs()), null);
 
         Series series = new Series();
         series.setName("test series");
@@ -61,6 +61,8 @@ public class CrawlsTest {
 
         Pager pager = crawls.pager(1);
         assertTrue(pager.totalItems > 0);
+
+        crawls.stats(id);
     }
 
 }

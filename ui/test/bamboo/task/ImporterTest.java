@@ -33,7 +33,7 @@ public class ImporterTest {
 		DbPool dbPool = new DbPool(config);
 		dbPool.migrate();
 
-		Crawls crawls = new Crawls(fixtures.dao.crawls(), new Serieses(fixtures.dao.serieses()), new Warcs(fixtures.dao.warcs()));
+		Crawls crawls = new Crawls(fixtures.dao.crawls(), new Serieses(fixtures.dao.serieses()), new Warcs(fixtures.dao.warcs()), null);
 
 		Path seriesPath = folder.newFolder("crawl-series").toPath();
 		long seriesId = fixtures.crawlSeriesId;

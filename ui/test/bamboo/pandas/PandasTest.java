@@ -1,6 +1,5 @@
 package bamboo.pandas;
 
-import bamboo.core.Config;
 import bamboo.core.Fixtures;
 import bamboo.core.TestConfig;
 import bamboo.crawl.Crawls;
@@ -48,7 +47,7 @@ public class PandasTest {
 
         warcs = new Warcs(fixtures.dao.warcs());
         serieses = new Serieses(fixtures.dao.serieses());
-        crawls = new Crawls(fixtures.dao.crawls(), serieses, warcs);
+        crawls = new Crawls(fixtures.dao.crawls(), serieses, warcs, null);
         pandas = new Pandas(config, crawls, null);
 
         try (Handle db = pandas.db.dbi.open()) {

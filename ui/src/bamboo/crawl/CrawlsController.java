@@ -10,10 +10,7 @@ import spark.Request;
 import spark.Response;
 import spark.Spark;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.UncheckedIOException;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -34,6 +31,9 @@ public class CrawlsController {
     public void routes() {
         Spark.get("/crawls", this::index);
         Spark.get("/crawls/:id", this::show);
+        Spark.get("/crawls/:id/artifacts", this::listArtifacts);
+        Spark.get("/crawls/:crawlId/artifacts/:artifactId/download", this::downloadArtifactById);
+        Spark.get("/crawls/:crawlId/artifacts/*", this::downloadArtifactByPath);
         Spark.get("/crawls/:id/edit", this::edit);
         Spark.post("/crawls/:id/edit", this::update);
         Spark.get("/crawls/:id/warcs", this::listWarcs);
@@ -69,8 +69,8 @@ public class CrawlsController {
                 "warcsToBeCdxIndexed", stats.getWarcsToBeCdxIndexed(),
                 "corruptWarcs", stats.getCorruptWarcs(),
                 "descriptionHtml", Markdown.render(crawl.getDescription(), request.uri()),
-                "pandasInstance", instance
-                );
+                "pandasInstance", instance,
+                "stats", stats);
     }
 
     String edit(Request request, Response response) {
@@ -109,6 +109,33 @@ public class CrawlsController {
                 "crawl", crawl,
                 "warcs", pager.items,
                 "warcsPager", pager);
+    }
+
+    String listArtifacts(Request request, Response response) {
+        long id = Long.parseLong(request.params(":id"));
+        return render(request, "bamboo/crawl/views/crawls/artifacts.ftl",
+                "crawl", bamboo.crawls.get(id),
+                "artifacts", bamboo.crawls.listArtifacts(id));
+    }
+
+    InputStream downloadArtifactById(Request request, Response response) throws IOException {
+        long artifactId = Long.parseLong(request.params(":artifactId"));
+        Artifact artifact = bamboo.crawls.getArtifact(artifactId);
+        return downloadArtifact(response, artifact);
+    }
+
+    InputStream downloadArtifactByPath(Request request, Response response) throws IOException {
+        long crawlId = Long.parseLong(request.params(":crawlId"));
+        String relpath = request.splat()[0];
+        Artifact artifact = bamboo.crawls.getArtifactByRelpath(crawlId, relpath);
+        return downloadArtifact(response, artifact);
+    }
+
+    private InputStream downloadArtifact(Response response, Artifact artifact) throws IOException {
+        String filename = artifact.getRelpath().replaceFirst(".*/", "");
+        response.type(artifact.guessContentType());
+        response.header("Content-Disposition", "filename=" + filename);
+        return bamboo.crawls.openArtifactStream(artifact);
     }
 
     String listCorruptWarcs(Request request, Response response) {

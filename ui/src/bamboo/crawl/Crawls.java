@@ -2,8 +2,10 @@ package bamboo.crawl;
 
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
+import doss.BlobStore;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,13 +17,15 @@ public class Crawls {
     private final CrawlsDAO dao;
     private final Serieses serieses;
     private final Warcs warcs;
+    private final BlobStore blobStore;
 
     private Set<CrawlStateListener> stateListeners = new HashSet<>();
 
-    public Crawls(CrawlsDAO crawlsDAO, Serieses serieses, Warcs warcs) {
+    public Crawls(CrawlsDAO crawlsDAO, Serieses serieses, Warcs warcs, BlobStore blobStore) {
         this.dao = crawlsDAO;
         this.serieses = serieses;
         this.warcs = warcs;
+        this.blobStore = blobStore;
     }
 
     public void onStateChange(CrawlStateListener listener) {
@@ -121,6 +125,10 @@ public class Crawls {
         return dao.findCrawlsByState(stateId);
     }
 
+    public List<Artifact> listArtifacts(long crawlId) {
+        return dao.listArtifacts(crawlId);
+    }
+
     public void updateState(long crawlId, int stateId) {
         int rows = dao.updateCrawlState(crawlId, stateId);
         if (rows == 0) {
@@ -196,5 +204,17 @@ public class Crawls {
 
     public void addArtifact(long crawlId, String type, Path path) throws IOException {
         dao.createArtifact(crawlId, type, path, Files.size(path), Scrub.calculateDigest("SHA-256", path));
+    }
+
+    public Artifact getArtifact(long artifactId) {
+        return NotFoundException.check(dao.findArtifact(artifactId), "artifact", artifactId);
+    }
+
+    public Artifact getArtifactByRelpath(long crawlId, String path) {
+        return NotFoundException.check(dao.findArtifactByRelpath(crawlId, path), "artifact", 0);
+    }
+
+    public InputStream openArtifactStream(Artifact artifact) throws IOException {
+        return blobStore.get(artifact.getBlobId()).openStream();
     }
 }

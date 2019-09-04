@@ -1,4 +1,5 @@
 [#-- @ftlvariable name="pandasInstance" type="bamboo.pandas.PandasInstance" --]
+[#-- @ftlvariable name="stats" type="bamboo.crawl.CrawlStats" --]
 [@page title="Crawl: ${crawl.name}"]
 
 [#macro indexingProgress type todo]
@@ -56,7 +57,10 @@
                 <th>Size</th>
                 <td>
                     ${crawl.records} records; <abbr title="${crawl.recordBytes} bytes">${si(crawl.recordBytes)}B</abbr><br>
-                    <a href="crawls/${crawl.id?c}/warcs">${crawl.warcFiles} warc files</a>; <abbr title="${crawl.warcSize} bytes">${si(crawl.warcSize)}B
+                    <a href="crawls/${crawl.id?c}/warcs">${crawl.warcFiles} warc files</a>; <abbr title="${crawl.warcSize} bytes">${si(crawl.warcSize)}B</abbr><br>
+                    [#if stats.artifactCount > 0]
+                        <a href="crawls/${crawl.id?c}/artifacts">${stats.artifactCount} artifacts</a>; <abbr title="${stats.artifactBytes} bytes">${si(stats.artifactBytes)}B</abbr><br>
+                    [/#if]
                 </td></tr>
             <tr>
         </table>

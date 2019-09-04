@@ -2,7 +2,6 @@ package bamboo.crawl;
 
 import bamboo.core.Fixtures;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -25,7 +24,7 @@ public class WarcsTest {
     public void testUpdateRecordStats() throws IOException {
         Warcs warcs = new Warcs(fixtures.dao.warcs());
         Serieses serieses = new Serieses(fixtures.dao.serieses());
-        Crawls crawls = new Crawls(fixtures.dao.crawls(), serieses, warcs);
+        Crawls crawls = new Crawls(fixtures.dao.crawls(), serieses, warcs, null);
 
         Path testFile = tmp.newFile("test.warc.gz").toPath();
 

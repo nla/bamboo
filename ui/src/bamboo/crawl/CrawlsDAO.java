@@ -3,6 +3,7 @@ package bamboo.crawl;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.*;
 import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
+import org.skife.jdbi.v2.sqlobject.helpers.MapResultAsBean;
 import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
@@ -11,10 +12,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
-@RegisterMapper({CrawlsDAO.CrawlMapper.class, CrawlsDAO.CrawlWithSeriesNameMapper.class})
+@RegisterMapper({CrawlsDAO.CrawlMapper.class, CrawlsDAO.CrawlWithSeriesNameMapper.class, CrawlsDAO.ArtifactMapper.class})
 public interface CrawlsDAO extends Transactional<CrawlsDAO> {
-
     class CrawlMapper implements ResultSetMapper<Crawl> {
         @Override
         public Crawl map(int index, ResultSet r, StatementContext ctx) throws SQLException {
@@ -26,6 +27,13 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
         @Override
         public CrawlAndSeriesName map(int index, ResultSet r, StatementContext ctx) throws SQLException {
             return new CrawlAndSeriesName(r);
+        }
+    }
+
+    class ArtifactMapper implements ResultSetMapper<Artifact> {
+        @Override
+        public Artifact map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+            return new Artifact(r);
         }
     }
 
@@ -86,4 +94,20 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     @SqlUpdate("INSERT INTO artifact (crawl_id, type, path, size, sha256) VALUES (:crawl_id, :type, :path, :size, :sha256)")
     @GetGeneratedKeys
     long createArtifact(@Bind("crawl_id") long crawlId, @Bind("type") String type, @Bind("path") Path path, @Bind("size") long size, @Bind("sha256") String sha256);
+
+    @SqlQuery("SELECT count(*) FROM artifact WHERE crawl_id = :crawlId")
+    long getArtifactCount(@Bind("crawlId") long crawlId);
+
+    @SqlQuery("SELECT sum(size) FROM artifact WHERE crawl_id = :crawlId")
+    long getArtifactBytes(@Bind("crawlId") long crawlId);
+
+    @SqlQuery("SELECT * FROM artifact WHERE crawl_id = :crawlId")
+    List<Artifact> listArtifacts(@Bind("crawlId") long crawlId);
+
+    @SqlQuery("SELECT * FROM artifact WHERE id = :artifactId LIMIT 1")
+    Artifact findArtifact(@Bind("artifactId") long artifactId);
+
+    @SqlQuery("SELECT * FROM artifact WHERE crawl_id = :crawlId AND relpath = :relpath LIMIT 1")
+    Artifact findArtifactByRelpath(@Bind("crawlId") long crawlId, @Bind("relpath") String relpath);
+
 }
