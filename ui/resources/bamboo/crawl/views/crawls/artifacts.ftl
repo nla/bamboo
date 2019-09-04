@@ -9,6 +9,7 @@
         <tr>
             <td>Filename</td>
             <td>Type</td>
+            <td>Blob ID</td>
             <td>SHA256</td>
             <td>Size</td>
             <td></td>
@@ -19,6 +20,7 @@
         <tr>
             <td><a href="crawls/${crawl.id?c}/artifacts/${artifact.relpath}">${artifact.relpath}</a></td>
             <td>${artifact.type}</td>
+            <td>${artifact.blobId}</td>
             <td><abbr title="${artifact.sha256}">${artifact.sha256?substring(0, 8)}...</abbr></td>
             <td>${si(artifact.size)}</td>
         </tr>
