@@ -1,15 +1,19 @@
 package bamboo.crawl;
 
-import bamboo.pandas.PandasInstance;
 import bamboo.app.Bamboo;
-import bamboo.util.Csrf;
+import bamboo.pandas.PandasInstance;
+import bamboo.task.HeritrixJob;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
-import bamboo.util.Parsing;
-import spark.Request;
-import spark.Response;
-import spark.Spark;
+import org.apache.commons.io.IOUtils;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -22,39 +26,24 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
-import static bamboo.util.Freemarker.render;
-
-
+@Controller
 public class CrawlsController {
     final Bamboo bamboo;
-
-    public void routes() {
-        Spark.get("/crawls", this::index);
-        Spark.get("/crawls/:id", this::show);
-        Spark.get("/crawls/:id/artifacts", this::listArtifacts);
-        Spark.get("/crawls/:crawlId/artifacts/:artifactId/download", this::downloadArtifactById);
-        Spark.get("/crawls/:crawlId/artifacts/*", this::downloadArtifactByPath);
-        Spark.get("/crawls/:id/edit", this::edit);
-        Spark.post("/crawls/:id/edit", this::update);
-        Spark.get("/crawls/:id/warcs", this::listWarcs);
-        Spark.get("/crawls/:id/warcs/download", this::downloadWarcs);
-        Spark.get("/crawls/:id/warcs/corrupt", this::listCorruptWarcs);
-        Spark.get("/crawls/:id/reports", this::listReports);
-    }
 
     public CrawlsController(Bamboo bamboo) {
         this.bamboo = bamboo;
     }
 
-    String index(Request request, Response response) {
-        Pager<CrawlAndSeriesName> pager = bamboo.crawls.pager(Parsing.parseLongOrDefault(request.queryParams("page"), 1));
-        return render(request, "bamboo/crawl/views/crawls/index.ftl",
-                "crawls", pager.items,
-                "crawlsPager", pager);
+    @GetMapping("/crawls")
+    String index(@RequestParam(value = "page", defaultValue = "1") long page, Model model) {
+        Pager<CrawlAndSeriesName> pager = bamboo.crawls.pager(page);
+        model.addAttribute("crawls", pager.items);
+        model.addAttribute("crawlsPager", pager);
+        return "crawls/index";
     }
 
-    String show(Request request, Response responses) {
-        long id = Long.parseLong(request.params(":id"));
+    @GetMapping("/crawls/{id}")
+    String show(@PathVariable("id") long id, Model model, HttpServletRequest request) {
         Crawl crawl = bamboo.crawls.get(id);
         CrawlStats stats = bamboo.crawls.stats(id);
 
@@ -63,108 +52,117 @@ public class CrawlsController {
             instance = bamboo.pandas.getInstance(crawl.getPandasInstanceId());
         }
 
-        return render(request, "bamboo/crawl/views/crawls/show.ftl",
-                "crawl", crawl,
-                "series", bamboo.serieses.get(crawl.getCrawlSeriesId()),
-                "warcsToBeCdxIndexed", stats.getWarcsToBeCdxIndexed(),
-                "corruptWarcs", stats.getCorruptWarcs(),
-                "descriptionHtml", Markdown.render(crawl.getDescription(), request.uri()),
-                "pandasInstance", instance,
-                "stats", stats);
+        model.addAttribute("crawl", crawl);
+        model.addAttribute("series", bamboo.serieses.get(crawl.getCrawlSeriesId()));
+        model.addAttribute("warcsToBeCdxIndexed", stats.getWarcsToBeCdxIndexed());
+        model.addAttribute("corruptWarcs", stats.getCorruptWarcs());
+        model.addAttribute("descriptionHtml", Markdown.render(crawl.getDescription(), request.getRequestURI()));
+        model.addAttribute("pandasInstance", instance);
+        model.addAttribute("stats", stats);
+        return "crawls/show";
     }
 
-    String edit(Request request, Response response) {
-        long id = Long.parseLong(request.params(":id"));
+    @GetMapping("/crawls/{id}/edit")
+    String edit(@PathVariable("id") long id, Model model) {
         Crawl crawl = bamboo.crawls.get(id);
-        return render(request, "bamboo/crawl/views/crawls/edit.ftl",
-                "crawl", crawl,
-                "csrfToken", Csrf.token(request)
-        );
+        model.addAttribute("crawl", crawl);
+        return "crawls/edit";
     }
 
-    String update(Request request, Response response) {
-        long crawlId = Long.parseLong(request.params(":id"));
-        bamboo.crawls.update(crawlId, request.queryParams("name"), request.queryParams("description"));
-        response.redirect(request.contextPath() + "/crawls/" + crawlId, 303);
-        return "";
+    @PostMapping("/crawls/{id}/edit")
+    String update(@PathVariable("id") long crawlId,
+                  @RequestParam(value = "name") String name,
+                  @RequestParam(value = "description", required = false) String description) {
+        bamboo.crawls.update(crawlId, name, description);
+        return "redirect:/crawls/" + crawlId;
     }
 
-    String listWarcs(Request request, Response response) {
-        long id = Long.parseLong(request.params(":id"));
+    @GetMapping("/crawls/{id}/warcs")
+    String listWarcs(@PathVariable("id") long id,
+                     @RequestParam(value = "page", defaultValue = "1") long page,
+                     @RequestParam(value = "format", defaultValue = "html") String format,
+                     Model model, HttpServletResponse response) throws IOException {
         Crawl crawl = bamboo.crawls.get(id);
-        Pager<Warc> pager = bamboo.warcs.paginateWithCrawlId(Parsing.parseLongOrDefault(request.queryParams("page"), 1), id);
+        Pager<Warc> pager = bamboo.warcs.paginateWithCrawlId(page, id);
 
-        if ("ids".equals(request.queryParams("format"))) {
-            response.type("text/plain");
-            response.header("Total", String.valueOf(pager.totalItems));
-            StringBuilder sb = new StringBuilder();
-            for (Warc warc: pager.items) {
-                sb.append(warc.getId());
-                sb.append('\n');
+        if ("ids".equals(format)) {
+            response.setContentType("text/plain");
+            response.setHeader("Total", String.valueOf(pager.totalItems));
+            try (Writer w = new OutputStreamWriter(response.getOutputStream())) {
+                for (Warc warc: pager.items) {
+                    w.write(warc.getId() + "\n");
+                }
             }
-            return sb.toString();
+            return null;
         }
 
-        return render(request, "bamboo/crawl/views/crawls/warcs.ftl",
-                "crawl", crawl,
-                "warcs", pager.items,
-                "warcsPager", pager);
+        model.addAttribute("crawl", crawl);
+        model.addAttribute("warcs", pager.items);
+        model.addAttribute("warcsPager", pager);
+        return "crawls/warcs";
     }
 
-    String listArtifacts(Request request, Response response) {
-        long id = Long.parseLong(request.params(":id"));
-        return render(request, "bamboo/crawl/views/crawls/artifacts.ftl",
-                "crawl", bamboo.crawls.get(id),
-                "artifacts", bamboo.crawls.listArtifacts(id));
+    @GetMapping("/crawls/{id}/artifacts")
+    String listArtifacts(@PathVariable("id") long id, Model model) {
+        model.addAttribute("crawl", bamboo.crawls.get(id));
+        model.addAttribute("artifacts", bamboo.crawls.listArtifacts(id));
+        return "crawls/artifacts";
     }
 
-    InputStream downloadArtifactById(Request request, Response response) throws IOException {
-        long artifactId = Long.parseLong(request.params(":artifactId"));
+    @GetMapping("/crawls/{id}/artifacts/{artifactId}/download")
+    void downloadArtifactById(@PathVariable("id") long crawlId,
+                                     @PathVariable("artifactId") long artifactId,
+                                     HttpServletResponse response) throws IOException {
         Artifact artifact = bamboo.crawls.getArtifact(artifactId);
-        return downloadArtifact(response, artifact);
+        downloadArtifact(response, artifact);
     }
 
-    InputStream downloadArtifactByPath(Request request, Response response) throws IOException {
-        long crawlId = Long.parseLong(request.params(":crawlId"));
-        String relpath = request.splat()[0];
+    @GetMapping("/crawls/{id}/artifacts/{artifactId}/{relpath:.*}")
+    void downloadArtifactByPath(@PathVariable("id") long crawlId,
+                                @PathVariable("relpath") String relpath,
+                                HttpServletResponse response) throws IOException {
         Artifact artifact = bamboo.crawls.getArtifactByRelpath(crawlId, relpath);
-        return downloadArtifact(response, artifact);
+        downloadArtifact(response, artifact);
     }
 
-    private InputStream downloadArtifact(Response response, Artifact artifact) throws IOException {
+    private void downloadArtifact(HttpServletResponse response, Artifact artifact) throws IOException {
         String filename = artifact.getRelpath().replaceFirst(".*/", "");
-        response.type(artifact.guessContentType());
-        response.header("Content-Disposition", "filename=" + filename);
-        return bamboo.crawls.openArtifactStream(artifact);
+        response.setContentType(artifact.guessContentType());
+        response.setHeader("Content-Disposition", "filename=" + filename);
+        try (InputStream is = bamboo.crawls.openArtifactStream(artifact);
+             OutputStream os = response.getOutputStream()) {
+            IOUtils.copy(is, os);
+        }
     }
 
-    String listCorruptWarcs(Request request, Response response) {
-        long id = Long.parseLong(request.params(":id"));
+    @GetMapping("/crawls/{id}/warcs/corrupt")
+    String listCorruptWarcs(@PathVariable("id") long id,
+                            @RequestParam(value = "page", defaultValue = "1") long page,
+                            Model model) {
         Crawl crawl = bamboo.crawls.get(id);
-        Pager<Warc> pager = bamboo.warcs.paginateWithCrawlIdAndState(Parsing.parseLongOrDefault(request.queryParams("page"), 1), id, Warc.CDX_ERROR);
-        return render(request, "crawls/warcs.ftl",
-                "titlePrefix", "Corrupt",
-                "crawl", crawl,
-                "warcs", pager.items,
-                "warcsPager", pager);
+        Pager<Warc> pager = bamboo.warcs.paginateWithCrawlIdAndState(page, id, Warc.CDX_ERROR);
+        model.addAttribute("titlePrefix", "Corrupt");
+        model.addAttribute("crawl", crawl);
+        model.addAttribute("warcs", pager.items);
+        model.addAttribute("warcsPager", pager);
+        return "crawls/warcs";
     }
 
-    String downloadWarcs(Request request, Response response) throws IOException {
-        long crawlId = Long.parseLong(request.params(":id"));
+    @GetMapping("/crawls/{id}/warcs/download")
+    void downloadWarcs(@PathVariable("id") long crawlId, HttpServletResponse response) throws IOException {
         List<Warc> warcs = bamboo.warcs.findByCrawlId(crawlId);
         if (warcs.isEmpty()) {
-            throw Spark.halt(404, "No warcs found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No warcs found");
         }
 
-        response.type("application/zip");
-        response.header("Content-Disposition", "attachment; filename=crawl-" + crawlId + ".zip");
+        response.setContentType("application/zip");
+        response.setHeader("Content-Disposition", "attachment; filename=crawl-" + crawlId + ".zip");
 
-        try (ZipOutputStream zip = new ZipOutputStream(response.raw().getOutputStream())) {
+        try (ZipOutputStream zip = new ZipOutputStream(response.getOutputStream())) {
             for (Warc warc : warcs) {
                 writeZipEntry(zip, "crawl-" + crawlId + "/" + warc.getFilename(), warc.getPath());
             }
         }
-        return "";
     }
 
     private void writeZipEntry(ZipOutputStream zip, String entryName, Path sourceFile) throws IOException {
@@ -195,8 +193,9 @@ public class CrawlsController {
         }
     }
 
-    String listReports(Request request, Response response) {
-        long id = Long.parseLong(request.params(":id"));
+    @GetMapping(value = "/crawls/{id}/warcs/reports", produces = "text/plain")
+    @ResponseBody
+    String listReports(@PathVariable("id") long id) {
         Crawl crawl = bamboo.crawls.get(id);
         StringBuilder out = new StringBuilder();
         Path bundle = crawl.getPath().resolve("crawl-bundle.zip");
@@ -207,8 +206,22 @@ public class CrawlsController {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-
-        response.type("text/plain");
         return out.toString();
     }
+
+    @GetMapping("/import")
+    public String showImportForm(@RequestParam(value = "crawlSeries", defaultValue = "-1") long crawlSeriesId, Model model) {
+        model.addAttribute("allCrawlSeries", bamboo.serieses.listImportable());
+        model.addAttribute("selectedCrawlSeriesId", crawlSeriesId);
+        model.addAttribute("jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()));
+        return "views/import";
+    }
+
+    @PostMapping("/import")
+    public String performImport(@RequestParam("heritrixJob") String jobName,
+                         @RequestParam("crawlSeriesId") long crawlSeriesId) {
+        long crawlId = bamboo.crawls.importHeritrixCrawl(jobName, crawlSeriesId);
+        return "redirect:/crawls/" + crawlId;
+    }
+
 }

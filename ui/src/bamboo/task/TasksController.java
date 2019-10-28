@@ -1,59 +1,56 @@
 package bamboo.task;
 
+import bamboo.app.Bamboo;
 import bamboo.crawl.Warc;
 import bamboo.crawl.Warcs;
-import bamboo.util.Csrf;
 import bamboo.util.Pager;
-import bamboo.util.Parsing;
-import spark.Request;
-import spark.Response;
-import spark.Spark;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
 
-import static bamboo.util.Freemarker.render;
-
+@Controller
 public class TasksController {
     private final Warcs warcs;
     private final TaskDAO taskDAO;
 
-    public void routes() {
-        Spark.get("/tasks", this::index);
-        Spark.get("/tasks/CdxIndexer/queue", this::cdxQueue);
-        Spark.post("/tasks/:id/disable", this::disable);
-        Spark.post("/tasks/:id/enable", this::enable);
+    public TasksController(Bamboo bamboo) {
+        this.warcs = bamboo.warcs;
+        this.taskDAO = bamboo.dao.tasks();
     }
 
-    public TasksController(Warcs warcs, TaskDAO taskDAO) {
-        this.warcs = warcs;
-        this.taskDAO = taskDAO;
+    @GetMapping("/tasks")
+    String index(Model model) {
+        model.addAttribute("tasks", taskDAO.listTasks());
+        return "view/tasks";
     }
 
-    String index(Request request, Response response) {
-        return render(request, "bamboo/views/tasks.ftl",
-                "csrfToken", Csrf.token(request),
-                "tasks", taskDAO.listTasks());
-    }
-
-    String disable(Request request, Response response) {
-        if (taskDAO.setEnabled(request.params(":id"), false) == 0) {
-            throw Spark.halt(404, "No such task");
+    @PostMapping("/tasks/{id}/disable")
+    String disable(@PathVariable("id") String id) {
+        if (taskDAO.setEnabled(id, false) == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such task");
         }
-        response.redirect(request.contextPath() + "/tasks", 303);
-        return "";
+        return "redirect:/tasks";
     }
 
-    String enable(Request request, Response response) {
-        if (taskDAO.setEnabled(request.params(":id"), true) == 0) {
-            throw Spark.halt(404, "No such task");
+    @PostMapping("/tasks/{id}/enable")
+    String enable(@PathVariable("id") String id) {
+        if (taskDAO.setEnabled(id, true) == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such task");
         }
-        response.redirect(request.contextPath() + "/tasks", 303);
-        return "";
+        return "redirect:/tasks";
     }
 
-    String cdxQueue(Request request, Response response) {
-        Pager<Warc> pager = warcs.paginateWithState(Parsing.parseLongOrDefault(request.queryParams("page"), 1), Warc.IMPORTED);
-        return render(request, "bamboo/views/tasks/warcs.ftl",
-                "queueName", "CDX Indexing",
-                "warcs", pager.items,
-                "warcsPager", pager);
+    @GetMapping("/tasks/CdxIndexer/queue")
+    String cdxQueue(@RequestParam(value = "page", defaultValue = "1") long page, Model model) {
+        Pager<Warc> pager = warcs.paginateWithState(page, Warc.IMPORTED);
+        model.addAttribute("queueName", "CDX Indexing");
+        model.addAttribute("warcs", pager.items);
+        model.addAttribute("warcsPager", pager);
+        return "tasks/warcs";
     }
 }

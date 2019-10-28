@@ -4,8 +4,6 @@
 
 <div class="well">
     <form method="post" action="seedlists/create" class="form-horizontal">
-        <input name="csrfToken" value="${csrfToken}" type="hidden">
-
         <fieldset>
             [#include "_form.ftl"]
 

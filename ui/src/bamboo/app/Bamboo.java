@@ -31,7 +31,7 @@ public class Bamboo implements AutoCloseable {
     public final Config config;
     private final DbPool dbPool;
     private final BlobStore blobStore;
-    final DAO dao;
+    public final DAO dao;
 
     public final Crawls crawls;
     public final Serieses serieses;

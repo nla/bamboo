@@ -9,8 +9,6 @@
 
 <div class="well">
     <form method="post" class="form-horizontal">
-        <input name="csrfToken" value="${csrfToken}" type="hidden">
-
         <fieldset>
             [#include "_form.ftl"]
 

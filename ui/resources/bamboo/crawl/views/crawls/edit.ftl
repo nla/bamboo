@@ -3,8 +3,6 @@
 <h3>Edit Crawl</h3>
 <div class="well">
 <form method="post" class="form-vertical">
-    <input name="csrfToken" value="${csrfToken}" type="hidden">
-
     <fieldset>
         <div class="form-group">
             <label for="name" class="col-lg-2 control-label">Name</label>

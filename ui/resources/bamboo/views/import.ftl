@@ -9,8 +9,6 @@
 
 <div class="well">
     <form method="POST" class="form-horizontal">
-        <input name="csrfToken" value="${csrfToken}" type="hidden">
-
         <fieldset>
             <div class="form-group">
                 <label for="heritrixJob" class="col-lg-2 control-label">Heritrix Job:</label>

@@ -2,26 +2,32 @@ package bamboo.crawl;
 
 import bamboo.app.Bamboo;
 import bamboo.task.WarcToIndex;
-import bamboo.util.*;
+import bamboo.util.Markdown;
+import bamboo.util.Pager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonWriter;
-import spark.Request;
-import spark.Response;
-import spark.Spark;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import static bamboo.util.Freemarker.render;
-
+@Controller
 public class CollectionsController {
 
     final Bamboo bamboo;
 
     private static final Gson gson;
+
     static {
         GsonBuilder builder = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
         String indent = System.getProperty("disableJsonIndent");
@@ -36,76 +42,57 @@ public class CollectionsController {
         this.bamboo = bamboo;
     }
 
-    public void routes() {
-        Spark.get("/collections", this::index);
-        Spark.get("/collections/new", this::newForm);
-        Spark.post("/collections/new", this::create);
-        Spark.get("/collections/:id", this::show);
-        Spark.get("/collections/:id/edit", this::edit);
-        Spark.post("/collections/:id/edit", this::update);
-        Spark.get("/collections/:id/warcs/json", this::warcs);
-        Spark.get("/collections/:id/warcs/sync", this::sync);
+    @GetMapping("/collections")
+    String index(@RequestParam(value = "page", defaultValue = "1") long page, Model model) {
+        Pager<Collection> pager = bamboo.collections.paginate(page);
+        model.addAttribute("collections", pager.items);
+        model.addAttribute("collectionsPager", pager);
+        return "collections/index";
     }
 
-    String index(Request request, Response response) {
-        Pager<Collection> pager = bamboo.collections.paginate(Parsing.parseLongOrDefault(request.queryParams("page"), 1));
-        return render(request, "bamboo/crawl/views/collections/index.ftl",
-                "collections", pager.items,
-                "collectionsPager", pager);
+    @GetMapping("/collections/new")
+    String newForm() {
+        return "collections/new";
     }
 
-    String newForm(Request request, Response response) {
-        return render(request, "bamboo/crawl/views/collections/new.ftl",
-                "csrfToken", Csrf.token(request));
+    @PostMapping("/collections/new")
+    String create(Collection collection) {
+        long collectionId = bamboo.collections.create(collection);
+        return "redirect:/collections/" + collectionId;
     }
 
-    String create(Request request, Response response) {
-        long collectionId = bamboo.collections.create(parseForm(request));
-        response.redirect(request.contextPath() + "/collections/" + collectionId, 303);
-        return "";
-    }
-
-    private Collection parseForm(Request request) {
-        Collection collection = new Collection();
-        collection.setName(request.queryParams("name"));
-        collection.setDescription(request.queryParams("description"));
-        collection.setCdxUrl(request.queryParams("cdxUrl"));
-        return collection;
-    }
-
-    String show(Request request, Response response) {
-        long id = Long.parseLong(request.params(":id"));
+    @GetMapping("/collections/{id}")
+    String show(@PathVariable("id") long id, Model model, HttpServletRequest request) {
         Collection collection = bamboo.collections.get(id);
-        return render(request, "bamboo/crawl/views/collections/show.ftl",
-                "collection", collection,
-                "descriptionHtml", Markdown.render(collection.getDescription(), request.uri()));
+        model.addAttribute("collection", collection);
+        model.addAttribute("descriptionHtml", Markdown.render(collection.getDescription(), request.getRequestURI()));
+        return "collections/show";
     }
 
-    String edit(Request request, Response response) {
-        long id = Long.parseLong(request.params(":id"));
+    @GetMapping("/collections/{id}/edit")
+    String edit(@PathVariable("id") long id, Model model, HttpServletRequest request) {
         Collection collection = bamboo.collections.get(id);
-        return render(request, "bamboo/crawl/views/collections/edit.ftl",
-                "collection", collection,
-                "csrfToken", Csrf.token(request));
+        model.addAttribute("collection", collection);
+        return "collections/edit";
     }
 
-    String update(Request request, Response response) {
-        long collectionId = Long.parseLong(request.params(":id"));
-        bamboo.collections.update(collectionId, parseForm(request));
-        response.redirect(request.contextPath() + "/collections/" + collectionId, 303);
-        return "";
+    @PostMapping("/collections/{id}/edit")
+    String update(@PathVariable("id") long collectionId, Collection collection) {
+        bamboo.collections.update(collectionId, collection);
+        return "redirect:/collections/" + collectionId;
     }
 
-    String warcs(Request request, Response response) throws IOException {
-        long id = Long.parseLong(request.params(":id"));
-        long start = Parsing.parseLongOrDefault(request.queryParams("start"), 0);
-        long rows = Parsing.parseLongOrDefault(request.queryParams("rows"), 1000);
+    @GetMapping("/collections/{id}/warcs/json")
+    void warcs(@PathVariable("id") long id,
+               @RequestParam(value = "start", defaultValue = "0") long start,
+               @RequestParam(value = "rows", defaultValue = "1000") long rows,
+               HttpServletResponse response) throws IOException {
         List<Warc> warcs = bamboo.warcs.findByCollectionId(id, start, rows);
 
-        response.status(200);
-        response.type("application/json");
+        response.setStatus(200);
+        response.setContentType("application/json");
 
-        try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.raw().getOutputStream(), StandardCharsets.UTF_8))) {
+        try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8))) {
             writer.beginArray();
             for (Warc warc : warcs) {
                 gson.toJson(new BambooWarcToIndex(warc), BambooWarcToIndex.class, writer);
@@ -113,22 +100,22 @@ public class CollectionsController {
             writer.endArray();
             writer.flush();
         }
-        return "";
     }
 
-    String sync(Request request, Response response) throws IOException {
-        long collectionId = Long.parseLong(request.params(":id"));
-        String afterParam = request.queryParams("after");
+    @GetMapping("/collections/{id}/warcs/sync")
+    void sync(@PathVariable("id") long collectionId,
+              @RequestParam(value = "after", required = false) String afterParam,
+              @RequestParam(value = "limit", defaultValue = "100") int limit,
+              HttpServletResponse response) throws IOException {
         WarcResumptionToken after = afterParam == null ? WarcResumptionToken.MIN_VALUE : WarcResumptionToken.parse(afterParam);
-        int limit = Parsing.parseIntOrDefault(request.queryParams("limit"), 100);
         List<WarcResumptionToken> results = bamboo.warcs.resumptionByCollectionIdAndStateId(collectionId, 2, after, limit);
 
-        response.status(200);
-        response.type("application/json");
+        response.setStatus(200);
+        response.setContentType("application/json");
 
-        try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.raw().getOutputStream(), StandardCharsets.UTF_8))) {
+        try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8))) {
             writer.beginArray();
-            for (WarcResumptionToken token: results) {
+            for (WarcResumptionToken token : results) {
                 writer.beginObject();
                 writer.name("id").value(token.id);
                 writer.name("resumptionToken").value(token.toString());
@@ -138,7 +125,6 @@ public class CollectionsController {
             writer.endArray();
             writer.flush();
         }
-        return "";
     }
 
     class BambooWarcToIndex extends WarcToIndex {

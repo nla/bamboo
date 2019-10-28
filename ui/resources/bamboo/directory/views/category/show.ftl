@@ -9,7 +9,7 @@
     </div>
 </h4>
 
-[#if subcategories.isEmpty()]
+[#if subcategories?has_content]
     <p>No subcategories.</p>
 [#else]
     <table class="table">
@@ -36,7 +36,7 @@
     </div>
 </h4>
 
-[#if sites.isEmpty()]
+[#if sites?has_content]
     <p>No sites found.</p>
     [#else]
     <table class="table">
