@@ -37,9 +37,4 @@ public class Application {
         }
         SpringApplication.run(Application.class, args);
     }
-
-    @Bean
-    public Bamboo getBamboo(@Autowired Config config) throws IOException {
-        return new Bamboo(config, false);
-    }
 }
