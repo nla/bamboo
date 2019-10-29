@@ -138,24 +138,24 @@ public class SeedlistsController {
     }
 
     @GetMapping("/seedlists/{id1}/compare/{id2}/{sublist}/export/{format}")
-    private String exportComparison(@PathVariable("id1") long id1,
+    private void exportComparison(@PathVariable("id1") long id1,
                                     @PathVariable("id2") long id2,
                                     @PathVariable("sublist") String sublistParam,
                                     @PathVariable("format") String formatName,
                                     HttpServletResponse response) throws IOException {
         List<Seed> sublist = new Comparison(seedlists, id1, id2).sublist(sublistParam);
         UnaryOperator<String> format = exportFormat(formatName);
-        return export(sublist, format, response);
+        export(sublist, format, response);
     }
 
-    private String export(List<Seed> seeds, UnaryOperator<String> transformation, HttpServletResponse response) throws IOException {
+    private void export(List<Seed> seeds, UnaryOperator<String> transformation, HttpServletResponse response) throws IOException {
+        response.setContentType("text/plain");
         try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8))) {
             for (Seed seed : seeds) {
                 writer.write(transformation.apply(seed.getUrl()));
                 writer.write("\n");
             }
             writer.flush();
-            return "";
         }
     }
 

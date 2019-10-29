@@ -14,6 +14,7 @@ import org.archive.io.ArchiveRecord;
 import org.archive.url.SURT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,6 +36,7 @@ import java.util.zip.GZIPInputStream;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+@Controller
 public class WarcsController {
     private static final Logger log = LoggerFactory.getLogger(WarcsController.class);
 
@@ -115,7 +117,7 @@ public class WarcsController {
     }
 
     @GetMapping("/warcs/{id}")
-    public String serve(@PathVariable("id") String id,
+    public void serve(@PathVariable("id") String id,
                  @RequestHeader(value = "Range", required = false) String rangeHeader,
                  HttpServletRequest request, HttpServletResponse response) {
         Warc warc = findWarc(id);
@@ -131,12 +133,10 @@ public class WarcsController {
                      OutputStream dst = response.getOutputStream()) {
                     Streams.copy(src, dst);
                 }
-
-                return "";
             } else if (ranges.size() == 1) {
-                return singleRangeResponse(response, warc, ranges.get(0));
+                singleRangeResponse(response, warc, ranges.get(0));
             } else {
-                return multipleRangeResponse(response, warc, ranges);
+                multipleRangeResponse(response, warc, ranges);
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -144,7 +144,7 @@ public class WarcsController {
     }
 
 
-    private String singleRangeResponse(HttpServletResponse response, Warc warc, Range range) throws IOException {
+    private void singleRangeResponse(HttpServletResponse response, Warc warc, Range range) throws IOException {
         response.setStatus(206);
         response.setContentType("application/warc");
         response.setHeader("Content-Range", range.toString());
@@ -154,12 +154,11 @@ public class WarcsController {
             in.position(range.start);
             Streams.copy(Channels.newInputStream(in), out, range.length);
         }
-        return "";
     }
 
     private static final String boundary = "Te2akaimeeThe8eip5oh";
 
-    private String multipleRangeResponse(HttpServletResponse response, Warc warc, List<Range> ranges) throws IOException {
+    private void multipleRangeResponse(HttpServletResponse response, Warc warc, List<Range> ranges) throws IOException {
         response.setStatus(206);
         response.setContentType("multipart/byteranges; boundary=" + boundary);
         try (OutputStream out = response.getOutputStream();
@@ -172,12 +171,11 @@ public class WarcsController {
                 out.write("\r\n".getBytes(US_ASCII));
             }
             out.write(("--" + boundary + "--\r\n").getBytes(US_ASCII));
-            return "";
         }
     }
 
-    @GetMapping("/warcs/{id}/cdx")
-    public String showCdx(@PathVariable("id") String id, HttpServletResponse response) {
+    @GetMapping(value = "/warcs/{id}/cdx")
+    public void showCdx(@PathVariable("id") String id, HttpServletResponse response) {
         Warc warc = findWarc(id);
         response.setContentType("text/plain");
         try (Writer out = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), UTF_8));
@@ -187,7 +185,6 @@ public class WarcsController {
         } catch (Exception e) {
             log.error("Unable to produce CDX for warc " + warc.getId(), e);
         }
-        return "";
     }
 
     @VisibleForTesting
@@ -226,7 +223,6 @@ public class WarcsController {
         if (file == null) return false;
 
         response.setContentType("application/json");
-
         try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.getOutputStream(), UTF_8));
              JsonReader reader = gson.newJsonReader(new InputStreamReader(new GZIPInputStream(Files.newInputStream(file), 8192), UTF_8))) {
             reader.beginArray();
@@ -243,19 +239,17 @@ public class WarcsController {
         }
     }
 
-    @GetMapping("/warcs/{id}/text")
-    public String showText(@PathVariable String id, HttpServletRequest request, HttpServletResponse response) throws IOException {
+    @GetMapping(value = "/warcs/{id}/text", produces = "application/json")
+    public void showText(@PathVariable String id, HttpServletRequest request, HttpServletResponse response) throws IOException {
         TextExtractor extractor = new TextExtractor();
 
         Warc warc = findWarc(id);
-
-
         Crawl crawl = wa.crawls.get(warc.getCrawlId());
         List<CollectionMatcher> collections = wa.collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())
                 .stream().map(CollectionMatcher::new).collect(Collectors.toList());
 
         if (serveTextFromCache(request, response, warc, collections)) {
-            return "";
+            return;
         }
 
         response.setContentType("application/json");
@@ -277,13 +271,11 @@ public class WarcsController {
             }
             writer.endArray();
             writer.flush();
-            return "";
         } catch (Exception | StackOverflowError e) {
             String message = "Text extraction failed. warcId=" + warc.getId() + " path=" + warc.getPath() + " recordUrl=" + url;
             log.error(message, e);
             streamWriter.write("\n\n" + message + "\n");
             e.printStackTrace(new PrintWriter(streamWriter));
-            return "";
         } finally {
             streamWriter.close(); // ensure output stream always closed to avoid gzip issues
         }
@@ -301,7 +293,7 @@ public class WarcsController {
         doc.setCollections(docCollections);
     }
 
-    @GetMapping(value = "/warcs/{id}/reindex")
+    @GetMapping(value = "/warcs/{id}/details")
     String details(@PathVariable String id, Model model) {
         Warc warc = findWarc(id);
         model.addAttribute("warc", warc);
