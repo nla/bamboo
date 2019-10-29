@@ -1,6 +1,8 @@
 package bamboo;
 
 import bamboo.app.Bamboo;
+import bamboo.core.Config;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -37,7 +39,7 @@ public class Application {
     }
 
     @Bean
-    public Bamboo getBamboo() throws IOException {
-        return new Bamboo(false);
+    public Bamboo getBamboo(@Autowired Config config) throws IOException {
+        return new Bamboo(config, false);
     }
 }

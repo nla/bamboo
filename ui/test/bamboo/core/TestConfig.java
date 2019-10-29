@@ -1,10 +1,15 @@
 package bamboo.core;
 
 import java.nio.file.Path;
+import java.util.Collections;
 
 public class TestConfig extends Config {
     Path heritrixJobs;
     private Path pandasWarcDir;
+
+    public TestConfig() {
+        super(Collections.emptyMap());
+    }
 
     @Override
     public String getDbUrl() {

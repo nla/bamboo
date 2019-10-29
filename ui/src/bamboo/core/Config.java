@@ -5,15 +5,17 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 public class Config {
+    private final Map<String, String> env;
+
+    public Config(Map<String, String> env) {
+        this.env = env;
+    }
+
     private String getEnv(String name, String defaultValue) {
-        String value = System.getenv(name);
-        if (value != null) {
-            return value;
-        } else {
-            return defaultValue;
-        }
+        return env.getOrDefault(name, defaultValue);
     }
 
     public String getDbUser() {
@@ -37,7 +39,7 @@ public class Config {
     }
 
     public String getDossUrl() {
-        return System.getenv("DOSS_URL");
+        return getEnv("DOSS_URL", null);
     }
 
     public String getPandasDbUrl() {
@@ -65,7 +67,7 @@ public class Config {
     }
 
     public Path getPandasWarcDir() {
-        String value = System.getenv("PANDAS_WARC_DIR");
+        String value = getEnv("PANDAS_WARC_DIR", null);
         if (value == null) {
             throw new RuntimeException("PANDAS_WARC_DIR environment variable is not set");
         }

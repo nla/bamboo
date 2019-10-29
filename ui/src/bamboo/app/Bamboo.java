@@ -44,10 +44,6 @@ public class Bamboo implements AutoCloseable {
     public final CdxIndexer cdxIndexer;
     private final LockManager lockManager;
 
-    public Bamboo(boolean runTasks) throws IOException {
-        this(new Config(), runTasks);
-    }
-
     public Bamboo(Config config, boolean runTasks) throws IOException {
         long startTime = System.currentTimeMillis();
 
