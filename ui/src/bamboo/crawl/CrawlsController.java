@@ -214,7 +214,7 @@ public class CrawlsController {
         model.addAttribute("allCrawlSeries", bamboo.serieses.listImportable());
         model.addAttribute("selectedCrawlSeriesId", crawlSeriesId);
         model.addAttribute("jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()));
-        return "views/import";
+        return "import";
     }
 
     @PostMapping("/import")

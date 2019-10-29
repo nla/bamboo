@@ -26,7 +26,7 @@ public class TasksController {
     @GetMapping("/tasks")
     String index(Model model) {
         model.addAttribute("tasks", taskDAO.listTasks());
-        return "tasks/index";
+        return "tasks";
     }
 
     @PostMapping("/tasks/{id}/disable")

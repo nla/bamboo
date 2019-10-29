@@ -29,6 +29,6 @@ public class JobsController {
     String index(Model model) {
         model.addAttribute("heritrixUrl", bamboo.config.getHeritrixUrl());
         model.addAttribute("jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()));
-        return "jobs/index.ftl";
+        return "jobs/index";
     }
 }
