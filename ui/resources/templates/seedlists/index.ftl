@@ -2,7 +2,7 @@
 
 <h3>All Seedlists <a href="seedlists/new" class="btn btn-primary pull-right">New Seed List</a></h3>
 
-[#if seedlists?has_content]
+[#if !seedlists?has_content]
     <p>No seedlists found.</p>
 [#else]
     <table class="table">

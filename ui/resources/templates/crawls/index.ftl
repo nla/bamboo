@@ -2,7 +2,7 @@
 
 <h3>All Crawls <a href="import" class="btn btn-primary pull-right">Import from Heritrix</a></h3>
 
-[#if crawls?has_content]
+[#if !crawls?has_content]
     <p>No crawls found.</p>
 [#else]
     <table class="table">
