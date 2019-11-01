@@ -31,7 +31,7 @@ public class Bamboo implements AutoCloseable {
     public final Config config;
     private final DbPool dbPool;
     private final BlobStore blobStore;
-    final DAO dao;
+    public final DAO dao;
 
     public final Crawls crawls;
     public final Serieses serieses;
@@ -43,10 +43,6 @@ public class Bamboo implements AutoCloseable {
     public final TaskManager taskManager;
     public final CdxIndexer cdxIndexer;
     private final LockManager lockManager;
-
-    public Bamboo(boolean runTasks) throws IOException {
-        this(new Config(), runTasks);
-    }
 
     public Bamboo(Config config, boolean runTasks) throws IOException {
         long startTime = System.currentTimeMillis();

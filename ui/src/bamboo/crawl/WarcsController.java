@@ -1,13 +1,31 @@
 package bamboo.crawl;
 
+import bamboo.app.Bamboo;
+import bamboo.core.Streams;
+import bamboo.task.*;
+import bamboo.util.SurtFilter;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
+import org.archive.io.ArchiveReader;
+import org.archive.io.ArchiveRecord;
+import org.archive.url.SURT;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
-import java.nio.channels.WritableByteChannel;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -15,49 +33,15 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
-import bamboo.app.Bamboo;
-import bamboo.core.Streams;
-import bamboo.task.*;
-import bamboo.util.Csrf;
-import bamboo.util.Freemarker;
-import bamboo.util.Parsing;
-import bamboo.util.SurtFilter;
-import com.github.junrar.Archive;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
-import doss.BlobStore;
-import org.archive.io.ArchiveReader;
-import org.archive.io.ArchiveReaderFactory;
-import org.archive.io.ArchiveRecord;
-import org.archive.io.arc.ARCReaderFactory;
-import org.archive.url.SURT;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import spark.Spark;
-import spark.Request;
-import spark.Response;
-import spark.utils.GzipUtils;
-import spark.utils.IOUtils;
+import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
-import static java.nio.charset.StandardCharsets.*;
-
+@Controller
 public class WarcsController {
     private static final Logger log = LoggerFactory.getLogger(WarcsController.class);
 
     final Bamboo wa;
     private TextCache textCache;
-
-    public void routes() {
-        Spark.get("/warcs/:id", this::serve);
-        Spark.get("/warcs/:id/cdx", this::showCdx);
-        Spark.post("/warcs/:id/reindex", this::reindex);
-        Spark.get("/warcs/:id/text", this::showText);
-        Spark.get("/warcs/:id/details", this::details);
-    }
 
     public WarcsController(Bamboo wa) {
         this.wa = wa;
@@ -69,10 +53,6 @@ public class WarcsController {
             }
             textCache = new TextCache(root, wa.warcs);
         }
-    }
-
-    String render(Request request, String view, Object... model) {
-        return Freemarker.render(request, "bamboo/crawl/views/" + view, model);
     }
 
     static class Range {
@@ -127,40 +107,36 @@ public class WarcsController {
         }
     }
 
-    Warc findWarc(Request request) {
-        String id = request.params(":id");
+    Warc findWarc(String id) {
         try {
             long warcId = Long.parseLong(id);
             return wa.warcs.get(warcId);
         } catch (NumberFormatException e) {
             return wa.warcs.getByFilename(id);
-
         }
     }
 
-    String serve(Request request, Response response) {
-        return serve(request, response, findWarc(request));
-    }
-
-    private String serve(Request request, Response response, Warc warc) {
-        List<Range> ranges = Range.parseHeader(request.headers("Range"), warc.getSize());
+    @GetMapping("/warcs/{id}")
+    public void serve(@PathVariable("id") String id,
+                 @RequestHeader(value = "Range", required = false) String rangeHeader,
+                 HttpServletRequest request, HttpServletResponse response) {
+        Warc warc = findWarc(id);
+        List<Range> ranges = Range.parseHeader(rangeHeader, warc.getSize());
         try {
             if (ranges == null || ranges.isEmpty()) {
-                response.type("application/warc");
-                response.header("Content-Length", Long.toString(warc.getSize()));
-                response.header("Content-Disposition", "filename=" + warc.getFilename());
-                response.header("Accept-Ranges", "bytes");
+                response.setContentType("application/warc");
+                response.setHeader("Content-Length", Long.toString(warc.getSize()));
+                response.setHeader("Content-Disposition", "filename=" + warc.getFilename());
+                response.setHeader("Accept-Ranges", "bytes");
 
                 try (InputStream src = wa.warcs.openStream(warc);
-                     OutputStream dst = response.raw().getOutputStream()) {
+                     OutputStream dst = response.getOutputStream()) {
                     Streams.copy(src, dst);
                 }
-
-                return "";
             } else if (ranges.size() == 1) {
-                return singleRangeResponse(response, warc, ranges.get(0));
+                singleRangeResponse(response, warc, ranges.get(0));
             } else {
-                return multipleRangeResponse(response, warc, ranges);
+                multipleRangeResponse(response, warc, ranges);
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -168,25 +144,24 @@ public class WarcsController {
     }
 
 
-    private String singleRangeResponse(Response response, Warc warc, Range range) throws IOException {
-        response.status(206);
-        response.type("application/warc");
-        response.header("Content-Range", range.toString());
-        response.header("Content-Length", Long.toString(range.length));
-        try (OutputStream out = response.raw().getOutputStream();
+    private void singleRangeResponse(HttpServletResponse response, Warc warc, Range range) throws IOException {
+        response.setStatus(206);
+        response.setContentType("application/warc");
+        response.setHeader("Content-Range", range.toString());
+        response.setHeader("Content-Length", Long.toString(range.length));
+        try (OutputStream out = response.getOutputStream();
              SeekableByteChannel in = wa.warcs.openChannel(warc)) {
             in.position(range.start);
             Streams.copy(Channels.newInputStream(in), out, range.length);
         }
-        return "";
     }
 
     private static final String boundary = "Te2akaimeeThe8eip5oh";
 
-    private String multipleRangeResponse(Response response, Warc warc, List<Range> ranges) throws IOException {
-        response.status(206);
-        response.type("multipart/byteranges; boundary=" + boundary);
-        try (OutputStream out = response.raw().getOutputStream();
+    private void multipleRangeResponse(HttpServletResponse response, Warc warc, List<Range> ranges) throws IOException {
+        response.setStatus(206);
+        response.setContentType("multipart/byteranges; boundary=" + boundary);
+        try (OutputStream out = response.getOutputStream();
              SeekableByteChannel in = wa.warcs.openChannel(warc);
              InputStream ins = Channels.newInputStream(in)) {
             for (Range range : ranges) {
@@ -196,21 +171,20 @@ public class WarcsController {
                 out.write("\r\n".getBytes(US_ASCII));
             }
             out.write(("--" + boundary + "--\r\n").getBytes(US_ASCII));
-            return "";
         }
     }
 
-    private String showCdx(Request request, Response response) throws IOException {
-        Warc warc = findWarc(request);
-        response.type("text/plain");
-        try (Writer out = new BufferedWriter(new OutputStreamWriter(response.raw().getOutputStream(), UTF_8));
+    @GetMapping(value = "/warcs/{id}/cdx")
+    public void showCdx(@PathVariable("id") String id, HttpServletResponse response) {
+        Warc warc = findWarc(id);
+        response.setContentType("text/plain");
+        try (Writer out = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), UTF_8));
              ArchiveReader reader = wa.warcs.openReader(warc)) {
             Cdx.writeCdx(reader, warc.getFilename(), warc.getSize(), out);
             out.flush();
         } catch (Exception e) {
             log.error("Unable to produce CDX for warc " + warc.getId(), e);
         }
-        return "";
     }
 
     @VisibleForTesting
@@ -243,15 +217,13 @@ public class WarcsController {
         }
     }
 
-    private boolean serveTextFromCache(Request request, Response response, Warc warc, List<CollectionMatcher> collections) throws IOException {
+    private boolean serveTextFromCache(HttpServletRequest request, HttpServletResponse response, Warc warc, List<CollectionMatcher> collections) throws IOException {
         if (textCache == null) return false;
         Path file = textCache.find(warc.getId());
         if (file == null) return false;
 
-        response.type("application/json");
-
-        OutputStream outputStream = GzipUtils.checkAndWrap(request.raw(), response.raw(), false);
-        try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(outputStream, UTF_8));
+        response.setContentType("application/json");
+        try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.getOutputStream(), UTF_8));
              JsonReader reader = gson.newJsonReader(new InputStreamReader(new GZIPInputStream(Files.newInputStream(file), 8192), UTF_8))) {
             reader.beginArray();
             writer.beginArray();
@@ -267,23 +239,21 @@ public class WarcsController {
         }
     }
 
-    private String showText(Request request, Response response) throws IOException {
+    @GetMapping(value = "/warcs/{id}/text", produces = "application/json")
+    public void showText(@PathVariable String id, HttpServletRequest request, HttpServletResponse response) throws IOException {
         TextExtractor extractor = new TextExtractor();
 
-        Warc warc = findWarc(request);
-
-
+        Warc warc = findWarc(id);
         Crawl crawl = wa.crawls.get(warc.getCrawlId());
         List<CollectionMatcher> collections = wa.collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())
                 .stream().map(CollectionMatcher::new).collect(Collectors.toList());
 
         if (serveTextFromCache(request, response, warc, collections)) {
-            return "";
+            return;
         }
 
-        response.type("application/json");
-        OutputStream outputStream = GzipUtils.checkAndWrap(request.raw(), response.raw(), false);
-        OutputStreamWriter streamWriter = new OutputStreamWriter(outputStream, UTF_8);
+        response.setContentType("application/json");
+        OutputStreamWriter streamWriter = new OutputStreamWriter(response.getOutputStream(), UTF_8);
         String url = null;
         try (ArchiveReader reader = wa.warcs.openReader(warc)) {
             JsonWriter writer = gson.newJsonWriter(streamWriter);
@@ -301,13 +271,11 @@ public class WarcsController {
             }
             writer.endArray();
             writer.flush();
-            return "";
         } catch (Exception | StackOverflowError e) {
             String message = "Text extraction failed. warcId=" + warc.getId() + " path=" + warc.getPath() + " recordUrl=" + url;
             log.error(message, e);
             streamWriter.write("\n\n" + message + "\n");
             e.printStackTrace(new PrintWriter(streamWriter));
-            return "";
         } finally {
             streamWriter.close(); // ensure output stream always closed to avoid gzip issues
         }
@@ -325,17 +293,19 @@ public class WarcsController {
         doc.setCollections(docCollections);
     }
 
-    String details(Request request, Response response) {
-        Warc warc = findWarc(request);
-        return render(request, "warc.ftl",
-                "warc", warc,
-                "csrfToken", Csrf.token(request),
-                "crawl", wa.crawls.get(warc.getCrawlId()),
-                "state", wa.warcs.stateName(warc.getStateId()));
+    @GetMapping(value = "/warcs/{id}/details")
+    String details(@PathVariable String id, Model model) {
+        Warc warc = findWarc(id);
+        model.addAttribute("warc", warc);
+        model.addAttribute("crawl", wa.crawls.get(warc.getCrawlId()));
+        model.addAttribute("state", wa.warcs.stateName(warc.getStateId()));
+        return "warc";
     }
 
-    private String reindex(Request request, Response response) throws IOException {
-        Warc warc = findWarc(request);
+    @PostMapping(value = "/warcs/{id}/reindex", produces = "text/plain")
+    @ResponseBody
+    private String reindex(@PathVariable String id) throws IOException {
+        Warc warc = findWarc(id);
         RecordStats stats = wa.cdxIndexer.indexWarc(warc);
         return "CDX indexed " + stats.getRecords() + " records";
     }

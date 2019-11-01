@@ -1,9 +1,6 @@
 package bamboo.util;
 
-import spark.Request;
 import java.util.List;
-
-import static bamboo.util.Parsing.parseLongOrDefault;
 
 public class Pager<T> {
     public final long pageSize = 100;
@@ -19,11 +16,6 @@ public class Pager<T> {
         this.totalItems = totalItems;
         lastPage = totalItems / pageSize + 1;
         items = query.paginate(pageSize, offset);
-    }
-
-    @Deprecated
-    public Pager(Request request, String pageParam, long totalItems, PaginationQuery<T> query) {
-        this(parseLongOrDefault(request.queryParams(pageParam), 1), totalItems, query);
     }
 
     public interface PaginationQuery<T> {

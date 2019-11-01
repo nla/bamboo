@@ -1,5 +1,6 @@
 package bamboo.app;
 
+import bamboo.core.Config;
 import bamboo.crawl.Scrub;
 import bamboo.crawl.Warc;
 import bamboo.task.CdxCache;
@@ -32,7 +33,7 @@ public class CLI {
     }
 
     public static void main(String[] args) throws IOException {
-        Bamboo bamboo = new Bamboo(false);
+        Bamboo bamboo = new Bamboo(new Config(System.getenv()), false);
         if (args.length == 0) {
             usage();
             return;
