@@ -24,6 +24,7 @@ import java.util.List;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @RunWith(SpringRunner.class)
@@ -60,6 +61,7 @@ public class WebTest {
         mockMvc.perform(get(testCollection + "/edit"))
                 .andExpect(status().isOk());
         mockMvc.perform(post(testCollection + "/edit")
+                .param("name", "test collection")
                 .param("description", "new description"))
                 .andExpect(status().is3xxRedirection());
         mockMvc.perform(get(testCollection))
@@ -82,6 +84,7 @@ public class WebTest {
         mockMvc.perform(get(testSeries + "/edit"))
                 .andExpect(status().isOk());
         mockMvc.perform(post(testSeries + "/edit")
+                .param("name", "test series")
                 .param("description", "new description"))
                 .andExpect(status().is3xxRedirection());
         mockMvc.perform(get(testSeries))

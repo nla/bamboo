@@ -5,7 +5,7 @@
 [#if !collections?has_content]
     <p>No collections found.</p>
 [#else]
-    [#include "_list.ftl"]
+    [#include "_list.ftlh"]
     [@pagination collectionsPager.currentPage collectionsPager.lastPage /]
 [/#if]
 

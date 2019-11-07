@@ -10,7 +10,7 @@
 <div class="well">
     <form method="post" class="form-horizontal">
         <fieldset>
-            [#include "_form.ftl"]
+            [#include "_form.ftlh"]
 
             <div class="form-group">
                 <div class="col-lg-10 col-lg-offset-2">

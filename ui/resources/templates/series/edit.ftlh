@@ -11,7 +11,7 @@
 <div class="well">
     <form method="post" class="form-horizontal">
         <fieldset>
-            [#include "_form.ftl"]
+            [#include "_form.ftlh"]
 
             <div class="form-group">
                 <label class="col-lg-2 control-label">Collections</label>
