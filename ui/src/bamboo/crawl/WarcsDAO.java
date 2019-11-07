@@ -61,7 +61,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @GetGeneratedKeys
     long insertWarcWithoutRollup(@Bind("crawlId") long crawlId, @Bind("stateId") int stateId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256);
 
-    @SqlBatch("INSERT INTO warc (crawl_id, path, filename, size, warc_state_id, sha256) VALUES (:crawlId, :warc.path, :warc.filename, :warc.size, :warc.stateId, :warc.sha256)")
+    @SqlBatch("INSERT INTO warc (crawl_id, path, filename, size, warc_state_id, sha256, blob_id) VALUES (:crawlId, :warc.path, :warc.filename, :warc.size, :warc.stateId, :warc.sha256, :warc.blobId)")
     void batchInsertWarcsWithoutRollup(@Bind("crawlId") long crawlId, @BindBean("warc") Iterator<Warc> warcs);
 
     @Deprecated

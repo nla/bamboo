@@ -2,6 +2,7 @@
 
 <h3>${titlePrefix!} WARC files in <a href="crawls/${crawl.id?c}">${crawl.name}</a>
     <a class="btn btn-primary pull-right" href="crawls/${crawl.id?c}/warcs/download">Download All (${si(crawl.warcSize)}B)</a>
+    <a class="btn pull-right" href="crawls/${crawl.id?c}/warcs/upload">Upload</a>
 </h3>
 
 <table class="table">

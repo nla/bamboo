@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletRequest;
@@ -99,7 +100,7 @@ public class CrawlsController {
         model.addAttribute("crawl", crawl);
         model.addAttribute("warcs", pager.items);
         model.addAttribute("warcsPager", pager);
-        return "crawls/warcs";
+        return "crawls/warcs/index";
     }
 
     @GetMapping("/crawls/{id}/artifacts")
@@ -209,12 +210,25 @@ public class CrawlsController {
         return out.toString();
     }
 
+    @GetMapping("/crawls/new")
+    public String showNewForm(@RequestParam(value = "crawlSeries", defaultValue = "-1") long crawlSeriesId, Model model) {
+        model.addAttribute("allCrawlSeries", bamboo.serieses.listImportable());
+        model.addAttribute("selectedCrawlSeriesId", crawlSeriesId);
+        return "crawls/new";
+    }
+
+    @PostMapping("/crawls/new")
+    public String create(Crawl crawl, @RequestPart("warcFile") MultipartFile[] warcFiles) throws IOException {
+        long crawlId = bamboo.crawls.create(crawl, warcFiles);
+        return "redirect:/crawls/" + crawlId;
+    }
+
     @GetMapping("/import")
     public String showImportForm(@RequestParam(value = "crawlSeries", defaultValue = "-1") long crawlSeriesId, Model model) {
         model.addAttribute("allCrawlSeries", bamboo.serieses.listImportable());
         model.addAttribute("selectedCrawlSeriesId", crawlSeriesId);
         model.addAttribute("jobs", HeritrixJob.list(bamboo.config.getHeritrixJobs()));
-        return "import";
+        return "crawls/import";
     }
 
     @PostMapping("/import")
@@ -222,6 +236,18 @@ public class CrawlsController {
                          @RequestParam("crawlSeriesId") long crawlSeriesId) {
         long crawlId = bamboo.crawls.importHeritrixCrawl(jobName, crawlSeriesId);
         return "redirect:/crawls/" + crawlId;
+    }
+
+    @GetMapping("/crawls/{crawlId}/warcs/upload")
+    String uploadWarcsForm(@PathVariable("crawlId") long crawlId, Model model) {
+        model.addAttribute("crawl", bamboo.crawls.get(crawlId));
+        return "crawls/warcs/upload";
+    }
+
+    @PostMapping("/crawls/{crawlId}/warcs/upload")
+    public String create(@PathVariable("crawlId") long crawlId, @RequestPart("warcFile") MultipartFile[] warcFiles) throws IOException {
+        bamboo.crawls.addWarcs(crawlId, warcFiles);
+        return "redirect:/crawls/" + crawlId + "/warcs";
     }
 
 }

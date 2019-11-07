@@ -1,6 +1,8 @@
 [@page title="${series.name}"]
 
-<h3>${series.name} <a class="btn btn-default pull-right" href="series/${series.id?c}/edit">Edit</a></h3>
+<h3>${series.name}
+    <a class="btn btn-default pull-right" href="series/${series.id?c}/edit">Edit</a>
+</h3>
 
 <div class="row">
     <div class="col-md-8">
@@ -50,6 +52,7 @@
     [#if (series.path!"") != ""]
         <a href="import?crawlSeries=${series.id?c}" class="btn btn-primary pull-right">Import from Heritrix</a>
     [/#if]
+    <a class="btn btn-default pull-right" href="crawls/new?crawlSeries=${series.id?c}">Upload</a>
 </h4>
 
 

@@ -2,10 +2,18 @@ package bamboo.crawl;
 
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
+import doss.Blob;
 import doss.BlobStore;
+import doss.BlobTx;
+import doss.SizedWritable;
+import org.apache.commons.io.IOUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,6 +63,10 @@ public class Crawls {
             warcs.add(Warcs.fromFile(path));
         }
 
+        return create(metadata, warcs);
+    }
+
+    private long create(Crawl metadata, List<Warc> warcs) {
         long id = dao.inTransaction((dao1, ts) -> {
             long totalBytes = warcs.stream().mapToLong(Warc::getSize).sum();
             long crawlId = dao.createCrawl(metadata);
@@ -67,6 +79,55 @@ public class Crawls {
         notifyStateChanged(id, Crawl.ARCHIVED);
         return id;
     }
+
+    public void addWarcs(long crawlId, MultipartFile[] warcFiles) throws IOException {
+        try (BlobTx tx = blobStore.begin()) {
+            List<Warc> warcs = storeWarcs(tx, warcFiles);
+            dao.inTransaction((dao1, ts) -> {
+                long totalBytes = warcs.stream().mapToLong(Warc::getSize).sum();
+                dao.warcs().batchInsertWarcsWithoutRollup(crawlId, warcs.iterator());
+                int warcFilesDelta = warcs.size();
+                dao.warcs().incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, totalBytes);
+                dao.warcs().incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, totalBytes);
+                return null;
+            });
+            tx.commit();
+        }
+    }
+
+    public long create(Crawl crawl, MultipartFile[] warcFiles) throws IOException {
+        try (BlobTx tx = blobStore.begin()) {
+            List<Warc> warcs = storeWarcs(tx, warcFiles);
+            long crawlId = create(crawl, warcs);
+            tx.commit();
+            return crawlId;
+        }
+    }
+
+    private List<Warc> storeWarcs(BlobTx tx, MultipartFile[] warcFiles) throws IOException {
+        List<Warc> warcs = new ArrayList<>();
+
+        for (MultipartFile warcFile: warcFiles) {
+            if (warcFile.isEmpty()) continue; // blank form makes an empty file
+            Blob blob = tx.put(new SizedWritable() {
+                @Override
+                public void writeTo(WritableByteChannel writableByteChannel) throws IOException {
+                    try (InputStream stream = warcFile.getInputStream();
+                         OutputStream out = Channels.newOutputStream(writableByteChannel)) {
+                        IOUtils.copy(stream, out);
+                    }
+                }
+
+                @Override
+                public long size() {
+                    return warcFile.getSize();
+                }
+            });
+            warcs.add(Warcs.fromBlob(blob, warcFile.getOriginalFilename()));
+        }
+        return warcs;
+    }
+
 
     public Crawl getOrNull(long crawlId) {
             return dao.findCrawl(crawlId);

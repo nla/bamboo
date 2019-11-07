@@ -10,24 +10,20 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ContextConfiguration;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
 
-import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.hamcrest.Matchers.containsString;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.junit.Assert.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @RunWith(SpringRunner.class)
@@ -95,11 +91,6 @@ public class WebTest {
 
     @Test
     public void testCrawlAndWarc() throws Exception {
-        Path warcFile = folder.newFile("example.warc.gz").toPath();
-        try (InputStream stream = getClass().getResourceAsStream("/bamboo/task/example.warc.gz")) {
-            Files.copy(stream, warcFile, REPLACE_EXISTING);
-        }
-
         Collection collection = new Collection();
         collection.setName("Test collection");
         long collectionId = bamboo.collections.create(collection);
@@ -109,11 +100,43 @@ public class WebTest {
         long seriesId = bamboo.serieses.create(series);
         bamboo.serieses.update(seriesId, series, Arrays.asList(collectionId), Arrays.asList(""));
 
-        Crawl crawl = new Crawl();
-        crawl.setName("Test crawl");
-        crawl.setCrawlSeriesId(seriesId);
-        long crawlId = bamboo.crawls.createInPlace(crawl, Arrays.asList(warcFile));
-        Warc warc = bamboo.warcs.findByCrawlId(crawlId).get(0);
+        long crawlId;
+        Warc warc;
+        Crawl crawl;
+        mockMvc.perform(get("/crawls/new")).andExpect(status().isOk());
+        try (InputStream stream = getClass().getResourceAsStream("/bamboo/task/example.warc.gz");
+             InputStream stream2 = getClass().getResourceAsStream("/bamboo/task/notfound.warc.gz")) {
+            String crawlPath = mockMvc.perform(multipart("/crawls/new")
+                    .file(new MockMultipartFile("warcFile", "example.warc.gz", "application/warc", stream))
+                    .file(new MockMultipartFile("warcFile", "notfound.warc.gz", "application/warc", stream2))
+                    .param("name", "Test crawl")
+                    .param("crawlSeriesId", Long.toString(seriesId)))
+                    .andExpect(status().is3xxRedirection())
+                    .andReturn().getResponse().getHeader("Location");
+            crawlId = Long.parseLong(crawlPath.replaceFirst(".*/", ""));
+            crawl = bamboo.crawls.get(crawlId);
+            List<Warc> warcs = bamboo.warcs.findByCrawlId(crawlId);
+            assertEquals(2, warcs.size());
+            warc = warcs.get(0);
+            assertNotNull(warc.getBlobId());
+            assertEquals("example.warc.gz", warc.getFilename());
+            assertEquals("3069a7432667c18be49028abb385c9cc2a9ad8ba8d8962db9083c01a8f01859a", warc.getSha256());
+            Warc warc2 = warcs.get(1);
+            assertNotNull(warc2.getBlobId());
+            assertNotEquals(warc.getBlobId(), warc2.getBlobId());
+            assertEquals("notfound.warc.gz", warc2.getFilename());
+            assertEquals("e2a9ca11af67b7724db65042611127a18e642c6870f052a5826ed6aa8adad872", warc2.getSha256());
+        }
+
+        mockMvc.perform(get("/crawls/" + crawlId + "/warcs/upload")).andExpect(status().isOk());
+        mockMvc.perform(get("/crawls/" + crawlId + "/warcs/upload?crawlSeries=" + seriesId)).andExpect(status().isOk());
+        try (InputStream stream = getClass().getResourceAsStream("/bamboo/task/example.warc.gz")) {
+            mockMvc.perform(multipart("/crawls/" + crawlId + "/warcs/upload")
+                    .file(new MockMultipartFile("warcFile", "example2.warc.gz", "application/warc", stream)))
+                    .andExpect(status().is3xxRedirection());
+            List<Warc> warcs = bamboo.warcs.findByCrawlId(crawlId);
+            assertEquals(3, warcs.size());
+        }
 
         mockMvc.perform(get("/crawls/" + crawlId)).andExpect(status().isOk());
         mockMvc.perform(get("/crawls/" + crawlId + "/warcs")).andExpect(status().isOk());

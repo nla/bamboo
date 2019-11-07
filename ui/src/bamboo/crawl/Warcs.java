@@ -9,6 +9,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.util.Base64;
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
+import doss.Blob;
 import doss.BlobStore;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
@@ -222,6 +224,22 @@ public class Warcs {
         warc.setStateId(Warc.IMPORTED);
         return warc;
     }
+
+    public static Warc fromBlob(Blob blob, String filename) throws IOException {
+        if (filename == null || filename.isEmpty()) throw new IllegalArgumentException("filename is required");
+        Warc warc = new Warc();
+        warc.setBlobId(blob.id());
+        warc.setFilename(filename);
+        warc.setSize(blob.size());
+        try {
+            warc.setSha256(blob.digest("SHA-256"));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException(e);
+        }
+        warc.setStateId(Warc.IMPORTED);
+        return warc;
+    }
+
 
     public List<WarcResumptionToken> resumptionByCollectionIdAndStateId(
             long collectionId, int stateAtLeast, WarcResumptionToken after, int limit) {

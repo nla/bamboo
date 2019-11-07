@@ -1,6 +1,9 @@
 [@page title="Crawls"]
 
-<h3>All Crawls <a href="import" class="btn btn-primary pull-right">Import from Heritrix</a></h3>
+<h3>All Crawls
+    <a href="import" class="btn btn-primary pull-right">Import from Heritrix</a>
+    <a href="crawls/new" class="btn btn pull-right">Upload</a>
+</h3>
 
 [#if !crawls?has_content]
     <p>No crawls found.</p>

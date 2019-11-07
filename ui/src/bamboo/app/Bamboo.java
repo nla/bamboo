@@ -24,6 +24,8 @@ import doss.trivial.TrivialBlobStore;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class Bamboo implements AutoCloseable {
@@ -56,7 +58,9 @@ public class Bamboo implements AutoCloseable {
 
         String dossUrl = config.getDossUrl();
         if (dossUrl == null) {
-            blobStore = new TrivialBlobStore(Paths.get("data/blobs"));
+            Path blobsDir = Paths.get("data/blobs");
+            Files.createDirectories(blobsDir);
+            blobStore = new TrivialBlobStore(blobsDir);
         } else if (dossUrl.startsWith("http:") || dossUrl.startsWith("https:")) {
             Credentials dossCredentials;
             if (config.getOidcUrl() != null) {
