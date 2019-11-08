@@ -131,6 +131,7 @@ public class WebTest {
             assertEquals("e2a9ca11af67b7724db65042611127a18e642c6870f052a5826ed6aa8adad872", warc2.getSha256());
         }
 
+        mockMvc.perform(get("/crawls")).andExpect(status().isOk());
         mockMvc.perform(get("/crawls/" + crawlId + "/warcs/upload")).andExpect(status().isOk());
         mockMvc.perform(get("/crawls/" + crawlId + "/warcs/upload?crawlSeries=" + seriesId)).andExpect(status().isOk());
         try (InputStream stream = getClass().getResourceAsStream("/bamboo/task/example.warc.gz")) {
@@ -149,6 +150,7 @@ public class WebTest {
                 .param("description", "test description")).andExpect(status().is3xxRedirection());
         mockMvc.perform(get("/crawls/" + crawlId)).andExpect(status().isOk())
                 .andExpect(content().string(containsString("test description")));
+        mockMvc.perform(get("/crawls")).andExpect(status().isOk());
 
         mockMvc.perform(get("/warcs/" + warc.getId() + "/details")).andExpect(status().isOk());
         mockMvc.perform(get("/warcs/" + warc.getId() + "/cdx")).andExpect(status().isOk())
