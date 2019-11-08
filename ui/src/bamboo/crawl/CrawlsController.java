@@ -118,7 +118,7 @@ public class CrawlsController {
         downloadArtifact(response, artifact);
     }
 
-    @GetMapping("/crawls/{id}/artifacts/{artifactId}/{relpath:.*}")
+    @GetMapping("/crawls/{id}/artifacts/{relpath:.*}")
     void downloadArtifactByPath(@PathVariable("id") long crawlId,
                                 @PathVariable("relpath") String relpath,
                                 HttpServletResponse response) throws IOException {
