@@ -34,7 +34,7 @@
 
                 <div class="form-group">
                     <label for="warcFile" class="col-lg-2 control-label">WARC Files</label>
-                    <input id="warcFile" type="file" name="warcFile" multiple accept="application/warc,.warc.gz,.warc">
+                    <input id="warcFile" type="file" name="warcFile" multiple accept="application/warc,.warc.gz,.warc,.arc.gz,.arc">
                 </div>
 
                 <div class="form-group">
