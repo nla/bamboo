@@ -9,9 +9,11 @@ import org.apache.commons.io.IOUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.HandlerMapping;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -118,10 +120,13 @@ public class CrawlsController {
         downloadArtifact(response, artifact);
     }
 
-    @GetMapping("/crawls/{id}/artifacts/{relpath:.*}")
+    @GetMapping("/crawls/{id}/artifacts/**")
     void downloadArtifactByPath(@PathVariable("id") long crawlId,
-                                @PathVariable("relpath") String relpath,
+                                HttpServletRequest request,
                                 HttpServletResponse response) throws IOException {
+        String path = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        String pattern = (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+        String relpath = new AntPathMatcher().extractPathWithinPattern(pattern, path);
         Artifact artifact = bamboo.crawls.getArtifactByRelpath(crawlId, relpath);
         downloadArtifact(response, artifact);
     }
