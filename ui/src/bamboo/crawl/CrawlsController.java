@@ -212,7 +212,7 @@ public class CrawlsController {
 
     @GetMapping("/crawls/new")
     public String showNewForm(@RequestParam(value = "crawlSeries", defaultValue = "-1") long crawlSeriesId, Model model) {
-        model.addAttribute("allCrawlSeries", bamboo.serieses.listImportable());
+        model.addAttribute("allCrawlSeries", bamboo.serieses.listAll());
         model.addAttribute("selectedCrawlSeriesId", crawlSeriesId);
         return "crawls/new";
     }
