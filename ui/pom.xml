@@ -45,6 +45,7 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <spring.version>2.2.0.RELEASE</spring.version>
+        <doss.version>1.6.3</doss.version>
     </properties>
 
     <dependencies>
@@ -250,17 +251,17 @@
         <dependency>
             <groupId>au.gov.nla</groupId>
             <artifactId>doss-http</artifactId>
-            <version>1.6.2</version>
+            <version>${doss.version}</version>
         </dependency>
         <dependency>
             <groupId>au.gov.nla</groupId>
             <artifactId>doss-trivial</artifactId>
-            <version>1.6.2</version>
+            <version>${doss.version}</version>
         </dependency>
         <dependency>
             <groupId>au.gov.nla</groupId>
             <artifactId>doss-local</artifactId>
-            <version>1.6.2</version>
+            <version>${doss.version}</version>
         </dependency>
 
         <dependency>
