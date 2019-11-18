@@ -35,9 +35,15 @@ public class Application {
             }
         }
 
-        copyEnvToProperty("OIDC_URL", "spring.security.oauth2.client.provider.oidc.issuer-uri");
-        copyEnvToProperty("OIDC_CLIENT_ID", "spring.security.oauth2.client.registration.oidc.client-id");
-        copyEnvToProperty("OIDC_CLIENT_SECRET", "spring.security.oauth2.client.registration.oidc.client-secret");
+        if (System.getenv("LOGIN_OIDC_URL") != null) {
+            copyEnvToProperty("LOGIN_OIDC_URL", "spring.security.oauth2.client.provider.oidc.issuer-uri");
+            copyEnvToProperty("LOGIN_OIDC_CLIENT_ID", "spring.security.oauth2.client.registration.oidc.client-id");
+            copyEnvToProperty("LOGIN_OIDC_CLIENT_SECRET", "spring.security.oauth2.client.registration.oidc.client-secret");
+        } else {
+            copyEnvToProperty("OIDC_URL", "spring.security.oauth2.client.provider.oidc.issuer-uri");
+            copyEnvToProperty("OIDC_CLIENT_ID", "spring.security.oauth2.client.registration.oidc.client-id");
+            copyEnvToProperty("OIDC_CLIENT_SECRET", "spring.security.oauth2.client.registration.oidc.client-secret");
+        }
 
         SpringApplication.run(Application.class, args);
     }
