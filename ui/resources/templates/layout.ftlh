@@ -39,6 +39,16 @@
                 -->
                 <li><a href="http://dl.nla.gov.au/agwa/stayback">Access Control</a></li>
                 <li [#if requestContext.requestUri?starts_with("/tasks")]class="active"[/#if]><a href="tasks">Task Manager</a></li>
+                [#if auth.hasRole("ROLE_USER")]
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">${auth.username} <span class="caret"></span></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="logout">Sign Out</a></li>
+                        </ul>
+                    </li>
+                [#else]
+                    <li><a href="login">Sign In</a></li>
+                [/#if]
             </ul>
         </div>
     </div>
