@@ -14,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -70,6 +71,7 @@ public class WebTest {
     }
 
     @Test
+    @WithMockUser(username = "mockuser")
     public void testSeries() throws Exception {
         mockMvc.perform(get("/series")).andExpect(status().isOk());
         mockMvc.perform(get("/series/new")).andExpect(status().isOk());
@@ -90,6 +92,12 @@ public class WebTest {
         mockMvc.perform(get(testSeries))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("new description")));
+        long seriesId = Long.parseLong(testSeries.replaceFirst(".*/", ""));
+        Series series = bamboo.serieses.get(seriesId);
+        assertNotNull(series.getCreated());
+        assertNotNull(series.getModifier());
+        assertEquals("mockuser", series.getCreator());
+        assertEquals("mockuser", series.getModifier());
     }
 
     @Test

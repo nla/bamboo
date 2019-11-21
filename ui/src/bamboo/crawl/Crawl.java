@@ -25,6 +25,10 @@ public class Crawl {
     private Date startTime;
     private Date endTime;
     private Long pandasInstanceId;
+	private String creator;
+	private Date created;
+	private String modifier;
+	private Date modified;
 
 	public Crawl() {
 	}
@@ -47,6 +51,10 @@ public class Crawl {
         setStartTime((Date)rs.getObject("start_time"));
         setEndTime((Date)rs.getObject("end_time"));
         setPandasInstanceId((Long)rs.getObject("pandas_instance_id"));
+		setCreator(rs.getString("creator"));
+		setCreated(rs.getDate("created"));
+		setModifier(rs.getString("modifier"));
+		setModified(rs.getDate("modified"));
     }
 
     private static final String[] STATE_NAMES = {"Archived", "Importing", "Import Failed"};
@@ -173,5 +181,41 @@ public class Crawl {
 
 	public void setPandasInstanceId(Long pandasInstanceId) {
 		this.pandasInstanceId = pandasInstanceId;
+	}
+
+	public String getCreator() {
+		return creator;
+	}
+
+	public Crawl setCreator(String creator) {
+		this.creator = creator;
+		return this;
+	}
+
+	public Date getCreated() {
+		return created;
+	}
+
+	public Crawl setCreated(Date created) {
+		this.created = created;
+		return this;
+	}
+
+	public String getModifier() {
+		return modifier;
+	}
+
+	public Crawl setModifier(String modifier) {
+		this.modifier = modifier;
+		return this;
+	}
+
+	public Date getModified() {
+		return modified;
+	}
+
+	public Crawl setModified(Date modified) {
+		this.modified = modified;
+		return this;
 	}
 }

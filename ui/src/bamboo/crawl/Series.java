@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Date;
 
 public class Series {
     private long id;
@@ -14,6 +15,10 @@ public class Series {
     private long records;
     private long recordBytes;
     private String description;
+    private String creator;
+    private Date created;
+    private String modifier;
+    private Date modified;
 
     public Series() {
     }
@@ -27,6 +32,10 @@ public class Series {
         setRecords(rs.getLong("records"));
         setRecordBytes(rs.getLong("record_bytes"));
         setDescription(rs.getString("description"));
+        setCreator(rs.getString("creator"));
+        setCreated(rs.getDate("created"));
+        setModifier(rs.getString("modifier"));
+        setModified(rs.getDate("modified"));
     }
 
     private static Path maybePath(String path) {
@@ -95,5 +104,41 @@ public class Series {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getCreator() {
+        return creator;
+    }
+
+    public Series setCreator(String creator) {
+        this.creator = creator;
+        return this;
+    }
+
+    public Date getCreated() {
+        return created;
+    }
+
+    public Series setCreated(Date created) {
+        this.created = created;
+        return this;
+    }
+
+    public String getModifier() {
+        return modifier;
+    }
+
+    public Series setModifier(String modifier) {
+        this.modifier = modifier;
+        return this;
+    }
+
+    public Date getModified() {
+        return modified;
+    }
+
+    public Series setModified(Date modified) {
+        this.modified = modified;
+        return this;
     }
 }

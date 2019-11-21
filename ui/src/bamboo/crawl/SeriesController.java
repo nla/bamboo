@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletRequest;
+import java.security.Principal;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
@@ -39,7 +40,7 @@ public class SeriesController {
     }
 
     @PostMapping("/series/new")
-    String createSeries(Series series) {
+    String createSeries(Series series, Principal principal) {
         long seriesId = wa.serieses.create(series);
         return "redirect:/series/" + seriesId;
     }

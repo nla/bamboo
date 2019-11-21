@@ -60,12 +60,12 @@ public interface SeriesDAO {
     @SqlUpdate("UPDATE crawl_series SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCrawlSeries(@Bind("id") long crawlSeriesId, @Bind("records") long records, @Bind("bytes") long bytes);
 
-    @SqlUpdate("INSERT INTO crawl_series (name, path, description) VALUES (:name, :path, :description)")
+    @SqlUpdate("INSERT INTO crawl_series (name, path, description, creator) VALUES (:name, :path, :description, :creator)")
     @GetGeneratedKeys
-    long createCrawlSeries(@Bind("name") String name, @Bind("path") Path path, @Bind("description") String description);
+    long createCrawlSeries(@Bind("name") String name, @Bind("path") Path path, @Bind("description") String description, @Bind("creator") String creator);
 
-    @SqlUpdate("UPDATE crawl_series SET name = :name, path = :path, description = :description WHERE id = :id")
-    int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path, @Bind("description") String description);
+    @SqlUpdate("UPDATE crawl_series SET name = :name, path = :path, description = :description, modifier = :modifier, modified = NOW() WHERE id = :id")
+    int updateCrawlSeries(@Bind("id") long seriesId, @Bind("name") String name, @Bind("path") String path, @Bind("description") String description, @Bind("modifier") String modifier);
 
     @SqlUpdate("UPDATE crawl_series SET warc_files = (SELECT COALESCE(SUM(warc_files), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), warc_size = (SELECT COALESCE(SUM(warc_size), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), records = (SELECT COALESCE(SUM(records), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id), record_bytes = (SELECT COALESCE(SUM(record_bytes), 0) FROM crawl WHERE crawl.crawl_series_id = crawl_series.id)")
     int recalculateWarcStats();

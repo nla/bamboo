@@ -1,5 +1,6 @@
 package bamboo.crawl;
 
+import bamboo.AuthHelper;
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
 import doss.Blob;
@@ -47,7 +48,7 @@ public class Crawls {
     }
 
     public long importHeritrixCrawl(String jobName, Long crawlSeriesId) {
-        long crawlId = dao.createCrawl(jobName, crawlSeriesId, Crawl.IMPORTING);
+        long crawlId = dao.createCrawl(jobName, crawlSeriesId, Crawl.IMPORTING, AuthHelper.currentUser());
         notifyStateChanged(crawlId, Crawl.IMPORTING);
         return crawlId;
     }
@@ -67,6 +68,7 @@ public class Crawls {
     }
 
     private long create(Crawl metadata, List<Warc> warcs) {
+        metadata.setCreator(AuthHelper.currentUser());
         long id = dao.inTransaction((dao1, ts) -> {
             long totalBytes = warcs.stream().mapToLong(Warc::getSize).sum();
             long crawlId = dao.createCrawl(metadata);
@@ -163,7 +165,7 @@ public class Crawls {
             description = null;
         }
 
-            int rows = dao.updateCrawl(crawlId, name, description);
+            int rows = dao.updateCrawl(crawlId, name, description, AuthHelper.currentUser());
             if (rows == 0) {
                 throw new NotFoundException("crawl", crawlId);
             }

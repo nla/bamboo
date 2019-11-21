@@ -40,15 +40,15 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     @CreateSqlObject
     WarcsDAO warcs();
 
-    @SqlUpdate("INSERT INTO crawl (name, crawl_series_id, state) VALUES (:name, :crawl_series_id, :state)")
+    @SqlUpdate("INSERT INTO crawl (name, crawl_series_id, state, creator) VALUES (:name, :crawl_series_id, :state, :creator)")
     @GetGeneratedKeys
-    long createCrawl(@Bind("name") String name, @Bind("crawl_series_id") Long crawlSeriesId, @Bind("state") int state);
+    long createCrawl(@Bind("name") String name, @Bind("crawl_series_id") Long crawlSeriesId, @Bind("state") int state, @Bind("creator") String creator);
 
     @SqlUpdate("INSERT INTO crawl (name, crawl_series_id, state, pandas_instance_id) VALUES (:name, :crawl_series_id, :state, :pandasInstanceId)")
     @GetGeneratedKeys
     long createPandasCrawlInternal(@Bind("name") String name, @Bind("crawl_series_id") Long crawlSeriesId, @Bind("state") int state, @Bind("pandasInstanceId") long pandasInstanceId);
 
-    @SqlUpdate("INSERT INTO crawl (name, crawl_series_id, state, pandas_instance_id) VALUES (:name, :crawlSeriesId, :state, :pandasInstanceId)")
+    @SqlUpdate("INSERT INTO crawl (name, crawl_series_id, state, pandas_instance_id, creator) VALUES (:name, :crawlSeriesId, :state, :pandasInstanceId, :creator)")
     @GetGeneratedKeys
     long createCrawl(@BindBean Crawl crawl);
 
@@ -70,8 +70,8 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     @SqlUpdate("UPDATE crawl SET state = :state WHERE id = :crawlId")
     int updateCrawlState(@Bind("crawlId") long crawlId, @Bind("state") int state);
 
-    @SqlUpdate("UPDATE crawl SET name = :name, description = :description WHERE id = :crawlId")
-    int updateCrawl(@Bind("crawlId") long crawlId, @Bind("name") String name, @Bind("description") String description);
+    @SqlUpdate("UPDATE crawl SET name = :name, description = :description, modifier = :modifier, modified = NOW() WHERE id = :crawlId")
+    int updateCrawl(@Bind("crawlId") long crawlId, @Bind("name") String name, @Bind("description") String description, @Bind("modifier") String modifier);
 
     @SqlUpdate("UPDATE crawl SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCrawl(@Bind("id") long crawlId, @Bind("records") long records, @Bind("bytes") long bytes);
