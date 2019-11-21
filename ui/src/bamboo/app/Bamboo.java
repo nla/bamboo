@@ -21,6 +21,8 @@ import doss.http.Credentials;
 import doss.http.HttpBlobStore;
 import doss.http.OAuthClientCredentials;
 import doss.trivial.TrivialBlobStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -29,6 +31,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class Bamboo implements AutoCloseable {
+    private static final Logger log = LoggerFactory.getLogger(Bamboo.class);
 
     public final Config config;
     private final DbPool dbPool;
@@ -91,9 +94,14 @@ public class Bamboo implements AutoCloseable {
 
         // task package
         taskManager.register(new Importer(config, crawls, lockManager));
-        cdxIndexer = new CdxIndexer(warcs, crawls, collections, lockManager, oidc);
-        taskManager.register(cdxIndexer);
-        taskManager.register(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
+        if (config.getCdxIndexerThreads() > 0) {
+            cdxIndexer = new CdxIndexer(warcs, crawls, collections, lockManager, oidc, config.getCdxIndexerThreads());
+            taskManager.register(cdxIndexer);
+            taskManager.register(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
+        } else {
+            log.warn("CDX indexing disabled (CDX_INDEXER_THREADS=0)");
+            cdxIndexer = null;
+        }
         if (runTasks) {
             taskManager.start();
         }
@@ -105,7 +113,7 @@ public class Bamboo implements AutoCloseable {
             pandas = null;
         }
 
-        System.out.println("Initialized Bamboo in " + (System.currentTimeMillis() - startTime) + "ms");
+        log.info("Initialized Bamboo in " + (System.currentTimeMillis() - startTime) + "ms");
     }
 
     public void close() {
@@ -118,7 +126,7 @@ public class Bamboo implements AutoCloseable {
     public boolean healthcheck(PrintWriter out) {
         boolean allOk = dbPool.healthcheck(out) &
                 warcs.healthcheck(out) &
-                cdxIndexer.healthcheck(out);
+                (cdxIndexer == null || cdxIndexer.healthcheck(out));
         if (allOk) {
             out.println("\nALL OK");
         }

@@ -41,21 +41,19 @@ public class CdxIndexer implements Runnable {
     private final Collections collections;
     private final LockManager lockManager;
     private final Oidc oidc;
+    private final int threads;
 
     public CdxIndexer(Warcs warcs, Crawls crawls, Collections collections, LockManager lockManager,
-                      Oidc oidc) {
+                      Oidc oidc, int threads) {
         this.warcs = warcs;
         this.crawls = crawls;
         this.collections = collections;
         this.lockManager = lockManager;
         this.oidc = oidc;
+        this.threads = threads;
     }
 
     public void run() {
-        if (getThreads() == 0) {
-            log.warn("CDX indexing disabled (CDX_INDEXER_THREADS == 0)");
-            return;
-        }
         List<Warc> candidates = warcs.findByState(Warc.IMPORTED, BATCH_SIZE);
         if (!candidates.isEmpty()) {
             indexWarcs(candidates);
@@ -63,7 +61,6 @@ public class CdxIndexer implements Runnable {
     }
 
     private void indexWarcs(List<Warc> candidates) {
-        int threads = getThreads();
         ExecutorService threadPool = Executors.newFixedThreadPool(threads);
         try {
             for (Warc warc : candidates) {
@@ -91,14 +88,6 @@ public class CdxIndexer implements Runnable {
         } finally {
             threadPool.shutdownNow();
         }
-    }
-
-    private int getThreads() {
-        int threads = Runtime.getRuntime().availableProcessors();
-        if (System.getenv("CDX_INDEXER_THREADS") != null) {
-            threads = Integer.parseInt(System.getenv("CDX_INDEXER_THREADS"));
-        }
-        return threads;
     }
 
     public RecordStats indexWarc(Warc warc) throws IOException {

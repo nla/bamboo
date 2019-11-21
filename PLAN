@@ -1,3 +1,9 @@
+- Permissions system and integration with PANDAS accounts.
+- Allow crawl series to be 'owned' by a PANDAS agency (PANDORA partner).
+- Search for crawls and crawl series.
+- WASAPI support to enable importing crawls from cloud services such as Webrecorder.io and Archive-It.
+- Represent PANDAS titles in some way (hierarchical crawl series?)
+- More useful crawl pages - perhaps using logtrix to build a summary from crawl logs
 
 - Manage indexer lifecycle
 - Archive to blobstore
