@@ -18,6 +18,14 @@ public class Config {
         return env.getOrDefault(name, defaultValue);
     }
 
+    public int getCdxIndexerThreads() {
+        String value = getEnv("CDX_INDEXER_THREADS", null);
+        if (value == null) {
+            return Runtime.getRuntime().availableProcessors();
+        }
+        return Integer.parseInt(value);
+    }
+
     public String getDbUser() {
         return getEnv("BAMBOO_DB_USER", "bamboo");
     }
