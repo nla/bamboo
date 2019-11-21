@@ -51,7 +51,7 @@ public class WarcsController {
             if (!Files.exists(root)) {
                 throw new RuntimeException("WARC_TEXT_CACHE not found: " + textCachePath);
             }
-            textCache = new TextCache(root, wa.warcs);
+            textCache = new TextCache(root, wa.warcs, wa.textExtractor);
         }
     }
 
@@ -199,8 +199,6 @@ public class WarcsController {
         }
     }
 
-    private static final TextExtractor extractor = new TextExtractor();
-
     static class CollectionMatcher {
         private final SurtFilter filter;
         final CollectionInfo info;
@@ -241,7 +239,6 @@ public class WarcsController {
 
     @GetMapping(value = "/warcs/{id}/text", produces = "application/json")
     public void showText(@PathVariable String id, HttpServletRequest request, HttpServletResponse response) throws IOException {
-        TextExtractor extractor = new TextExtractor();
 
         Warc warc = findWarc(id);
         Crawl crawl = wa.crawls.get(warc.getCrawlId());
@@ -262,7 +259,7 @@ public class WarcsController {
                 url = record.getHeader().getUrl();
                 if (url == null) continue;
                 try {
-                    Document doc = extractor.extract(record);
+                    Document doc = wa.textExtractor.extract(record);
                     populateCollectionInfo(collections, doc);
                     gson.toJson(doc, Document.class, writer);
                 } catch (TextExtractionException e) {

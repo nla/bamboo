@@ -32,6 +32,9 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -42,23 +45,32 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class TextExtractor {
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+
+public class TextExtractor implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(TextExtractor.class);
     static final int maxDocSize = 0x100000;
 
     public static final Pattern PANDORA_REGEX = Pattern.compile("http://pandora.nla.gov.au/pan/[0-9]+/[0-9-]+/([^/.]+\\.[^/]+/.*)");
     private final Parser parser;
+    private final Path logbackConfig;
 
     public TextExtractor() {
         try {
+            logbackConfig = Files.createTempFile("bamboo-tika-logback", ".xml");
+            try (InputStream stream = getClass().getResourceAsStream("/tika-logback.xml")) {
+                Files.copy(stream, logbackConfig, REPLACE_EXISTING);
+            }
+
             TikaConfig config = new TikaConfig(getClass().getResource("tika.xml"));
             ForkParser parser = new ForkParser(getClass().getClassLoader(), new AutoDetectParser(config));
-            parser.setJavaCommand(Arrays.asList("java", "-Xmx512m"));
+            parser.setJavaCommand(Arrays.asList("java", "-Xmx512m", "-Dlogback.configurationFile=" + logbackConfig));
             if (System.getenv("TIKA_POOL_SIZE") != null) {
                 parser.setPoolSize(Integer.parseInt(System.getenv("TIKA_POOL_SIZE")));
             }
             this.parser = parser;
         } catch (Exception e) {
+            close();
             throw new RuntimeException("Error configuring tika via tika.xml", e);
         }
     }
@@ -289,8 +301,9 @@ public class TextExtractor {
     }
 
     public static void extract(ArchiveReader reader, OutputStream out) throws IOException {
-        TextExtractor extractor = new TextExtractor();
-        extractor.extractAll(reader, out);
+        try (TextExtractor extractor = new TextExtractor()) {
+            extractor.extractAll(reader, out);
+        }
     }
 
     void extractAll(ArchiveReader reader, OutputStream out) throws IOException {
@@ -316,6 +329,17 @@ public class TextExtractor {
     public static void main(String[] args) throws IOException {
         try (ArchiveReader reader = ArchiveReaderFactory.get(args[0])) {
             extract(reader, System.out);
+        }
+    }
+
+    @Override
+    public void close(){
+        if (logbackConfig != null) {
+            try {
+                Files.deleteIfExists(logbackConfig);
+            } catch (IOException e) {
+                log.warn("Unable to cleanup " + logbackConfig, e);
+            }
         }
     }
 }

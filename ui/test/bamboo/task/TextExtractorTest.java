@@ -1,5 +1,8 @@
 package bamboo.task;
 
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -11,11 +14,23 @@ import static org.junit.Assert.assertEquals;
 
 public class TextExtractorTest {
 
+    private static TextExtractor textExtractor;
+
+    @BeforeClass
+    public static void setup() {
+        textExtractor = new TextExtractor();
+    }
+
+    @AfterClass
+    public static void teardown() {
+        textExtractor.close();
+    }
+
     @Test
     public void textExtractPdfBox() throws IOException, TextExtractionException {
         Document doc = new Document();
         try (InputStream stream = getClass().getResourceAsStream("example.pdf")) {
-            new TextExtractor().extractTika(stream, doc,  URI.create("http://example.net/subdir/example.pdf"));
+            textExtractor.extractTika(stream, doc,  URI.create("http://example.net/subdir/example.pdf"));
         }
         assertEquals("The title of a test PDF This is a test PDF file. It was created by LibreOffice. The title of a test PDF", doc.getText());
         assertEquals("The title field in the metadata", doc.getTitle());
@@ -27,7 +42,7 @@ public class TextExtractorTest {
     public void textExtractTika() throws IOException, TextExtractionException {
         Document doc = new Document();
         try (InputStream stream = getClass().getResourceAsStream("example.odt")) {
-            new TextExtractor().extractTika(stream, doc, URI.create("http://example.net/subdir/example.odt"));
+            textExtractor.extractTika(stream, doc, URI.create("http://example.net/subdir/example.odt"));
         }
         assertEquals("Visible title\n" +
                 "This is an example.", doc.getText());
@@ -38,7 +53,7 @@ public class TextExtractorTest {
     public void textExtractBadTitle() throws IOException, TextExtractionException {
         Document doc = new Document();
         try (InputStream stream = getClass().getResourceAsStream("badtitle.html")) {
-            new TextExtractor().extractTika(stream, doc, URI.create("http://example.net/subdir/badtitle.html"));
+            textExtractor.extractTika(stream, doc, URI.create("http://example.net/subdir/badtitle.html"));
         }
         assertEquals("Ministerial Decision and Recommendations: New South Wales Ocean Trawl Fishery", doc.getTitle());
         assertEquals("Heading one!" +

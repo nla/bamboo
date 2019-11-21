@@ -23,10 +23,12 @@ public class TextCache {
     private static final Logger log = LoggerFactory.getLogger(CdxCache.class);
     private final Path root;
     private Warcs warcs;
+    private final TextExtractor extractor;
 
-    public TextCache(Path root, Warcs warcs) {
+    public TextCache(Path root, Warcs warcs, TextExtractor textExtractor) {
         this.root = root;
         this.warcs = warcs;
+        extractor = textExtractor;
     }
 
     private Path entryPath(long warcId) {
@@ -38,7 +40,6 @@ public class TextCache {
     }
 
     void populate(Warc warc) throws IOException {
-        TextExtractor extractor = new TextExtractor();
         Path path = entryPath(warc.getId());
         if (Files.exists(path)) {
             return;

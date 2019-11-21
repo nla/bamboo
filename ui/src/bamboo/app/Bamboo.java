@@ -10,10 +10,7 @@ import bamboo.crawl.Serieses;
 import bamboo.crawl.Warcs;
 import bamboo.pandas.Pandas;
 import bamboo.seedlist.Seedlists;
-import bamboo.task.CdxIndexer;
-import bamboo.task.Importer;
-import bamboo.task.TaskManager;
-import bamboo.task.WatchImporter;
+import bamboo.task.*;
 import bamboo.util.Oidc;
 import doss.BlobStore;
 import doss.DOSS;
@@ -48,6 +45,7 @@ public class Bamboo implements AutoCloseable {
     public final TaskManager taskManager;
     public final CdxIndexer cdxIndexer;
     private final LockManager lockManager;
+    public final TextExtractor textExtractor;
 
     public Bamboo(Config config, boolean runTasks) throws IOException {
         long startTime = System.currentTimeMillis();
@@ -80,6 +78,7 @@ public class Bamboo implements AutoCloseable {
         dbPool.migrate();
         dao = dbPool.dao();
 
+        textExtractor = new TextExtractor();
         this.taskManager = new TaskManager(dao.tasks());
         this.lockManager = new LockManager(dao.lockManager());
 
@@ -121,6 +120,7 @@ public class Bamboo implements AutoCloseable {
         dbPool.close();
         pandas.close();
         lockManager.close();
+        textExtractor.close();
     }
 
     public boolean healthcheck(PrintWriter out) {

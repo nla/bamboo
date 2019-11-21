@@ -10,9 +10,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.List;
 
 public class CLI {
     public static void usage() {
@@ -33,77 +30,77 @@ public class CLI {
     }
 
     public static void main(String[] args) throws IOException {
-        Bamboo bamboo = new Bamboo(new Config(System.getenv()), false);
         if (args.length == 0) {
             usage();
             return;
         }
-        switch (args[0]) {
-            case "import-pandas-all":
-                checkPandasIntegration(bamboo);
-                bamboo.pandas.importAllInstances(Long.parseLong(args[1]));
-                break;
-            case "import-pandas":
-                checkPandasIntegration(bamboo);
-                bamboo.pandas.importAllInstances(Long.parseLong(args[1]), args[2]);
-                break;
-            case "import-pandas-instance":
-                checkPandasIntegration(bamboo);
-                bamboo.pandas.importInstanceIfNotExists(Long.parseLong(args[2]), Long.parseLong(args[1]));
-                break;
-            case "import":
-                bamboo.crawls.importHeritrixCrawl(args[1], Long.parseLong(args[2]));
-                break;
-            case "insert-warc":
-                long crawlId = Long.parseLong(args[1]);
-                for (int i = 2; i < args.length; i++) {
-                    Path path = Paths.get(args[i]);
-                    if (!Files.exists(path)) {
-                        System.err.println("File not found: " + path);
-                        System.exit(1);
+        try (Bamboo bamboo = new Bamboo(new Config(System.getenv()), false)) {
+            switch (args[0]) {
+                case "import-pandas-all":
+                    checkPandasIntegration(bamboo);
+                    bamboo.pandas.importAllInstances(Long.parseLong(args[1]));
+                    break;
+                case "import-pandas":
+                    checkPandasIntegration(bamboo);
+                    bamboo.pandas.importAllInstances(Long.parseLong(args[1]), args[2]);
+                    break;
+                case "import-pandas-instance":
+                    checkPandasIntegration(bamboo);
+                    bamboo.pandas.importInstanceIfNotExists(Long.parseLong(args[2]), Long.parseLong(args[1]));
+                    break;
+                case "import":
+                    bamboo.crawls.importHeritrixCrawl(args[1], Long.parseLong(args[2]));
+                    break;
+                case "insert-warc":
+                    long crawlId = Long.parseLong(args[1]);
+                    for (int i = 2; i < args.length; i++) {
+                        Path path = Paths.get(args[i]);
+                        if (!Files.exists(path)) {
+                            System.err.println("File not found: " + path);
+                            System.exit(1);
+                        }
+                        long size = Files.size(path);
+                        String digest = Scrub.calculateDigest("SHA-256", path);
+                        bamboo.warcs.create(crawlId, Warc.IMPORTED, path, path.getFileName().toString(), size, digest);
                     }
-                    long size = Files.size(path);
-                    String digest = Scrub.calculateDigest("SHA-256", path);
-                    bamboo.warcs.create(crawlId, Warc.IMPORTED, path, path.getFileName().toString(), size, digest);
-                }
-                break;
-            case "recalculate-warc-stats":
-                System.out.println("Recalculating WARC stats for crawls");
-                bamboo.crawls.recalculateWarcStats();
-                System.out.println("Recalculating WARC stats for serieses");
-                bamboo.serieses.recalculateWarcStats();
-                break;
+                    break;
+                case "recalculate-warc-stats":
+                    System.out.println("Recalculating WARC stats for crawls");
+                    bamboo.crawls.recalculateWarcStats();
+                    System.out.println("Recalculating WARC stats for serieses");
+                    bamboo.serieses.recalculateWarcStats();
+                    break;
 
-            case "build-cdx-cache": {
-                long startId = -1;
-                long endId = Long.MAX_VALUE;
-                if (args.length > 2) {
-                    startId = Long.parseLong(args[2]);
-                    if (args.length > 3) {
-                        endId = Long.parseLong(args[3]);
+                case "build-cdx-cache": {
+                    long startId = -1;
+                    long endId = Long.MAX_VALUE;
+                    if (args.length > 2) {
+                        startId = Long.parseLong(args[2]);
+                        if (args.length > 3) {
+                            endId = Long.parseLong(args[3]);
+                        }
                     }
+                    new CdxCache(Paths.get(args[1]), bamboo.warcs).populateAll(startId, endId);
+                    break;
                 }
-                new CdxCache(Paths.get(args[1]), bamboo.warcs).populateAll(startId, endId);
-                break;
-            }
 
-            case "build-text-cache": {
-                long startId = -1;
-                long endId = Long.MAX_VALUE;
-                if (args.length > 2) {
-                    startId = Long.parseLong(args[2]);
-                    if (args.length > 3) {
-                        endId = Long.parseLong(args[3]);
+                case "build-text-cache": {
+                    long startId = -1;
+                    long endId = Long.MAX_VALUE;
+                    if (args.length > 2) {
+                        startId = Long.parseLong(args[2]);
+                        if (args.length > 3) {
+                            endId = Long.parseLong(args[3]);
+                        }
                     }
+                    new TextCache(Paths.get(args[1]), bamboo.warcs, bamboo.textExtractor).populateAll(startId, endId);
+                    break;
                 }
-                new TextCache(Paths.get(args[1]), bamboo.warcs).populateAll(startId, endId);
-                break;
-            }
 
-            case "build-text-cache-series": {
-                new TextCache(Paths.get(args[1]), bamboo.warcs).populateSeries(Long.parseLong(args[2]));
-                break;
-            }
+                case "build-text-cache-series": {
+                    new TextCache(Paths.get(args[1]), bamboo.warcs, bamboo.textExtractor).populateSeries(Long.parseLong(args[2]));
+                    break;
+                }
 
             /* FIXME: restore these
             case "cdx-indexer":
@@ -122,8 +119,9 @@ public class CLI {
                 Scrub.scrub(bamboo);
                 break;
             */
-            default:
-                usage();
+                default:
+                    usage();
+            }
         }
     }
 

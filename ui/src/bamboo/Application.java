@@ -55,7 +55,7 @@ public class Application {
         }
     }
 
-    @Bean
+    @Bean(destroyMethod = "close")
     public Bamboo getBamboo() throws IOException {
         return new Bamboo(new Config(System.getenv()), true);
     }

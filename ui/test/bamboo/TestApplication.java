@@ -16,7 +16,7 @@ public class TestApplication {
         SpringApplication.run(Application.class, args);
     }
 
-    @Bean
+    @Bean(destroyMethod = "close")
     public Bamboo getBamboo() throws IOException {
         return new Bamboo(new TestConfig(), false);
     }
