@@ -235,11 +235,9 @@ public class WarcsController {
             writer.flush();
             return true;
         } catch (EOFException e) {
-            if (e.getMessage().contains("ZLIB input stream")) {
-                log.warn("Deleting corrupt cache entry {}", file);
-                Files.deleteIfExists(file);
-                // we can't meaningfully recover in this situation so bail and hope the client retries
-            }
+            log.error("Deleting corrupt cache entry {}", file);
+            Files.deleteIfExists(file);
+            // we can't meaningfully recover in this situation so bail and hope the client retries
             throw e;
         }
     }
