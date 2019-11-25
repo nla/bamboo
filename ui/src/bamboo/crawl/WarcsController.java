@@ -7,6 +7,7 @@ import bamboo.util.SurtFilter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import org.apache.commons.io.output.TeeOutputStream;
@@ -234,7 +235,7 @@ public class WarcsController {
             writer.endArray();
             writer.flush();
             return true;
-        } catch (EOFException e) {
+        } catch (JsonSyntaxException e) {
             log.error("Deleting corrupt cache entry {}", file);
             Files.deleteIfExists(file);
             // we can't meaningfully recover in this situation so bail and hope the client retries
