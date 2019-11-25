@@ -9,6 +9,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import org.apache.commons.io.output.TeeOutputStream;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
 import org.archive.url.SURT;
@@ -23,9 +24,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -35,6 +34,7 @@ import java.util.zip.GZIPInputStream;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.file.StandardOpenOption.*;
 
 @Controller
 public class WarcsController {
@@ -234,6 +234,13 @@ public class WarcsController {
             writer.endArray();
             writer.flush();
             return true;
+        } catch (EOFException e) {
+            if (e.getMessage().contains("ZLIB input stream")) {
+                log.warn("Deleting corrupt cache entry {}", file);
+                Files.deleteIfExists(file);
+                // we can't meaningfully recover in this situation so bail and hope the client retries
+            }
+            throw e;
         }
     }
 
@@ -250,7 +257,19 @@ public class WarcsController {
         }
 
         response.setContentType("application/json");
-        OutputStreamWriter streamWriter = new OutputStreamWriter(response.getOutputStream(), UTF_8);
+
+        OutputStream out = response.getOutputStream();
+        Path cachePath = null;
+        Path tmpCachePath = null;
+        OutputStream cacheStream = null;
+        if (textCache != null) {
+            cachePath = textCache.entryPath(warc.getId());
+            tmpCachePath = Paths.get(cachePath.toString() + ".tmp");
+            cacheStream = Files.newOutputStream(tmpCachePath, WRITE, CREATE, TRUNCATE_EXISTING);
+            out = new TeeOutputStream(out, cacheStream);
+        }
+
+        OutputStreamWriter streamWriter = new OutputStreamWriter(out, UTF_8);
         String url = null;
         try (ArchiveReader reader = wa.warcs.openReader(warc)) {
             JsonWriter writer = gson.newJsonWriter(streamWriter);
@@ -268,6 +287,12 @@ public class WarcsController {
             }
             writer.endArray();
             writer.flush();
+
+            if (tmpCachePath != null) {
+                cacheStream.close();
+                cacheStream = null;
+                Files.move(tmpCachePath, cachePath, StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (Exception | StackOverflowError e) {
             String message = "Text extraction failed. warcId=" + warc.getId() + " path=" + warc.getPath() + " recordUrl=" + url;
             log.error(message, e);
@@ -275,6 +300,8 @@ public class WarcsController {
             e.printStackTrace(new PrintWriter(streamWriter));
         } finally {
             streamWriter.close(); // ensure output stream always closed to avoid gzip issues
+            if (cacheStream != null) cacheStream.close();
+            if (tmpCachePath != null) Files.deleteIfExists(tmpCachePath);
         }
     }
 

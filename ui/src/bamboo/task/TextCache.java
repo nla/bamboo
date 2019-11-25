@@ -31,7 +31,7 @@ public class TextCache {
         extractor = textExtractor;
     }
 
-    private Path entryPath(long warcId) {
+    public Path entryPath(long warcId) {
         String dirs = "";
         for (long x = warcId / 1000; x > 0; x /= 1000) {
             dirs = String.format("%03d/%s", x % 1000, dirs);
