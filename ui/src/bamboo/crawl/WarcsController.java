@@ -265,6 +265,7 @@ public class WarcsController {
         if (textCache != null) {
             cachePath = textCache.entryPath(warc.getId());
             tmpCachePath = Paths.get(cachePath.toString() + ".tmp");
+            Files.createDirectories(tmpCachePath.getParent());
             cacheStream = new GZIPOutputStream(Files.newOutputStream(tmpCachePath, WRITE, CREATE, TRUNCATE_EXISTING), 8192);
             out = new TeeOutputStream(out, cacheStream);
         }
