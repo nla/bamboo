@@ -32,6 +32,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -264,7 +265,7 @@ public class WarcsController {
         if (textCache != null) {
             cachePath = textCache.entryPath(warc.getId());
             tmpCachePath = Paths.get(cachePath.toString() + ".tmp");
-            cacheStream = Files.newOutputStream(tmpCachePath, WRITE, CREATE, TRUNCATE_EXISTING);
+            cacheStream = new GZIPOutputStream(Files.newOutputStream(tmpCachePath, WRITE, CREATE, TRUNCATE_EXISTING), 8192);
             out = new TeeOutputStream(out, cacheStream);
         }
 
