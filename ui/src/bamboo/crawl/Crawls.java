@@ -19,8 +19,10 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.Collection;
+import java.util.Collections;
 
 public class Crawls {
     private final CrawlsDAO dao;
@@ -64,10 +66,10 @@ public class Crawls {
             warcs.add(Warcs.fromFile(path));
         }
 
-        return create(metadata, warcs);
+        return create(metadata, warcs, Collections.emptyList());
     }
 
-    private long create(Crawl metadata, List<Warc> warcs) {
+    private long create(Crawl metadata, List<Warc> warcs, List<Artifact> artifacts) {
         metadata.setCreator(AuthHelper.currentUser());
         long id = dao.inTransaction((dao1, ts) -> {
             long totalBytes = warcs.stream().mapToLong(Warc::getSize).sum();
@@ -76,6 +78,7 @@ public class Crawls {
             int warcFilesDelta = warcs.size();
             dao.warcs().incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, totalBytes);
             dao.warcs().incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, totalBytes);
+            dao.batchInsertArtifacts(crawlId, artifacts.iterator());
             return crawlId;
         });
         notifyStateChanged(id, Crawl.ARCHIVED);
@@ -97,13 +100,26 @@ public class Crawls {
         }
     }
 
-    public long create(Crawl crawl, MultipartFile[] warcFiles) throws IOException {
+    public long create(Crawl crawl, MultipartFile[] warcFiles, MultipartFile[] artifactFiles) throws IOException {
         try (BlobTx tx = blobStore.begin()) {
             List<Warc> warcs = storeWarcs(tx, warcFiles);
-            long crawlId = create(crawl, warcs);
+            List<Artifact> artifacts = storeArtifacts(tx, artifactFiles);
+            long crawlId = create(crawl, warcs, artifacts);
             tx.commit();
             return crawlId;
         }
+    }
+
+    private List<Artifact> storeArtifacts(BlobTx tx, MultipartFile[] artifactFiles) throws IOException {
+        List<Artifact> artifacts = new ArrayList<>();
+        for (MultipartFile file: artifactFiles) {
+            if (file.isEmpty()) continue;
+
+            Blob blob = tx.put(writable(file));
+            Artifact artifact = new Artifact(blob, file.getOriginalFilename());
+            artifacts.add(artifact);
+        }
+        return artifacts;
     }
 
     private List<Warc> storeWarcs(BlobTx tx, MultipartFile[] warcFiles) throws IOException {
@@ -111,23 +127,27 @@ public class Crawls {
 
         for (MultipartFile warcFile: warcFiles) {
             if (warcFile.isEmpty()) continue; // blank form makes an empty file
-            Blob blob = tx.put(new SizedWritable() {
-                @Override
-                public void writeTo(WritableByteChannel writableByteChannel) throws IOException {
-                    try (InputStream stream = warcFile.getInputStream();
-                         OutputStream out = Channels.newOutputStream(writableByteChannel)) {
-                        IOUtils.copy(stream, out);
-                    }
-                }
-
-                @Override
-                public long size() {
-                    return warcFile.getSize();
-                }
-            });
+            Blob blob = tx.put(writable(warcFile));
             warcs.add(Warcs.fromBlob(blob, warcFile.getOriginalFilename()));
         }
         return warcs;
+    }
+
+    private SizedWritable writable(MultipartFile warcFile) {
+        return new SizedWritable() {
+            @Override
+            public void writeTo(WritableByteChannel writableByteChannel) throws IOException {
+                try (InputStream stream = warcFile.getInputStream();
+                     OutputStream out = Channels.newOutputStream(writableByteChannel)) {
+                    IOUtils.copy(stream, out);
+                }
+            }
+
+            @Override
+            public long size() {
+                return warcFile.getSize();
+            }
+        };
     }
 
 

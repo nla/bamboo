@@ -1,10 +1,7 @@
 package bamboo;
 
 import bamboo.app.Bamboo;
-import bamboo.crawl.Collection;
-import bamboo.crawl.Crawl;
-import bamboo.crawl.Series;
-import bamboo.crawl.Warc;
+import bamboo.crawl.*;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -116,10 +113,12 @@ public class WebTest {
         Crawl crawl;
         mockMvc.perform(get("/crawls/new")).andExpect(status().isOk());
         try (InputStream stream = getClass().getResourceAsStream("/bamboo/task/example.warc.gz");
-             InputStream stream2 = getClass().getResourceAsStream("/bamboo/task/notfound.warc.gz")) {
+             InputStream stream2 = getClass().getResourceAsStream("/bamboo/task/notfound.warc.gz");
+             InputStream crawlLogStream  = getClass().getResourceAsStream("/bamboo/task/crawl.log")) {
             String crawlPath = mockMvc.perform(multipart("/crawls/new")
                     .file(new MockMultipartFile("warcFile", "example.warc.gz", "application/warc", stream))
                     .file(new MockMultipartFile("warcFile", "notfound.warc.gz", "application/warc", stream2))
+                    .file(new MockMultipartFile("artifact", "crawl.log", "text/plain", crawlLogStream))
                     .param("name", "Test crawl")
                     .param("crawlSeriesId", Long.toString(seriesId)))
                     .andExpect(status().is3xxRedirection())
@@ -137,6 +136,11 @@ public class WebTest {
             assertNotEquals(warc.getBlobId(), warc2.getBlobId());
             assertEquals("notfound.warc.gz", warc2.getFilename());
             assertEquals("e2a9ca11af67b7724db65042611127a18e642c6870f052a5826ed6aa8adad872", warc2.getSha256());
+            List<Artifact> artifacts = bamboo.crawls.listArtifacts(crawlId);
+            assertEquals(1, artifacts.size());
+            Artifact artifact = artifacts.get(0);
+            assertEquals("LOG", artifact.getType());
+            assertEquals("9841e00ddc894fc6456e668b032733e2390e580d5afb32f17ee37ad8331963c9", artifact.getSha256());
         }
 
         mockMvc.perform(get("/crawls")).andExpect(status().isOk());

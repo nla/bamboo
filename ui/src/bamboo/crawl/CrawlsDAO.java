@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -94,6 +95,9 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     @SqlUpdate("INSERT INTO artifact (crawl_id, type, path, size, sha256) VALUES (:crawl_id, :type, :path, :size, :sha256)")
     @GetGeneratedKeys
     long createArtifact(@Bind("crawl_id") long crawlId, @Bind("type") String type, @Bind("path") Path path, @Bind("size") long size, @Bind("sha256") String sha256);
+
+    @SqlBatch("INSERT INTO artifact (crawl_id, type, relpath, size, sha256, blob_id) VALUES (:crawlId, :artifact.type, :artifact.relpath, :artifact.size, :artifact.sha256, :artifact.blobId)")
+    void batchInsertArtifacts(@Bind("crawlId") long crawlId, @BindBean("artifact") Iterator<Artifact> artifacts);
 
     @SqlQuery("SELECT count(*) FROM artifact WHERE crawl_id = :crawlId")
     long getArtifactCount(@Bind("crawlId") long crawlId);

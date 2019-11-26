@@ -38,6 +38,11 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="artifact" class="col-lg-2 control-label">Other Crawl Artifacts</label>
+                    <input id="artifact" type="file" name="artifact" multiple>
+                </div>
+
+                <div class="form-group">
                     <div class="col-lg-10 col-lg-offset-2">
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                         [#if (selectedCrawlSeriesId!-1) != -1]

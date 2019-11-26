@@ -223,8 +223,10 @@ public class CrawlsController {
     }
 
     @PostMapping("/crawls/new")
-    public String create(Crawl crawl, @RequestPart("warcFile") MultipartFile[] warcFiles) throws IOException {
-        long crawlId = bamboo.crawls.create(crawl, warcFiles);
+    public String create(Crawl crawl,
+                         @RequestPart(value = "warcFile", required = false) MultipartFile[] warcFiles,
+                         @RequestPart(value = "artifact", required = false) MultipartFile[] artifacts) throws IOException {
+        long crawlId = bamboo.crawls.create(crawl, warcFiles, artifacts);
         return "redirect:/crawls/" + crawlId;
     }
 
