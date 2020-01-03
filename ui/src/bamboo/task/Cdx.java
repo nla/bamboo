@@ -13,8 +13,6 @@ import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,6 +39,7 @@ public class Cdx {
 
     static class CdxRecordProducer {
         final static Pattern PANDORA_URL_MAP = Pattern.compile("^http://pandora.nla.gov.au/pan/([0-9]+/[0-9-]+)/url.map$");
+        final static Pattern PANDORA_RECURSIVE_URL = Pattern.compile("^http://pandora.nla.gov.au/pan/([0-9]+/[0-9-]+)/pandora\\.nla\\.gov\\.au/pan/.*");
 
         private final PeekingIterator<ArchiveRecord> iterator;
         private final String filename;
@@ -75,9 +74,16 @@ public class Cdx {
 
                         // Generate alias records from PANDORA url.map if we encounter it.
                         if (url != null) {
+                            {
                             Matcher m = PANDORA_URL_MAP.matcher(url);
                             if (m.matches()) {
                                 urlMapIterator = parseUrlMap(record, m.group(1)).iterator();
+                                return next();
+                            }
+
+                            // skip recursive PANDORA URLs where we've accidentally archived our own archive as they
+                            // break delivery. eg nla.arc-24825-20140805-0714
+                            if (PANDORA_RECURSIVE_URL.matcher(url).matches()) {
                                 return next();
                             }
 
