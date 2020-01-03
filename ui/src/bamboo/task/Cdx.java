@@ -38,8 +38,8 @@ public class Cdx {
     }
 
     static class CdxRecordProducer {
-        final static Pattern PANDORA_URL_MAP = Pattern.compile("^http://pandora.nla.gov.au/pan/([0-9]+/[0-9-]+)/url.map$");
-        final static Pattern PANDORA_RECURSIVE_URL = Pattern.compile("^http://pandora.nla.gov.au/pan/([0-9]+/[0-9-]+)/pandora\\.nla\\.gov\\.au/pan/.*");
+        final static Pattern PANDORA_URL_MAP = Pattern.compile("^http://pandora\\.nla\\.gov\\.au/pan/([0-9]+/[0-9-]+)/url\\.map$");
+        final static Pattern PANDORA_RECURSIVE_URL = Pattern.compile("^http://pandora\\.nla\\.gov\\.au/pan/([0-9]+/[0-9-]+)/pandora\\.nla\\.gov\\.au/pan/.*");
 
         private final PeekingIterator<ArchiveRecord> iterator;
         private final String filename;
