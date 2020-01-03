@@ -74,7 +74,6 @@ public class Cdx {
 
                         // Generate alias records from PANDORA url.map if we encounter it.
                         if (url != null) {
-                            {
                             Matcher m = PANDORA_URL_MAP.matcher(url);
                             if (m.matches()) {
                                 urlMapIterator = parseUrlMap(record, m.group(1)).iterator();
