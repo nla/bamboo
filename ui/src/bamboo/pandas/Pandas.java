@@ -85,16 +85,16 @@ public class Pandas implements AutoCloseable {
         String dateTime = instance.date;
 
         tryImportArtifact(crawlId, "PANDAS1_ACCESS",   String.format("%s/access/arc1/%03d/%d/ac-ar1-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
-        tryImportArtifact(crawlId, "PANDAS1_PRESERVE", String.format("%s/access/arc1/%03d/%d/ps-ar1-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
-        tryImportArtifact(crawlId, "PANDAS1_MIME",     String.format("%s/access/arc1/%03d/%d/mi-ar1-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
+        tryImportArtifact(crawlId, "PANDAS1_PRESERVE", String.format("%s/preserve/arc1/%03d/%d/ps-ar1-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
+        tryImportArtifact(crawlId, "PANDAS1_MIME",     String.format("%s/mime/arc1/%03d/%d/mi-ar1-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
 
         tryImportArtifact(crawlId, "PANDAS2_ACCESS",   String.format("%s/access/arc2/%03d/%d/ac-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
-        tryImportArtifact(crawlId, "PANDAS2_PRESERVE", String.format("%s/access/arc2/%03d/%d/ps-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
-        tryImportArtifact(crawlId, "PANDAS2_MIME",     String.format("%s/access/arc2/%03d/%d/mi-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
+        tryImportArtifact(crawlId, "PANDAS2_PRESERVE", String.format("%s/preserve/arc2/%03d/%d/ps-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
+        tryImportArtifact(crawlId, "PANDAS2_MIME",     String.format("%s/mime/arc2/%03d/%d/mi-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
 
         tryImportArtifact(crawlId, "PANDAS3_ACCESS",   String.format("%s/access/arc3/%03d/%d/ac-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
-        tryImportArtifact(crawlId, "PANDAS3_PRESERVE", String.format("%s/access/arc3/%03d/%d/ps-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
-        tryImportArtifact(crawlId, "PANDAS3_MIME",     String.format("%s/access/arc3/%03d/%d/mi-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
+        tryImportArtifact(crawlId, "PANDAS3_PRESERVE", String.format("%s/preserve/arc3/%03d/%d/ps-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
+        tryImportArtifact(crawlId, "PANDAS3_MIME",     String.format("%s/mime/arc3/%03d/%d/mi-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
     }
 
     private void tryImportArtifact(long crawlId, String type, String pathStr) throws IOException {
