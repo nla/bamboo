@@ -16,6 +16,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class Pandas implements AutoCloseable {
     private final Crawls crawls;
@@ -77,13 +80,25 @@ public class Pandas implements AutoCloseable {
 
     public void importAllInstanceArtifacts() throws IOException {
         long lastId = -1;
-        while (true) {
-            List<Long> crawlIds = crawls.listPandasCrawlIds(lastId);
-            for (long crawlId: crawlIds) {
-                importInstanceArtifacts(crawlId);
+        ThreadPoolExecutor threadPool = new ThreadPoolExecutor(8, 8, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(32), new ThreadPoolExecutor.CallerRunsPolicy());
+        try {
+            while (true) {
+                List<Long> crawlIds = crawls.listPandasCrawlIds(lastId);
+                for (long crawlId : crawlIds) {
+                    threadPool.execute(() -> {
+                        try {
+                            importInstanceArtifacts(crawlId);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    });
+                }
+                if (crawlIds.isEmpty()) break;
+                lastId = crawlIds.get(crawlIds.size() - 1);
             }
-            if (crawlIds.isEmpty()) break;
-            lastId = crawlIds.get(crawlIds.size() - 1);
+
+        } finally {
+            threadPool.shutdown();
         }
     }
 
