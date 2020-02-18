@@ -92,9 +92,9 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     @SqlUpdate("UPDATE crawl SET warc_files = (SELECT COALESCE(COUNT(*), 0) FROM warc WHERE warc.crawl_id = crawl.id), warc_size = (SELECT COALESCE(SUM(size), 0) FROM warc WHERE warc.crawl_id = crawl.id), records = (SELECT COALESCE(SUM(records), 0) FROM warc WHERE warc.crawl_id = crawl.id), record_bytes = (SELECT COALESCE(SUM(record_bytes), 0) FROM warc WHERE warc.crawl_id = crawl.id)")
     int recalculateWarcStats();
 
-    @SqlUpdate("INSERT INTO artifact (crawl_id, type, path, size, sha256) VALUES (:crawl_id, :type, :path, :size, :sha256)")
+    @SqlUpdate("INSERT INTO artifact (crawl_id, type, path, size, sha256, relpath) VALUES (:crawl_id, :type, :path, :size, :sha256, :relpath)")
     @GetGeneratedKeys
-    long createArtifact(@Bind("crawl_id") long crawlId, @Bind("type") String type, @Bind("path") Path path, @Bind("size") long size, @Bind("sha256") String sha256);
+    long createArtifact(@Bind("crawl_id") long crawlId, @Bind("type") String type, @Bind("path") Path path, @Bind("size") long size, @Bind("sha256") String sha256, @Bind("relpath") String relpath);
 
     @SqlBatch("INSERT INTO artifact (crawl_id, type, relpath, size, sha256, blob_id) VALUES (:crawlId, :artifact.type, :artifact.relpath, :artifact.size, :artifact.sha256, :artifact.blobId)")
     void batchInsertArtifacts(@Bind("crawlId") long crawlId, @BindBean("artifact") Iterator<Artifact> artifacts);

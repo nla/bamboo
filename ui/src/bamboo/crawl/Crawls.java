@@ -285,8 +285,8 @@ public class Crawls {
         return dao.findCrawlByPandasInstanceId(instanceId);
     }
 
-    public void addArtifact(long crawlId, String type, Path path) throws IOException {
-        dao.createArtifact(crawlId, type, path, Files.size(path), Scrub.calculateDigest("SHA-256", path));
+    public void addArtifact(long crawlId, String type, Path path, String relpath) throws IOException {
+        dao.createArtifact(crawlId, type, path, Files.size(path), Scrub.calculateDigest("SHA-256", path), relpath);
     }
 
     public Artifact getArtifact(long artifactId) {
@@ -294,7 +294,11 @@ public class Crawls {
     }
 
     public Artifact getArtifactByRelpath(long crawlId, String path) {
-        return NotFoundException.check(dao.findArtifactByRelpath(crawlId, path), "artifact", 0);
+        return NotFoundException.check(getArtifactByRelpathOrNull(crawlId, path), "artifact", 0);
+    }
+
+    public Artifact getArtifactByRelpathOrNull(long crawlId, String path) {
+        return dao.findArtifactByRelpath(crawlId, path);
     }
 
     public InputStream openArtifactStream(Artifact artifact) throws IOException {

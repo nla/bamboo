@@ -103,8 +103,12 @@ public class Pandas implements AutoCloseable {
         if (!Files.exists(path)) {
             return;
         }
-
-        crawls.addArtifact(crawlId, type, path);
+        String relpath = path.getFileName().toString();
+        if (crawls.getArtifactByRelpathOrNull(crawlId, relpath) != null) {
+            return; // already imported
+        }
+        System.out.println("Crawl " + crawlId + " added artifact " + path);
+        crawls.addArtifact(crawlId, type, path, relpath);
     }
 
     public PandasComparison compareSeedlist(long seedlistId) {
