@@ -95,7 +95,7 @@ public class Pandas implements AutoCloseable {
 
         tryImportArtifact(crawlId, "PANDAS3_ACCESS",   String.format("%s/access/arc3/%03d/%d/ac-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
         tryImportArtifact(crawlId, "PANDAS3_PRESERVE", String.format("%s/access/arc3/%03d/%d/ps-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
-        tryImportArtifact(crawlId, "PADNAS3_MIME",     String.format("%s/access/arc3/%03d/%d/mi-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
+        tryImportArtifact(crawlId, "PANDAS3_MIME",     String.format("%s/access/arc3/%03d/%d/mi-ar2-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateTime));
     }
 
     private void tryImportArtifact(long crawlId, String type, String pathStr) throws IOException {
