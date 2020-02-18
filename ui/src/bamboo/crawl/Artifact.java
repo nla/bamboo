@@ -3,6 +3,8 @@ package bamboo.crawl;
 import doss.Blob;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -14,6 +16,7 @@ public class Artifact {
     private final String type;
     private final String sha256;
     private final Long blobId;
+    private final String path;
 
     public Artifact(ResultSet rs) throws SQLException {
         id = rs.getLong("id");
@@ -22,6 +25,7 @@ public class Artifact {
         type = rs.getString("type");
         sha256 = rs.getString("sha256");
         blobId = (Long) rs.getObject("blob_id");
+        path = rs.getString("path");
     }
 
     public Artifact(Blob blob, String relpath) throws IOException {
@@ -30,6 +34,7 @@ public class Artifact {
         type = typeFromFilename(relpath);
         blobId = blob.id();
         size = blob.size();
+        path = null;
         try {
             sha256 = blob.digest("SHA-256");
         } catch (NoSuchAlgorithmException e) {
@@ -59,6 +64,10 @@ public class Artifact {
 
     public Long getBlobId() {
         return blobId;
+    }
+
+    public Path getPath() {
+        return path == null ? null : Paths.get(path);
     }
 
     public String guessContentType() {

@@ -302,6 +302,12 @@ public class Crawls {
     }
 
     public InputStream openArtifactStream(Artifact artifact) throws IOException {
-        return blobStore.get(artifact.getBlobId()).openStream();
+        if (artifact.getBlobId() != null) {
+            return blobStore.get(artifact.getBlobId()).openStream();
+        } else if (artifact.getPath() != null) {
+            return Files.newInputStream(artifact.getPath());
+        } else {
+            throw new IOException("Artifact has neither blobId nor path!");
+        }
     }
 }
