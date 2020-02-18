@@ -65,6 +65,15 @@ public class CrawlsController {
         return "crawls/show";
     }
 
+    @GetMapping("/instances/{instanceId}")
+    String showByInstanceId(@PathVariable("instanceId") long instanceId) {
+        Crawl crawl = bamboo.crawls.getByPandasInstanceIdOrNull(instanceId);
+        if (crawl == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No crawl with instanceId " + instanceId);
+        }
+        return "redirect:/crawls/" + crawl.getId();
+    }
+
     @GetMapping("/crawls/{id}/edit")
     String edit(@PathVariable("id") long id, Model model) {
         Crawl crawl = bamboo.crawls.get(id);
