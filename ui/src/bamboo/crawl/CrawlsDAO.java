@@ -65,6 +65,9 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     @SqlQuery("SELECT * FROM crawl WHERE state = :state")
     List<Crawl> findCrawlsByState(@Bind("state") int state);
 
+    @SqlQuery("SELECT id FROM crawl WHERE pandas_instance_id IS NOT NULL AND id > :start ORDER BY id ASC LIMIT 100")
+    List<Long> listPandasCrawlIds(@Bind("start") long start);
+
     @SqlUpdate("UPDATE crawl SET path = :path WHERE id = :id")
     int updateCrawlPath(@Bind("id") long id, @Bind("path") String path);
 

@@ -310,4 +310,8 @@ public class Crawls {
             throw new IOException("Artifact has neither blobId nor path!");
         }
     }
+
+    public List<Long> listPandasCrawlIds(long start) {
+        return dao.listPandasCrawlIds(start);
+    }
 }

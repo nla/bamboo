@@ -75,6 +75,18 @@ public class Pandas implements AutoCloseable {
         return crawlId;
     }
 
+    public void importAllInstanceArtifacts() throws IOException {
+        long lastId = -1;
+        while (true) {
+            List<Long> crawlIds = crawls.listPandasCrawlIds(lastId);
+            for (long crawlId: crawlIds) {
+                importInstanceArtifacts(crawlId);
+            }
+            if (crawlIds.isEmpty()) break;
+            lastId = crawlIds.get(crawlIds.size() - 1);
+        }
+    }
+
     public void importInstanceArtifacts(long crawlId) throws IOException {
         Crawl crawl = crawls.get(crawlId);
         PandasInstance instance = dao.findInstance(crawl.getPandasInstanceId());

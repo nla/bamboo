@@ -27,6 +27,7 @@ public class CLI {
         System.out.println("  import-pandas-instance  <series-id> <instance-id>");
         System.out.println("  import-pandas-all  <series-id>     - Import all pandas instances");
         System.out.println("  import-pandas-artifacts <crawl-id> - Import pandas artifacts for given crawl id");
+        System.out.println("  import-pandas-artifacts-all        - Import artifacts for all pandas crawls");
         System.exit(1);
     }
 
@@ -105,6 +106,10 @@ public class CLI {
 
                 case "import-pandas-artifacts":
                     bamboo.pandas.importInstanceArtifacts(Long.parseLong(args[1]));
+                    break;
+
+                case "import-pandas-artifacts-all":
+                    bamboo.pandas.importAllInstanceArtifacts();
                     break;
 
 
