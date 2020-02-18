@@ -25,7 +25,8 @@ public class CLI {
         System.out.println("  server                           - Run web server");
         System.out.println("  watch-importer <crawl-id> <path> - Monitor path for new warcs, incrementally index them and then import them to crawl-id");
         System.out.println("  import-pandas-instance  <series-id> <instance-id>");
-        System.out.println("  import-pandas-all  <series-id>   - Import all pandas instances");
+        System.out.println("  import-pandas-all  <series-id>     - Import all pandas instances");
+        System.out.println("  import-pandas-artifacts <crawl-id> - Import pandas artifacts for given crawl id");
         System.exit(1);
     }
 
@@ -101,6 +102,11 @@ public class CLI {
                     new TextCache(Paths.get(args[1]), bamboo.warcs, bamboo.textExtractor).populateSeries(Long.parseLong(args[2]));
                     break;
                 }
+
+                case "import-pandas-artifacts":
+                    bamboo.pandas.importInstanceArtifacts(Long.parseLong(args[1]));
+                    break;
+
 
             /* FIXME: restore these
             case "cdx-indexer":
