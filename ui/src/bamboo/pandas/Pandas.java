@@ -101,6 +101,7 @@ public class Pandas implements AutoCloseable {
     private void tryImportArtifact(long crawlId, String type, String pathStr) throws IOException {
         Path path = Paths.get(pathStr);
         if (!Files.exists(path)) {
+            System.out.println("Doesn't exist: " + pathStr);
             return;
         }
         String relpath = path.getFileName().toString();
