@@ -81,9 +81,8 @@ public class Pandas implements AutoCloseable {
 
         String masterDir = "/sam/master/data/nla.arc";
 
-        String dateOnly = null;
-        String dateTime = null;
-
+        String dateOnly = instance.legacyDate();
+        String dateTime = instance.date;
 
         tryImportArtifact(crawlId, "PANDAS1_ACCESS",   String.format("%s/access/arc1/%03d/%d/ac-ar1-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));
         tryImportArtifact(crawlId, "PANDAS1_PRESERVE", String.format("%s/access/arc1/%03d/%d/ps-ar1-%d-%s.tgz", masterDir, instance.pi / 1000, instance.pi, instance.pi, dateOnly));

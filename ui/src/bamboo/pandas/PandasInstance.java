@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -64,6 +65,9 @@ public class PandasInstance {
 
     String panBaseUrl() {
         return "http://pandora.nla.gov.au/pan/" + pi + "/" + date + "/";
+    }
 
+    String legacyDate() {
+        return date.substring(0, 8);
     }
 }
