@@ -5,6 +5,7 @@ public class PandasAgency {
     String name;
     byte[] logo;
     String url;
+    private String abbreviation;
 
     public long getId() {
         return id;
@@ -36,5 +37,13 @@ public class PandasAgency {
 
     public void setUrl(String url) {
         this.url = url;
+    }
+
+    public String getAbbreviation() {
+        return abbreviation;
+    }
+
+    public void setAbbreviation(String abbreviation) {
+        this.abbreviation = abbreviation;
     }
 }

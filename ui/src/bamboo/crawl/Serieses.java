@@ -30,6 +30,10 @@ public class Serieses {
         return new Pager<>(page, dao.countCrawlSeries(), dao::paginateCrawlSeries);
     }
 
+    public Pager<SeriesDAO.CrawlSeriesWithCount> paginateForAgencyId(long agencyId, long page) {
+        return new Pager<>(page, dao.countCrawlSeriesForAgencyId(agencyId), (limit, offset) -> dao.paginateCrawlSeriesForAgencyId(agencyId, limit, offset));
+    }
+
     public long create(Series series) {
         return dao.createCrawlSeries(series.getName(), series.getPath(), series.getDescription(), AuthHelper.currentUser());
     }

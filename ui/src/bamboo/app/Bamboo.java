@@ -4,10 +4,7 @@ import bamboo.core.Config;
 import bamboo.core.DAO;
 import bamboo.core.DbPool;
 import bamboo.core.LockManager;
-import bamboo.crawl.Collections;
-import bamboo.crawl.Crawls;
-import bamboo.crawl.Serieses;
-import bamboo.crawl.Warcs;
+import bamboo.crawl.*;
 import bamboo.pandas.Pandas;
 import bamboo.seedlist.Seedlists;
 import bamboo.task.*;
@@ -35,6 +32,7 @@ public class Bamboo implements AutoCloseable {
     private final BlobStore blobStore;
     public final DAO dao;
 
+    public final Agencies agencies;
     public final Crawls crawls;
     public final Serieses serieses;
     public final Warcs warcs;
@@ -83,6 +81,7 @@ public class Bamboo implements AutoCloseable {
         this.lockManager = new LockManager(dao.lockManager());
 
         // crawl package
+        this.agencies = new Agencies(dao.agency());
         this.serieses = new Serieses(dao.serieses());
         this.warcs = new Warcs(dao.warcs(), blobStore, config.getWarcUrl());
         this.crawls = new Crawls(dao.crawls(), serieses, warcs, blobStore);
@@ -107,7 +106,8 @@ public class Bamboo implements AutoCloseable {
 
         // pandas package
         if (config.getPandasDbUrl() != null) {
-            pandas = new Pandas(config, crawls, seedlists);
+            pandas = new Pandas(config, crawls, seedlists, dao.agency());
+            pandas.syncAgencies();
         } else {
             pandas = null;
         }

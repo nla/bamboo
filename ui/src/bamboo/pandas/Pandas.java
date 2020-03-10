@@ -2,14 +2,11 @@ package bamboo.pandas;
 
 import bamboo.core.Config;
 import bamboo.core.NotFoundException;
+import bamboo.crawl.AgencyDAO;
 import bamboo.crawl.Crawl;
 import bamboo.crawl.Crawls;
 import bamboo.seedlist.Seedlists;
-import org.skife.jdbi.v2.DBI;
-import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.ResultIterator;
-import org.skife.jdbi.v2.logging.PrintStreamLog;
-import org.vibur.dbcp.ViburDBCPDataSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,18 +22,23 @@ public class Pandas implements AutoCloseable {
     private final PandasDAO dao;
     private final Seedlists seedlists;
     final PandasDB db;
+    private final AgencyDAO agencyDAO;
 
-    public Pandas(Config config, Crawls crawls, Seedlists seedlists) {
+    public Pandas(Config config, Crawls crawls, Seedlists seedlists, AgencyDAO agencyDAO) {
         this.db = new PandasDB(config);
         this.dao = db.dao;
         this.crawls = crawls;
         this.seedlists = seedlists;
+        this.agencyDAO = agencyDAO;
     }
 
     public PandasInstance getInstance(long instanceId) {
         return NotFoundException.check(dao.findInstance(instanceId), "pandas instance", instanceId);
     }
 
+    public void syncAgencies() {
+        agencyDAO.replaceAll(dao.listAgencies());
+    }
 
     public void importAllInstances(long seriesId) throws IOException {
         importAllInstances(seriesId, null);

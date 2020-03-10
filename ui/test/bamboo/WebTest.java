@@ -68,7 +68,7 @@ public class WebTest {
     }
 
     @Test
-    @WithMockUser(username = "mockuser")
+    @WithMockUser(username = "mockuser", roles = {"USER", "panadmin"})
     public void testSeries() throws Exception {
         mockMvc.perform(get("/series")).andExpect(status().isOk());
         mockMvc.perform(get("/series/new")).andExpect(status().isOk());

@@ -19,6 +19,7 @@ public class Series {
     private Date created;
     private String modifier;
     private Date modified;
+    private Integer agencyId;
 
     public Series() {
     }
@@ -36,6 +37,10 @@ public class Series {
         setCreated(rs.getDate("created"));
         setModifier(rs.getString("modifier"));
         setModified(rs.getDate("modified"));
+        setAgencyId(rs.getInt("agency_id"));
+        if (rs.wasNull()) {
+            setAgencyId(null);
+        }
     }
 
     private static Path maybePath(String path) {
@@ -140,5 +145,13 @@ public class Series {
     public Series setModified(Date modified) {
         this.modified = modified;
         return this;
+    }
+
+    public Integer getAgencyId() {
+        return agencyId;
+    }
+
+    public void setAgencyId(Integer agencyId) {
+        this.agencyId = agencyId;
     }
 }

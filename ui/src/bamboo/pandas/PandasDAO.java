@@ -50,10 +50,9 @@ interface PandasDAO extends Closeable {
     @MapResultAsBean
     List<PandasCollection> listCollections();
 
-    @SqlQuery("select AGENCY_ID id, NAME name, LOGO logo, ORGANISATION.NAME name, ORGANISATION.URL url from agency left join organisation on ORGANISATION.ORGANISATION_ID = AGENCY.ORGANISATION_ID")
+    @SqlQuery("select AGENCY.AGENCY_ID id, LOGO logo, ORGANISATION.NAME name, ORGANISATION.URL url, ORGANISATION.ALIAS abbreviation from agency left join organisation on ORGANISATION.ORGANISATION_ID = AGENCY.ORGANISATION_ID")
     @MapResultAsBean
     List<PandasAgency> listAgencies();
-
 
     class TitleMapper implements ResultSetMapper<PandasTitle> {
         @Override

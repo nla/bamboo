@@ -1,7 +1,9 @@
 [@page title="${series.name}"]
 
 <h3>${series.name}
-    <a class="btn btn-default pull-right" href="series/${series.id?c}/edit">Edit</a>
+    [#if auth.hasRole("panadmin")]
+        <a class="btn btn-default pull-right" href="series/${series.id?c}/edit">Edit</a>
+    [/#if]
 </h3>
 
 <div class="row">
@@ -17,6 +19,12 @@
             <colgroup>
                 <col class="col-md-2">
             </colgroup>
+            [#if agency?has_content]
+                <tr>
+                    <th>Agency</th>
+                    <td>${agency.name}</td>
+                </tr>
+            [/#if]
             <tr>
                 <th>Size</th>
                 <td>
@@ -24,33 +32,37 @@
                     ${series.warcFiles} warc files; <abbr title="${series.warcSize} bytes">${si(series.warcSize)}B</abbr>
                 </td>
             </tr>
-            <tr><th>Collections</th>
-                <td>
-                    [#if collections?size = 0]
-                        None
-                    [#else]
-                        <ul>
-                            [#list collections as collection]
-                                <li><a href="collections/${collection.id?c}">${collection.name}</a>
-                                    [#if collection.urlFilters?has_content] (filtered)
-                                    <div class="text-indent-8">
-                                        <pre>${collection.urlFilters}</pre>
-                                    </div>
-                                    [/#if]
-                                </li>
-                            [/#list]
-                        </ul>
-                    [/#if]
-                </td>
-            </tr>
+            [#if auth.hasRole("panadmin")]
+                <tr><th>Collections</th>
+                    <td>
+                        [#if collections?size = 0]
+                            None
+                        [#else]
+                            <ul>
+                                [#list collections as collection]
+                                    <li><a href="collections/${collection.id?c}">${collection.name}</a>
+                                        [#if collection.urlFilters?has_content] (filtered)
+                                        <div class="text-indent-8">
+                                            <pre>${collection.urlFilters}</pre>
+                                        </div>
+                                        [/#if]
+                                    </li>
+                                [/#list]
+                            </ul>
+                        [/#if]
+                    </td>
+                </tr>
+            [/#if]
         </table>
     </div>
 </div>
 
 
 <h4>Crawls
-    [#if (series.path!"") != ""]
-        <a href="import?crawlSeries=${series.id?c}" class="btn btn-primary pull-right">Import from Heritrix</a>
+    [#if auth.hasRole("panadmin")]
+        [#if (series.path!"") != ""]
+            <a href="import?crawlSeries=${series.id?c}" class="btn btn-primary pull-right">Import from Heritrix</a>
+        [/#if]
     [/#if]
     <a class="btn btn-default pull-right" href="crawls/new?crawlSeries=${series.id?c}">Upload</a>
 </h4>

@@ -3,6 +3,7 @@ package bamboo.crawl;
 import bamboo.app.Bamboo;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,8 +28,18 @@ public class SeriesController {
     }
 
     @GetMapping("/series")
-    String index(@RequestParam(value = "page", defaultValue = "1") long page, Model model) {
-        Pager<SeriesDAO.CrawlSeriesWithCount> pager = wa.serieses.paginate(page);
+    String index(@RequestParam(value = "page", defaultValue = "1") long page, Model model, HttpServletRequest request) {
+        Pager<SeriesDAO.CrawlSeriesWithCount> pager;
+        if (request.isUserInRole("panadmin")) {
+            pager = wa.serieses.paginate(page);
+        } else {
+            Long userAgencyId = ((OAuth2AuthenticationToken)request.getUserPrincipal()).getPrincipal().getAttribute("agencyId");
+            if (userAgencyId == null) {
+                throw new IllegalStateException("user has no agencyId");
+            }
+            model.addAttribute("agency", wa.agencies.getOrNull((int)(long)userAgencyId));
+            pager = wa.serieses.paginateForAgencyId(userAgencyId, page);
+        }
         model.addAttribute("seriesList", pager.items);
         model.addAttribute("seriesPager", pager);
         return "series/index";
@@ -50,8 +61,10 @@ public class SeriesController {
                 @RequestParam(value = "page", defaultValue = "1") long page,
                 Model model, HttpServletRequest request) {
         Series series = wa.serieses.get(id);
+        Agency agency = series.getAgencyId() == null ? null : wa.agencies.get(series.getAgencyId());
         Pager<Crawl> crawlPager = wa.crawls.paginateWithSeriesId(page, id);
         model.addAttribute("series", series);
+        model.addAttribute("agency", agency);
         model.addAttribute("descriptionHtml", Markdown.render(series.getDescription(), request.getRequestURI()));
         model.addAttribute("crawlList", crawlPager.items);
         model.addAttribute("crawlPager", crawlPager);

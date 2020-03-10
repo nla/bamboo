@@ -23,10 +23,14 @@
         <div id="navbar" class="navbar-collapse collapse">
             <ul class="nav navbar-nav nav-tabs">
                 <li [#if requestContext.requestUri = "/"]class="active"[/#if]><a class="navbar-brand" href=".">Bamboo</a>
-                <li [#if requestContext.requestUri?starts_with("/crawls")]class="active"[/#if]><a href="crawls">Crawls</a>
+                [#if auth.hasRole("panadmin")]
+                    <li [#if requestContext.requestUri?starts_with("/crawls")]class="active"[/#if]><a href="crawls">Crawls</a>
+                [/#if]
                 <li [#if requestContext.requestUri?starts_with("/series")]class="active"[/#if]><a href="series" id="navCrawlSeries">Series</a>
-                <li [#if requestContext.requestUri?starts_with("/collections")]class="active"[/#if]><a href="collections">Collections</a>
-                <li [#if requestContext.requestUri?starts_with("/seedlists")]class="active"[/#if]><a href="seedlists">Seedlists</a>
+                [#if auth.hasRole("panadmin")]
+                    <li [#if requestContext.requestUri?starts_with("/collections")]class="active"[/#if]><a href="collections">Collections</a>
+                    <li [#if requestContext.requestUri?starts_with("/seedlists")]class="active"[/#if]><a href="seedlists">Seedlists</a>
+                [/#if]
             </ul>
 
             <ul class="nav navbar-nav navbar-right nav-tabs">
@@ -37,8 +41,10 @@
                     </form>
                 </li>
                 -->
-                <li><a href="http://dl.nla.gov.au/agwa/stayback">Access Control</a></li>
-                <li [#if requestContext.requestUri?starts_with("/tasks")]class="active"[/#if]><a href="tasks">Task Manager</a></li>
+                [#if auth.hasRole("panadmin")]
+                    <li><a href="http://dl.nla.gov.au/agwa/stayback">Access Control</a></li>
+                    <li [#if requestContext.requestUri?starts_with("/tasks")]class="active"[/#if]><a href="tasks">Task Manager</a></li>
+                [/#if]
                 [#if auth.hasRole("ROLE_USER")]
                     <li class="dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">${auth.username} <span class="caret"></span></a>

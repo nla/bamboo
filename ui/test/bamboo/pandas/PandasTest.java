@@ -48,7 +48,7 @@ public class PandasTest {
         warcs = new Warcs(fixtures.dao.warcs());
         serieses = new Serieses(fixtures.dao.serieses());
         crawls = new Crawls(fixtures.dao.crawls(), serieses, warcs, null);
-        pandas = new Pandas(config, crawls, null);
+        pandas = new Pandas(config, crawls, null, null);
 
         try (Handle db = pandas.db.dbi.open()) {
             /**
@@ -167,7 +167,7 @@ public class PandasTest {
 
             db.execute("INSERT INTO STATUS (STATUS_ID, STATUS_NAME) VALUES (?, ?)", 1, "archived");
             db.execute("INSERT INTO AGENCY (AGENCY_ID, ORGANISATION_ID) VALUES (?, ?)", 1, 1);
-            db.execute("INSERT INTO ORGANISATION (ORGANISATION_ID, AGENCY_ID) VALUES (?, ?)", 1, 1);
+            db.execute("INSERT INTO ORGANISATION (ORGANISATION_ID, AGENCY_ID, NAME, ALIAS) VALUES (?, ?, ?, ?)", 1, 1, "Test agency", "TST");
             db.execute("INSERT INTO INDIVIDUAL (INDIVIDUAL_ID, USERID) VALUES (?, ?)", 1, "batman");
 
             db.execute("INSERT INTO TITLE (PI, TITLE_ID, NAME, AGENCY_ID, CURRENT_STATUS_ID) VALUES (?, ?, ?, ?, ?)", 10001, 1, "test title", 1, 1);

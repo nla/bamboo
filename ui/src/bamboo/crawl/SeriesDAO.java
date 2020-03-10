@@ -18,9 +18,7 @@ import org.skife.jdbi.v2.tweak.ResultSetMapper;
 public interface SeriesDAO {
 
     class CrawlSeriesWithCount extends Series {
-
         public final long crawlCount;
-
 
         public CrawlSeriesWithCount(ResultSet rs) throws SQLException {
             super(rs);
@@ -56,6 +54,12 @@ public interface SeriesDAO {
 
     @SqlQuery("SELECT *, (SELECT COUNT(*) FROM crawl WHERE crawl_series_id = crawl_series.id) crawl_count FROM crawl_series ORDER BY name LIMIT :limit OFFSET :offset")
     List<CrawlSeriesWithCount> paginateCrawlSeries(@Bind("limit") long limit, @Bind("offset") long offset);
+
+    @SqlQuery("SELECT COUNT(*) FROM crawl_series WHERE agency_id = :agencyId")
+    long countCrawlSeriesForAgencyId(@Bind("agencyId") long agencyId);
+
+    @SqlQuery("SELECT *, (SELECT COUNT(*) FROM crawl WHERE crawl_series_id = crawl_series.id) crawl_count FROM crawl_series WHERE agency_id = :agencyId ORDER BY name LIMIT :limit OFFSET :offset")
+    List<CrawlSeriesWithCount> paginateCrawlSeriesForAgencyId(@Bind("agencyId") long agencyId, @Bind("limit") long limit, @Bind("offset") long offset);
 
     @SqlUpdate("UPDATE crawl_series SET records = records + :records, record_bytes = record_bytes + :bytes WHERE id = :id")
     int incrementRecordStatsForCrawlSeries(@Bind("id") long crawlSeriesId, @Bind("records") long records, @Bind("bytes") long bytes);

@@ -7,6 +7,7 @@ import org.skife.jdbi.v2.sqlobject.*;
 
 public interface DAO {
 	// crawl package
+	@CreateSqlObject AgencyDAO agency();
 	@CreateSqlObject CollectionsDAO collections();
 	@CreateSqlObject CrawlsDAO crawls();
 	@CreateSqlObject SeriesDAO serieses();
