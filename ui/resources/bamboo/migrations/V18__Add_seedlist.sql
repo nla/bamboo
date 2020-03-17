@@ -7,8 +7,8 @@ CREATE TABLE seedlist (
 
 CREATE TABLE seed (
     id bigint(20) NOT NULL AUTO_INCREMENT,
-    url varchar(4096) NOT NULL,
-    surt varchar(4096) NOT NULL,
+    url varchar(512) NOT NULL,
+    surt varchar(512) NOT NULL,
     seedlist_id bigint(20) NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT fk_seed_list_id FOREIGN KEY (seedlist_id) REFERENCES seedlist (id)
