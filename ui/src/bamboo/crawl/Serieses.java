@@ -35,7 +35,7 @@ public class Serieses {
     }
 
     public long create(Series series) {
-        return dao.createCrawlSeries(series.getName(), series.getPath(), series.getDescription(), AuthHelper.currentUser());
+        return dao.createCrawlSeries(series.getName(), series.getPath(), series.getDescription(), AuthHelper.currentUser(), series.getAgencyId());
     }
 
     public void update(long seriesId, Series series, List<Long> collectionIds, List<String> collectionUrlFilters) {

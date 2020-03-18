@@ -41,7 +41,12 @@ public class PandasTest {
     public static void setUp() throws IOException {
 
         Path warcDir = tmp.newFolder("pandas-warcs").toPath();
-        TestConfig config = new TestConfig();
+        TestConfig config = new TestConfig() {
+            @Override
+            public String getPandasDbUrl() {
+                return "jdbc:h2:mem:pandas-unit-test-" + Thread.currentThread().getId();
+            }
+        };
         config.setPandasWarcDir(warcDir);
 
 

@@ -20,6 +20,7 @@
                     </div>
                 </div>
 
+                <!--
                 <div class="form-group">
                     <label for="crawlSeriesId" class="col-lg-2 control-label">Crawl Series</label>
                     <div class="col-lg-10">
@@ -31,6 +32,7 @@
                         </select>
                     </div>
                 </div>
+                -->
 
                 <div class="form-group">
                     <label for="warcFile" class="col-lg-2 control-label">WARC Files</label>

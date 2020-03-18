@@ -1,9 +1,12 @@
 package bamboo.crawl;
 
+import bamboo.User;
 import bamboo.app.Bamboo;
+import bamboo.core.Permission;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletRequest;
-import java.security.Principal;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
@@ -28,17 +30,20 @@ public class SeriesController {
     }
 
     @GetMapping("/series")
-    String index(@RequestParam(value = "page", defaultValue = "1") long page, Model model, HttpServletRequest request) {
+    @PreAuthorize("hasAnyAuthority('PERM_SERIES_VIEW_AGENCY', 'PERM_SERIES_VIEW_ALL')")
+    String index(@RequestParam(value = "page", defaultValue = "1") long page, Model model,
+                 @AuthenticationPrincipal User user) {
         Pager<SeriesDAO.CrawlSeriesWithCount> pager;
-        if (request.isUserInRole("panadmin")) {
+        if (user == null || user.hasAuthority(Permission.SERIES_VIEW_ALL)) {
             pager = wa.serieses.paginate(page);
-        } else {
-            Long userAgencyId = ((OAuth2AuthenticationToken)request.getUserPrincipal()).getPrincipal().getAttribute("agencyId");
-            if (userAgencyId == null) {
+        } else if (user.hasAuthority(Permission.SERIES_VIEW_AGENCY)) {
+            if (user.getAgencyId() == null) {
                 throw new IllegalStateException("user has no agencyId");
             }
-            model.addAttribute("agency", wa.agencies.getOrNull((int)(long)userAgencyId));
-            pager = wa.serieses.paginateForAgencyId(userAgencyId, page);
+            model.addAttribute("agency", wa.agencies.getOrNull(user.getAgencyId()));
+            pager = wa.serieses.paginateForAgencyId(user.getAgencyId(), page);
+        } else {
+            throw new IllegalStateException();
         }
         model.addAttribute("seriesList", pager.items);
         model.addAttribute("seriesPager", pager);
@@ -46,17 +51,23 @@ public class SeriesController {
     }
 
     @GetMapping("/series/new")
+    @PreAuthorize("hasAnyAuthority('PERM_SERIES_EDIT_AGENCY', 'PERM_SERIES_EDIT_ALL')")
     String newForm() {
         return "series/new";
     }
 
     @PostMapping("/series/new")
-    String createSeries(Series series, Principal principal) {
+    @PreAuthorize("hasAnyAuthority('PERM_SERIES_EDIT_AGENCY', 'PERM_SERIES_EDIT_ALL')")
+    String createSeries(Series series, @AuthenticationPrincipal User user) {
+        if (user.getAgencyId() != null) {
+            series.setAgencyId(user.getAgencyId());
+        }
         long seriesId = wa.serieses.create(series);
         return "redirect:/series/" + seriesId;
     }
 
     @GetMapping("/series/{id}")
+    @PreAuthorize("hasPermission(#id, 'Series', 'view')")
     String show(@PathVariable("id") long id,
                 @RequestParam(value = "page", defaultValue = "1") long page,
                 Model model, HttpServletRequest request) {
@@ -73,6 +84,7 @@ public class SeriesController {
     }
 
     @GetMapping("/series/{id}/edit")
+    @PreAuthorize("hasPermission(#id, 'Series', 'edit')")
     String edit(@PathVariable("id") long id, Model model) {
         Series series = wa.serieses.get(id);
         model.addAttribute("series", series);
@@ -82,6 +94,7 @@ public class SeriesController {
     }
 
     @PostMapping("/series/{id}/edit")
+    @PreAuthorize("hasPermission(#seriesId, 'Series', 'edit')")
     String update(@PathVariable("id") long seriesId,
                   Series series,
                   @RequestParam(value = "collection.id", required = false) List<Long> collectionIds,

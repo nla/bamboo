@@ -1,21 +1,19 @@
 package bamboo;
 
+import bamboo.core.Permission;
+import bamboo.core.Role;
 import com.nimbusds.jwt.SignedJWT;
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
-import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
@@ -25,7 +23,6 @@ import java.util.*;
 @Configuration
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
-    private static final String[] ROLE_NAMES = new String[] {"stduser", "agadmin", "panadmin", "sysadmin"};
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
@@ -45,11 +42,13 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                     // api: wayback
                     .antMatchers("/warcs/*").permitAll()
 
-                    .antMatchers("/").hasRole("stduser")
-                    .antMatchers("/series").hasRole("stduser")
-                    .antMatchers("/series/*").hasRole("stduser")
+                    .antMatchers("/").hasRole(Role.STDUSER.name())
+                    .antMatchers("/series").permitAll()
+                    .antMatchers("/series/**").permitAll()
+                    .antMatchers("/crawls/**").permitAll()
 
-                    .anyRequest().hasRole("panadmin");
+
+                    .anyRequest().hasRole(Role.PANADMIN.name());
         }
     }
 
@@ -61,11 +60,12 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             Set<GrantedAuthority> mappedAuthorities = new HashSet<>(oidcUser.getAuthorities());
             try {
                 JSONObject decoded = SignedJWT.parse(accessTokenValue).getPayload().toJSONObject();
-                JSONArray array = (JSONArray)(((JSONObject)decoded.get("realm_access")).get("roles"));
+                JSONArray array = (JSONArray) (((JSONObject) decoded.get("realm_access")).get("roles"));
                 HashSet<Object> set = new HashSet<>(array);
-                for (String roleName: ROLE_NAMES) {
-                    if (set.contains(roleName)) {
-                        mappedAuthorities.add(new SimpleGrantedAuthority("ROLE_" + roleName));
+                for (Role role : Role.values()) {
+                    if (set.contains(role.name().toLowerCase())) {
+                        mappedAuthorities.add(role);
+                        mappedAuthorities.addAll(role.getPermissions());
                     }
                 }
             } catch (ParseException e) {
@@ -73,7 +73,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             }
             String usernameAttribute = userRequest.getClientRegistration().getProviderDetails()
                     .getUserInfoEndpoint().getUserNameAttributeName();
-            return new DefaultOidcUser(mappedAuthorities, oidcUser.getIdToken(), oidcUser.getUserInfo(), usernameAttribute);
+            return new User(mappedAuthorities, oidcUser.getIdToken(), oidcUser.getUserInfo(), usernameAttribute);
         };
     }
 }

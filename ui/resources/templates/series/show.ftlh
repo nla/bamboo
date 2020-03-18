@@ -1,7 +1,7 @@
 [@page title="${series.name}"]
 
 <h3>${series.name}
-    [#if auth.hasRole("panadmin")]
+    [#if auth.hasPermission(series, "edit")]
         <a class="btn btn-default pull-right" href="series/${series.id?c}/edit">Edit</a>
     [/#if]
 </h3>
@@ -59,12 +59,12 @@
 
 
 <h4>Crawls
-    [#if auth.hasRole("panadmin")]
+    [#if auth.hasPermission("SERIES_EDIT_AGENCY")]
         [#if (series.path!"") != ""]
             <a href="import?crawlSeries=${series.id?c}" class="btn btn-primary pull-right">Import from Heritrix</a>
         [/#if]
     [/#if]
-    <a class="btn btn-default pull-right" href="crawls/new?crawlSeries=${series.id?c}">Upload</a>
+    <a class="btn btn-default pull-right" href="series/${series.id?c}/upload">Upload</a>
 </h4>
 
 

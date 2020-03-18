@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.context.support.WithSecurityContext;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,7 +29,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestApplication.class)
 @AutoConfigureMockMvc
+@WithMockBambooUser
 public class WebTest {
+    public static class Factory {
+
+    }
+
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
 
@@ -68,7 +74,6 @@ public class WebTest {
     }
 
     @Test
-    @WithMockUser(username = "mockuser", roles = {"USER", "panadmin"})
     public void testSeries() throws Exception {
         mockMvc.perform(get("/series")).andExpect(status().isOk());
         mockMvc.perform(get("/series/new")).andExpect(status().isOk());

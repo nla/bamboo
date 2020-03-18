@@ -18,7 +18,8 @@ public class TestConfig extends Config {
 
     @Override
     public String getPandasDbUrl() {
-        return "jdbc:h2:mem:pandas-unit-test-" + Thread.currentThread().getId();
+        // return "jdbc:h2:mem:pandas-unit-test-" + Thread.currentThread().getId();
+        return null;
     }
 
     public void setHeritrixJobs(Path path) {

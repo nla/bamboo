@@ -7,6 +7,7 @@ import bamboo.util.Markdown;
 import bamboo.util.Pager;
 import org.apache.commons.io.IOUtils;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.AntPathMatcher;
@@ -17,6 +18,7 @@ import org.springframework.web.servlet.HandlerMapping;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.PathParam;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -38,6 +40,7 @@ public class CrawlsController {
     }
 
     @GetMapping("/crawls")
+    @PreAuthorize("hasRole('PANADMIN')")
     String index(@RequestParam(value = "page", defaultValue = "1") long page, Model model) {
         Pager<CrawlAndSeriesName> pager = bamboo.crawls.pager(page);
         model.addAttribute("crawls", pager.items);
@@ -46,6 +49,7 @@ public class CrawlsController {
     }
 
     @GetMapping("/crawls/{id}")
+    @PreAuthorize("hasPermission(#id, 'Crawl', 'view')")
     String show(@PathVariable("id") long id, Model model, HttpServletRequest request) {
         Crawl crawl = bamboo.crawls.get(id);
         CrawlStats stats = bamboo.crawls.stats(id);
@@ -75,6 +79,7 @@ public class CrawlsController {
     }
 
     @GetMapping("/crawls/{id}/edit")
+    @PreAuthorize("hasPermission(#id, 'Crawl', 'edit')")
     String edit(@PathVariable("id") long id, Model model) {
         Crawl crawl = bamboo.crawls.get(id);
         model.addAttribute("crawl", crawl);
@@ -82,6 +87,7 @@ public class CrawlsController {
     }
 
     @PostMapping("/crawls/{id}/edit")
+    @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
     String update(@PathVariable("id") long crawlId,
                   @RequestParam(value = "name") String name,
                   @RequestParam(value = "description", required = false) String description) {
@@ -90,6 +96,7 @@ public class CrawlsController {
     }
 
     @GetMapping("/crawls/{id}/warcs")
+    @PreAuthorize("hasPermission(#id, 'Crawl', 'view')")
     String listWarcs(@PathVariable("id") long id,
                      @RequestParam(value = "page", defaultValue = "1") long page,
                      @RequestParam(value = "format", defaultValue = "html") String format,
@@ -115,6 +122,7 @@ public class CrawlsController {
     }
 
     @GetMapping("/crawls/{id}/artifacts")
+    @PreAuthorize("hasPermission(#id, 'Crawl', 'view')")
     String listArtifacts(@PathVariable("id") long id, Model model) {
         model.addAttribute("crawl", bamboo.crawls.get(id));
         model.addAttribute("artifacts", bamboo.crawls.listArtifacts(id));
@@ -122,6 +130,7 @@ public class CrawlsController {
     }
 
     @GetMapping("/crawls/{id}/artifacts/{artifactId}/download")
+    @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'view')")
     void downloadArtifactById(@PathVariable("id") long crawlId,
                                      @PathVariable("artifactId") long artifactId,
                                      HttpServletResponse response) throws IOException {
@@ -130,6 +139,7 @@ public class CrawlsController {
     }
 
     @GetMapping("/crawls/{id}/artifacts/**")
+    @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'view')")
     void downloadArtifactByPath(@PathVariable("id") long crawlId,
                                 HttpServletRequest request,
                                 HttpServletResponse response) throws IOException {
@@ -151,6 +161,7 @@ public class CrawlsController {
     }
 
     @GetMapping("/crawls/{id}/warcs/corrupt")
+    @PreAuthorize("hasPermission(#id, 'Crawl', 'view')")
     String listCorruptWarcs(@PathVariable("id") long id,
                             @RequestParam(value = "page", defaultValue = "1") long page,
                             Model model) {
@@ -164,6 +175,7 @@ public class CrawlsController {
     }
 
     @GetMapping("/crawls/{id}/warcs/download")
+    @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'view')")
     void downloadWarcs(@PathVariable("id") long crawlId, HttpServletResponse response) throws IOException {
         List<Warc> warcs = bamboo.warcs.findByCrawlId(crawlId);
         if (warcs.isEmpty()) {
@@ -209,6 +221,7 @@ public class CrawlsController {
     }
 
     @GetMapping(value = "/crawls/{id}/warcs/reports", produces = "text/plain")
+    @PreAuthorize("hasPermission(#id, 'Crawl', 'view')")
     @ResponseBody
     String listReports(@PathVariable("id") long id) {
         Crawl crawl = bamboo.crawls.get(id);
@@ -224,7 +237,25 @@ public class CrawlsController {
         return out.toString();
     }
 
+
+    @GetMapping("/series/{seriesId}/upload")
+    @PreAuthorize("hasPermission(#seriesId, 'Series', 'view')")
+    public String seriesUploadForm(@PathVariable("seriesId") long seriesId, Model model) {
+        return showNewForm(seriesId, model);
+    }
+
+    @PostMapping("/series/{seriesId}/upload")
+    @PreAuthorize("hasPermission(#seriesId, 'Series', 'view')")
+    public String seriesUpload(@PathVariable("seriesId") long seriesId,
+                               Crawl crawl,
+                               @RequestPart(value = "warcFile", required = false) MultipartFile[] warcFiles,
+                               @RequestPart(value = "artifact", required = false) MultipartFile[] artifacts) throws IOException {
+        crawl.setCrawlSeriesId(seriesId);
+        return create(crawl, warcFiles, artifacts);
+    }
+
     @GetMapping("/crawls/new")
+    @PreAuthorize("hasRole('PANADMIN')")
     public String showNewForm(@RequestParam(value = "crawlSeries", defaultValue = "-1") long crawlSeriesId, Model model) {
         model.addAttribute("allCrawlSeries", bamboo.serieses.listAll());
         model.addAttribute("selectedCrawlSeriesId", crawlSeriesId);
@@ -232,6 +263,7 @@ public class CrawlsController {
     }
 
     @PostMapping("/crawls/new")
+    @PreAuthorize("hasRole('PANADMIN')")
     public String create(Crawl crawl,
                          @RequestPart(value = "warcFile", required = false) MultipartFile[] warcFiles,
                          @RequestPart(value = "artifact", required = false) MultipartFile[] artifacts) throws IOException {
@@ -240,6 +272,7 @@ public class CrawlsController {
     }
 
     @GetMapping("/import")
+    @PreAuthorize("hasRole('PANADMIN')")
     public String showImportForm(@RequestParam(value = "crawlSeries", defaultValue = "-1") long crawlSeriesId, Model model) {
         model.addAttribute("allCrawlSeries", bamboo.serieses.listImportable());
         model.addAttribute("selectedCrawlSeriesId", crawlSeriesId);
@@ -248,6 +281,7 @@ public class CrawlsController {
     }
 
     @PostMapping("/import")
+    @PreAuthorize("hasRole('PANADMIN')")
     public String performImport(@RequestParam("heritrixJob") String jobName,
                          @RequestParam("crawlSeriesId") long crawlSeriesId) {
         long crawlId = bamboo.crawls.importHeritrixCrawl(jobName, crawlSeriesId);
@@ -255,12 +289,14 @@ public class CrawlsController {
     }
 
     @GetMapping("/crawls/{crawlId}/warcs/upload")
+    @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
     String uploadWarcsForm(@PathVariable("crawlId") long crawlId, Model model) {
         model.addAttribute("crawl", bamboo.crawls.get(crawlId));
         return "crawls/warcs/upload";
     }
 
     @PostMapping("/crawls/{crawlId}/warcs/upload")
+    @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
     public String create(@PathVariable("crawlId") long crawlId, @RequestPart("warcFile") MultipartFile[] warcFiles) throws IOException {
         bamboo.crawls.addWarcs(crawlId, warcFiles);
         return "redirect:/crawls/" + crawlId + "/warcs";
