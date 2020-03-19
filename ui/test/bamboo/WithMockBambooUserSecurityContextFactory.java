@@ -1,6 +1,5 @@
 package bamboo;
 
-import bamboo.app.Bamboo;
 import bamboo.core.Role;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;

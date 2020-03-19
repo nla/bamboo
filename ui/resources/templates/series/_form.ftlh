@@ -6,12 +6,14 @@
     </div>
 </div>
 
-<div class="form-group">
-    <label for="path" class="col-lg-2 control-label">Archival Path</label>
-    <div class="col-lg-10">
-        <input class="form-control" id="path" value="${(series.path)!}" name="path">
+[#if auth.hasRole("SYSADMIN")]
+    <div class="form-group">
+        <label for="path" class="col-lg-2 control-label">Archival Path</label>
+        <div class="col-lg-10">
+            <input class="form-control" id="path" value="${(series.path)!}" name="path">
+        </div>
     </div>
-</div>
+[/#if]
 
 <div class="form-group">
     <label for="description" class="col-lg-2 control-label">Description</label>
