@@ -26,7 +26,18 @@ public class NotFoundException extends RuntimeException {
         this(type + " " + id);
     }
 
+    public NotFoundException(String type, String id) {
+        this(type + " " + id);
+    }
+
     public static <T> T check(T object, String type, long id) {
+        if (object == null) {
+            throw new NotFoundException(type, id);
+        }
+        return object;
+    }
+
+    public static <T> T check(T object, String type, String id) {
         if (object == null) {
             throw new NotFoundException(type, id);
         }

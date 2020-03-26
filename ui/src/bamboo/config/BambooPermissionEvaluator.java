@@ -1,5 +1,6 @@
-package bamboo;
+package bamboo.config;
 
+import bamboo.User;
 import bamboo.app.Bamboo;
 import bamboo.core.Role;
 import bamboo.crawl.Crawl;
@@ -15,6 +16,9 @@ import java.util.Collection;
 
 import static bamboo.core.Permission.*;
 
+/**
+ * Implements hasPermission() in @PreAuthorize and @PostAuthorize annotations.
+ */
 @Component
 public class BambooPermissionEvaluator implements PermissionEvaluator {
     final Bamboo bamboo;

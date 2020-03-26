@@ -1,10 +1,18 @@
 package bamboo.crawl;
 
 import bamboo.core.Permission;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
+import javax.validation.constraints.NotNull;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
@@ -12,19 +20,22 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Date;
 
+@SuppressWarnings("JpaAttributeTypeInspection")
+@Entity
+@Table(name = "crawl_series")
 public class Series {
-    private long id;
-    private String name;
+    @Id private long id;
+    @NotNull private String name;
     private Path path;
     private long warcFiles;
     private long warcSize;
     private long records;
     private long recordBytes;
     private String description;
-    private String creator;
-    private Date created;
-    private String modifier;
-    private Date modified;
+    @CreatedBy private String creator;
+    @CreatedDate private Date created;
+    @LastModifiedBy private String modifier;
+    @LastModifiedDate private Date modified;
     private Integer agencyId;
 
     public Series() {

@@ -1,15 +1,21 @@
 package bamboo.crawl;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
 import java.nio.file.Path;
 import java.util.Date;
 
+@SuppressWarnings("JpaAttributeTypeInspection")
+@Entity
 public class Warc {
     public final static int OPEN = 0, IMPORTED = 1, CDX_INDEXED = 2, SOLR_INDEXED = 3;
     public final static int IMPORT_ERROR = -1, CDX_ERROR = -2, SOLR_ERROR = -3;
 
-    private long id;
+    private @Id long id;
     private long crawlId;
-    private int stateId;
+    private @Column(name = "warc_state_id") int stateId;
     private Path path;
     private long size;
     private long records;

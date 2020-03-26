@@ -1,6 +1,6 @@
-package bamboo;
+package bamboo.config;
 
-import bamboo.core.Permission;
+import bamboo.User;
 import bamboo.core.Role;
 import com.nimbusds.jwt.SignedJWT;
 import net.minidev.json.JSONArray;
@@ -14,8 +14,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
-import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 import java.text.ParseException;
 import java.util.*;
@@ -27,9 +27,13 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http.csrf().disable();
-        if (System.getProperty("spring.security.oauth2.client.provider.oidc.issuer-uri") != null) {
+        String issuerUrl = System.getProperty("spring.security.oauth2.client.provider.oidc.issuer-uri");
+        if (issuerUrl != null) {
             http.oauth2Login().userInfoEndpoint().oidcUserService(oidcUserService());
             http.logout().logoutSuccessUrl("/");
+            http.oauth2ResourceServer().jwt()
+                    .jwkSetUri(issuerUrl + "/protocol/openid-connect/certs")
+                    .jwtAuthenticationConverter(jwt -> new JwtAuthenticationToken(jwt, mapClaimsToAuthorities(jwt.getClaims())));
             http.authorizeRequests()
                     // static content
                     .antMatchers("/webjars/**").permitAll()
@@ -47,9 +51,24 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                     .antMatchers("/series/**").permitAll()
                     .antMatchers("/crawls/**").permitAll()
 
+                    .antMatchers("/api/**").hasRole(Role.PANADMIN.name())
+
 
                     .anyRequest().hasRole(Role.PANADMIN.name());
         }
+    }
+
+    private Set<GrantedAuthority> mapClaimsToAuthorities(Map<String, Object> claims) {
+        Set<GrantedAuthority> authorities = new HashSet<>();
+        JSONArray array = (JSONArray) (((JSONObject) claims.get("realm_access")).get("roles"));
+        HashSet<Object> clamedRoles = new HashSet<>(array);
+        for (Role role : Role.values()) {
+            if (clamedRoles.contains(role.name().toLowerCase())) {
+                authorities.add(role);
+                authorities.addAll(role.getPermissions());
+            }
+        }
+        return authorities;
     }
 
     private OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {
@@ -60,14 +79,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             Set<GrantedAuthority> mappedAuthorities = new HashSet<>(oidcUser.getAuthorities());
             try {
                 JSONObject decoded = SignedJWT.parse(accessTokenValue).getPayload().toJSONObject();
-                JSONArray array = (JSONArray) (((JSONObject) decoded.get("realm_access")).get("roles"));
-                HashSet<Object> set = new HashSet<>(array);
-                for (Role role : Role.values()) {
-                    if (set.contains(role.name().toLowerCase())) {
-                        mappedAuthorities.add(role);
-                        mappedAuthorities.addAll(role.getPermissions());
-                    }
-                }
+                mappedAuthorities.addAll(mapClaimsToAuthorities(decoded));
             } catch (ParseException e) {
                 log.error("Error parsing access token", e);
             }

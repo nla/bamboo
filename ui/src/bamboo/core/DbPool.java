@@ -10,6 +10,7 @@ import org.vibur.dbcp.ViburDBCPDataSource;
 
 import org.flywaydb.core.Flyway;
 
+import javax.sql.DataSource;
 import java.io.Closeable;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -89,6 +90,10 @@ public class DbPool implements Closeable {
             e.printStackTrace(out);
             return false;
         }
+    }
+
+    public DataSource getDataSource() {
+        return ds;
     }
 
     public static class PathArgumentFactory implements ArgumentFactory<Path> {

@@ -18,6 +18,7 @@ import doss.trivial.TrivialBlobStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
@@ -131,5 +132,9 @@ public class Bamboo implements AutoCloseable {
             out.println("\nALL OK");
         }
         return allOk;
+    }
+
+    public DataSource getDataSource() {
+        return dbPool.getDataSource();
     }
 }

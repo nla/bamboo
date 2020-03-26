@@ -8,6 +8,8 @@ import doss.BlobStore;
 import doss.BlobTx;
 import doss.SizedWritable;
 import org.apache.commons.io.IOUtils;
+import org.springframework.data.repository.CrudRepository;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -160,6 +162,7 @@ public class Crawls {
      *
      * @throws NotFoundException if the crawl doesn't exist
      */
+    @PreAuthorize("hasPermission(#id, 'Crawl', 'view')")
     public Crawl get(long crawlId) {
         return NotFoundException.check(getOrNull(crawlId), "crawl", crawlId);
     }
@@ -283,6 +286,10 @@ public class Crawls {
 
     public Crawl getByPandasInstanceIdOrNull(long instanceId) {
         return dao.findCrawlByPandasInstanceId(instanceId);
+    }
+
+    public Crawl getByWebrecorderCollectionId(String collectionId) {
+        return NotFoundException.check(dao.findCrawlByWebrecorderCollectionId(collectionId), "crawl.webrecorderCollectionId", collectionId);
     }
 
     public void addArtifact(long crawlId, String type, Path path, String relpath) throws IOException {

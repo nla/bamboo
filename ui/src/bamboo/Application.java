@@ -2,10 +2,19 @@ package bamboo;
 
 import bamboo.app.Bamboo;
 import bamboo.core.Config;
+import bamboo.crawl.Crawl;
+import bamboo.crawl.Series;
+import bamboo.crawl.Warc;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.rest.core.config.RepositoryRestConfiguration;
+import org.springframework.data.rest.webmvc.config.RepositoryRestConfigurer;
+import org.springframework.data.rest.webmvc.config.RepositoryRestConfigurerAdapter;
+import org.springframework.http.MediaType;
 
+import javax.sql.DataSource;
 import java.io.IOException;
 
 @SpringBootApplication
@@ -58,5 +67,20 @@ public class Application {
     @Bean(destroyMethod = "close")
     public Bamboo getBamboo() throws IOException {
         return new Bamboo(new Config(System.getenv()), true);
+    }
+
+    @Bean
+    public DataSource getDataSource(@Autowired Bamboo bamboo) {
+        return bamboo.getDataSource();
+    }
+
+    @Bean
+    public RepositoryRestConfigurer repositoryRestConfigurer() {
+        return new RepositoryRestConfigurerAdapter() {
+            @Override
+            public void configureRepositoryRestConfiguration(RepositoryRestConfiguration config) {
+                config.exposeIdsFor(Crawl.class, Series.class, Warc.class);
+            }
+        };
     }
 }

@@ -18,7 +18,6 @@ import org.springframework.web.servlet.HandlerMapping;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.PathParam;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -48,7 +47,7 @@ public class CrawlsController {
         return "crawls/index";
     }
 
-    @GetMapping("/crawls/{id}")
+    @GetMapping(value = "/crawls/{id}")
     @PreAuthorize("hasPermission(#id, 'Crawl', 'view')")
     String show(@PathVariable("id") long id, Model model, HttpServletRequest request) {
         Crawl crawl = bamboo.crawls.get(id);
@@ -75,6 +74,12 @@ public class CrawlsController {
         if (crawl == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No crawl with instanceId " + instanceId);
         }
+        return "redirect:/crawls/" + crawl.getId();
+    }
+
+    @GetMapping("/crawls/by-webrecorder-id/{id}")
+    String findByWebrecorderCollectionId(@PathVariable("id") String id) {
+        Crawl crawl = bamboo.crawls.getByWebrecorderCollectionId(id);
         return "redirect:/crawls/" + crawl.getId();
     }
 
@@ -267,6 +272,8 @@ public class CrawlsController {
     public String create(Crawl crawl,
                          @RequestPart(value = "warcFile", required = false) MultipartFile[] warcFiles,
                          @RequestPart(value = "artifact", required = false) MultipartFile[] artifacts) throws IOException {
+        if (warcFiles == null) warcFiles = new MultipartFile[0];
+        if (artifacts == null) artifacts = new MultipartFile[0];
         long crawlId = bamboo.crawls.create(crawl, warcFiles, artifacts);
         return "redirect:/crawls/" + crawlId;
     }
