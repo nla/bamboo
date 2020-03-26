@@ -1,6 +1,8 @@
 package bamboo.crawl;
 
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -17,7 +19,7 @@ public class Crawl {
 	public static final int ARCHIVED = 0;
 	public static final int IMPORTING = 1;
 	public static final int IMPORT_FAILED = 2;
-	@Id private long id;
+	@Id @GeneratedValue(strategy= GenerationType.IDENTITY) private Long id;
     @NotBlank private String name;
     private Long totalDocs;
     private Long totalBytes;
@@ -95,11 +97,11 @@ public class Crawl {
         return STATE_NAMES[getState()];
     }
 
-	public long getId() {
+	public Long getId() {
 		return id;
 	}
 
-	public void setId(long id) {
+	public void setId(Long id) {
 		this.id = id;
 	}
 

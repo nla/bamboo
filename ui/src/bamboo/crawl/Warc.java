@@ -1,9 +1,6 @@
 package bamboo.crawl;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 import java.nio.file.Path;
 import java.util.Date;
 
@@ -13,7 +10,7 @@ public class Warc {
     public final static int OPEN = 0, IMPORTED = 1, CDX_INDEXED = 2, SOLR_INDEXED = 3;
     public final static int IMPORT_ERROR = -1, CDX_ERROR = -2, SOLR_ERROR = -3;
 
-    private @Id long id;
+    private @Id @GeneratedValue(strategy=GenerationType.IDENTITY) long id;
     private long crawlId;
     private @Column(name = "warc_state_id") int stateId;
     private Path path;

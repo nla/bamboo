@@ -9,9 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -24,7 +22,7 @@ import java.util.Date;
 @Entity
 @Table(name = "crawl_series")
 public class Series {
-    @Id private long id;
+    @Id @GeneratedValue(strategy= GenerationType.IDENTITY) private Long id;
     @NotNull private String name;
     private Path path;
     private long warcFiles;
@@ -64,11 +62,11 @@ public class Series {
         return path == null ? null : Paths.get(path);
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
