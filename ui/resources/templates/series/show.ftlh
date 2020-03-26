@@ -1,3 +1,4 @@
+[#-- @ftlvariable name="crawlList" type="java.util.Collection<bamboo.crawl.Crawl>" --]
 [@page title="${series.name}"]
 
 <h3>${series.name}
@@ -72,14 +73,16 @@
     <thead>
     <tr>
         <td>Name</td>
-        <td>Size</td>
-        <td>Finished</td>
+        <td style="width: 0">Creator</td>
+        <td style="width: 0">Size</td>
+        <td style="width: 0">Finished</td>
     </tr>
     </thead>
     <tbody>
     [#list crawlList as crawl]
     <tr>
         <td><a href="crawls/${crawl.id?c}">${crawl.name}</a></td>
+        <td>${crawl.creator!""}</td>
         <td>${si(crawl.recordBytes)}B</td>
         <td>${(crawl.endTime?date)!""}</td>
     </tr>
