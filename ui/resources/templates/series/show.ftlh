@@ -84,7 +84,7 @@
         <td><a href="crawls/${crawl.id?c}">${crawl.name}</a></td>
         <td>${crawl.creator!""}</td>
         <td>${si(crawl.recordBytes)}B</td>
-        <td>${(crawl.endTime?date)!""}</td>
+        <td style="white-space: nowrap">${(crawl.endTime?date)!""}</td>
     </tr>
     [/#list]
     </tbody>
