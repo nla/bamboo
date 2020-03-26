@@ -14,6 +14,8 @@ public interface AgencyDAO {
     @MapResultAsBean
     Agency findAgencyById(@Bind("id") int id);
 
-    @SqlBatch("REPLACE INTO agency (id, name, abbreviation, url, logo) VALUES (:id, :name, :abbreviation, :url, :logo)")
+    @SqlBatch("INSERT INTO agency (id, name, abbreviation, url, logo) " +
+            "VALUES (:id, :name, :abbreviation, :url, :logo) " +
+            "ON DUPLICATE KEY UPDATE name = :name, abbreviation = :abbreviation, url = :url, logo = :logo")
     void replaceAll(@BindBean List<PandasAgency> listAgencies);
 }
