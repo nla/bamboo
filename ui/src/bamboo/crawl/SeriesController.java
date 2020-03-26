@@ -5,6 +5,9 @@ import bamboo.app.Bamboo;
 import bamboo.core.Permission;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -23,29 +26,31 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @Controller
 public class SeriesController {
-    final Bamboo wa;
+    private final Bamboo wa;
+    private final SeriesRepository seriesRepository;
 
-    public SeriesController(Bamboo wa) {
+    public SeriesController(Bamboo wa, SeriesRepository seriesRepository) {
         this.wa = wa;
+        this.seriesRepository = seriesRepository;
     }
 
     @GetMapping("/series")
     @PreAuthorize("hasAnyAuthority('PERM_SERIES_VIEW_AGENCY', 'PERM_SERIES_VIEW_ALL')")
-    String index(@RequestParam(value = "page", defaultValue = "1") long page, Model model,
+    String index(@RequestParam(value = "page", defaultValue = "1") int page, Model model,
                  @AuthenticationPrincipal User user) {
-        Pager<SeriesDAO.CrawlSeriesWithCount> pager;
+        Page<Series> pager;
         if (user == null || user.hasAuthority(Permission.SERIES_VIEW_ALL)) {
-            pager = wa.serieses.paginate(page);
+            pager = seriesRepository.findAll(PageRequest.of(page - 1, 100));
         } else if (user.hasAuthority(Permission.SERIES_VIEW_AGENCY)) {
             if (user.getAgencyId() == null) {
                 throw new IllegalStateException("user has no agencyId");
             }
             model.addAttribute("agency", wa.agencies.getOrNull(user.getAgencyId()));
-            pager = wa.serieses.paginateForAgencyId(user.getAgencyId(), page);
+            pager = seriesRepository.findByAgencyId(user.getAgencyId(), PageRequest.of(page - 1, 100));
         } else {
             throw new IllegalStateException();
         }
-        model.addAttribute("seriesList", pager.items);
+        model.addAttribute("seriesList", pager.toList());
         model.addAttribute("seriesPager", pager);
         return "series/index";
     }

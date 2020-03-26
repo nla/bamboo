@@ -1,6 +1,7 @@
 package bamboo.crawl;
 
 import bamboo.core.Permission;
+import org.hibernate.annotations.Formula;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -34,7 +35,11 @@ public class Series {
     @CreatedDate private Date created;
     @LastModifiedBy private String modifier;
     @LastModifiedDate private Date modified;
-    private Integer agencyId;
+    @Column(name="agency_id") private Integer agencyId;
+    @ManyToOne  @JoinColumn(name = "agency_id", insertable = false, updatable = false) private Agency agency;
+
+    @Formula("(select count(*) from crawl where crawl.crawl_series_id = id)")
+    private Long crawlCount;
 
     public Series() {
     }
@@ -168,5 +173,13 @@ public class Series {
 
     public void setAgencyId(Integer agencyId) {
         this.agencyId = agencyId;
+    }
+
+    public Agency getAgency() {
+        return agency;
+    }
+
+    public Long getCrawlCount() {
+        return crawlCount;
     }
 }
