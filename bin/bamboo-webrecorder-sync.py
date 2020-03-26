@@ -7,7 +7,7 @@ import os
 import redis
 import requests
 
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 
 bamboo_url = os.environ["BAMBOO_URL"].rstrip("/")
 oidc_url = os.environ["OIDC_URL"].rstrip("/")
@@ -63,8 +63,6 @@ def main():
             continue
 
         series = get_or_create_webrecorder_series(agency_id, "Webrecorder")
-
-        print(info['owner'], agency_id, series['id'])
 
         crawl_data = {
             "webrecorderCollectionId": collid,
