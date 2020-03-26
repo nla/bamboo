@@ -28,7 +28,7 @@ session.headers['Authorization'] = 'bearer ' + authenticate()
 
 
 def get_agency_id_for_user(username):
-    response = session.get(oidc_admin_url + "/users", params={"username": username})
+    response = session.get(oidc_admin_url + "/users", params={"search": username})
     response.raise_for_status()
     # keycloak doesn't do an exact match, so we have to filter
     users = [user for user in response.json() if user['username'] == username]
