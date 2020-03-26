@@ -141,7 +141,7 @@ public class WarcsController {
                 multipleRangeResponse(response, warc, ranges);
             }
         } catch (IOException e) {
-            if (e.getMessage().contains("Connection reset by peer")) {
+            if (e.getMessage().contains("Connection reset by peer") || e.getMessage().contains("Broken pipe")) {
                 return; // suppress error if the client just closed
             }
             throw new UncheckedIOException(e);
