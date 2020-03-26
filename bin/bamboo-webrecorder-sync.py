@@ -77,7 +77,9 @@ def main():
 
         response = session.get(bamboo_url + "/api/crawls/search/findByWebrecorderCollectionId", params={"webrecorderCollectionId": collid})
         if response.status_code == 404:
-            crawl = session.post(bamboo_url + "/api/crawls", json=crawl_data).raise_for_status().json()
+            crawl_response = session.post(bamboo_url + "/api/crawls", json=crawl_data)
+            crawl_response.raise_for_status()
+            crawl = crawl_response.json()
         else:
             response.raise_for_status()
             crawl = response.json()
