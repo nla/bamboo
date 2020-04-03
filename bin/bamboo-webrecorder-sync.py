@@ -9,6 +9,7 @@ import requests
 
 #logging.basicConfig(level=logging.DEBUG)
 
+webrecorder_home = os.environ.get('WEBRECORDER_HOME', '/opt/webrecorder')
 bamboo_url = os.environ["BAMBOO_URL"].rstrip("/")
 oidc_url = os.environ["OIDC_URL"].rstrip("/")
 oidc_admin_url = oidc_url.replace("/realms/", "/admin/realms/")
@@ -87,7 +88,9 @@ def main():
                 session.patch(crawl['_links']['self']['href'], json=changes).raise_for_status()
 
         for key, url in db.hgetall("c:" + collid + ":warc").items():
-            path = url.replace('http://nginx:6090/', '/opt/webrecorder/')
+            path = url.replace('http://nginx:6090/', webrecorder_home + '/')
+            if path.startswith(webrecorder_home + '/data/warcs/'):
+                continue # skip uncommitted warcs
             response = session.get(bamboo_url + "/api/warcs/search/findByFilename", params={"filename": key})
             if response.status_code == 404:
                 session.post(bamboo_url + "/crawls/" + str(crawl["id"]) + "/warcs/upload",
