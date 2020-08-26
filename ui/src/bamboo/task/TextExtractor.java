@@ -21,6 +21,7 @@ import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
 import org.archive.util.Base32;
+import org.brotli.dec.BrotliInputStream;
 import org.netpreserve.urlcanon.Canonicalizer;
 import org.netpreserve.urlcanon.ParsedUrl;
 import org.slf4j.Logger;
@@ -103,8 +104,8 @@ public class TextExtractor implements Closeable {
 
         String url = WarcUtils.getCleanUrl(warcHeader);
 
+        HttpHeader httpHeader = null;
         if (WarcUtils.isResponseRecord(warcHeader)) {
-            HttpHeader httpHeader;
             try {
                 httpHeader = HttpHeader.parse(record, url);
             } catch (IOException e) {
@@ -164,6 +165,9 @@ public class TextExtractor implements Closeable {
         }
 
         try {
+            if (httpHeader != null && httpHeader.brotli) {
+                contentStream = new BrotliInputStream(contentStream);
+            }
             switch (doc.getContentType()) {
                 case "text/html":
                 case "application/pdf":
@@ -185,7 +189,7 @@ public class TextExtractor implements Closeable {
                     doc.setTextError("not implemented for content-type");
                     break;
             }
-        } catch (TextExtractionException e) {
+        } catch (TextExtractionException | IOException e) {
             doc.setTextError(e.getMessage());
         }
 

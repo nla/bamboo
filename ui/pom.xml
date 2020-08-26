@@ -325,6 +325,12 @@
             <artifactId>oauth2-oidc-sdk</artifactId>
             <version>6.18</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.brotli</groupId>
+            <artifactId>dec</artifactId>
+            <version>0.1.2</version>
+        </dependency>
     </dependencies>
 
     <repositories>
