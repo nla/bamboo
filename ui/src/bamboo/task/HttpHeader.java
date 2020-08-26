@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,6 +18,7 @@ public class HttpHeader {
     String location;
     String rawLocation;
     String contentType;
+    boolean brotli;
 
     public static HttpHeader parse(InputStream in, String targetUrl) throws IOException {
         String line = LaxHttpParser.readLine(in, "ISO-8859-1");
@@ -39,6 +41,13 @@ public class HttpHeader {
                 case "content-type":
                     result.contentType = header.getValue();
                     break;
+                case "content-encoding":
+                    String[] encodings = header.getValue().split(",");
+                    for (String encoding: encodings) {
+                        if (encoding.trim().toLowerCase(Locale.ROOT).equals("br")) {
+                            result.brotli = true;
+                        }
+                    }
             }
         }
         return result;

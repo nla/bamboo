@@ -1,7 +1,7 @@
 package bamboo.task;
 
+import org.archive.io.ArchiveReaderFactory;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -30,7 +30,7 @@ public class TextExtractorTest {
     public void textExtractPdfBox() throws IOException, TextExtractionException {
         Document doc = new Document();
         try (InputStream stream = getClass().getResourceAsStream("example.pdf")) {
-            textExtractor.extractTika(stream, doc,  URI.create("http://example.net/subdir/example.pdf"));
+            textExtractor.extractTika(stream, doc, URI.create("http://example.net/subdir/example.pdf"));
         }
         assertEquals("The title of a test PDF This is a test PDF file. It was created by LibreOffice. The title of a test PDF", doc.getText());
         assertEquals("The title field in the metadata", doc.getTitle());
@@ -74,5 +74,13 @@ public class TextExtractorTest {
         TextExtractor.setUrls(doc, "http://pandora.nla.gov.au/pan/160553/20161116-1000/www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html");
         assertEquals("http://www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html", doc.getUrl());
         assertEquals("http://pandora.nla.gov.au/pan/160553/20161116-1000/www.smh.com.au/money/super-and-funds/some-rare-good-financial-news-for-younger-people-20161109-gsm0lh.html", doc.getDeliveryUrl());
+    }
+
+    @Test
+    public void testBrotli() throws IOException, TextExtractionException {
+        try (InputStream stream = getClass().getResourceAsStream("brotli.warc")) {
+            Document document = textExtractor.extract(ArchiveReaderFactory.get("brotli.warc", stream, true).get());
+            assertEquals("Hello brotli Hello brotli, hello brotli, oh hello brotli.", document.getText());
+        }
     }
 }
