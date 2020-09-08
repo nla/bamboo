@@ -119,7 +119,9 @@ public class Bamboo implements AutoCloseable {
     public void close() {
         taskManager.close();
         dbPool.close();
-        pandas.close();
+        if (pandas != null) {
+            pandas.close();
+        }
         lockManager.close();
         textExtractor.close();
     }
