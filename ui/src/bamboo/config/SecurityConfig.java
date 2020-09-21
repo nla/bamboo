@@ -78,7 +78,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             String accessTokenValue = userRequest.getAccessToken().getTokenValue();
             Set<GrantedAuthority> mappedAuthorities = new HashSet<>(oidcUser.getAuthorities());
             try {
-                JSONObject decoded = SignedJWT.parse(accessTokenValue).getPayload().toJSONObject();
+                Map<String, Object> decoded = SignedJWT.parse(accessTokenValue).getPayload().toJSONObject();
                 mappedAuthorities.addAll(mapClaimsToAuthorities(decoded));
             } catch (ParseException e) {
                 log.error("Error parsing access token", e);

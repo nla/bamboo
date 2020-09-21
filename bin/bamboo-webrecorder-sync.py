@@ -7,7 +7,8 @@ import os
 import redis
 import requests
 
-#logging.basicConfig(level=logging.DEBUG)
+if os.environ.get('VERBOSE', False):
+    logging.basicConfig(level=logging.DEBUG)
 
 webrecorder_home = os.environ.get('WEBRECORDER_HOME', '/opt/webrecorder')
 bamboo_url = os.environ["BAMBOO_URL"].rstrip("/")

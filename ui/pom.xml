@@ -51,7 +51,7 @@
     <properties>
         <spring.version>2.2.1.RELEASE</spring.version>
         <spring-security.version>5.2.1.RELEASE</spring-security.version>
-        <doss.version>1.6.3</doss.version>
+        <doss.version>1.6.6</doss.version>
     </properties>
 
     <dependencies>
