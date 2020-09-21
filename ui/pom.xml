@@ -305,9 +305,21 @@
         </dependency>
 
         <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>oauth2-oidc-sdk</artifactId>
+            <version>6.23</version>
+        </dependency>
+
+        <dependency>
             <groupId>au.gov.nla</groupId>
             <artifactId>doss-http</artifactId>
             <version>${doss.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.minidev</groupId>
+                    <artifactId>json-smart</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>au.gov.nla</groupId>
@@ -318,12 +330,6 @@
             <groupId>au.gov.nla</groupId>
             <artifactId>doss-local</artifactId>
             <version>${doss.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.nimbusds</groupId>
-            <artifactId>oauth2-oidc-sdk</artifactId>
-            <version>6.23</version>
         </dependency>
 
         <dependency>
