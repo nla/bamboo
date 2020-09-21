@@ -305,12 +305,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.nimbusds</groupId>
-            <artifactId>oauth2-oidc-sdk</artifactId>
-            <version>6.23</version>
-        </dependency>
-
-        <dependency>
             <groupId>au.gov.nla</groupId>
             <artifactId>doss-http</artifactId>
             <version>${doss.version}</version>
