@@ -101,7 +101,7 @@ public class Bamboo implements AutoCloseable {
             log.warn("CDX indexing disabled (CDX_INDEXER_THREADS=0)");
             cdxIndexer = null;
         }
-        if (runTasks) {
+        if (runTasks && config.isTasksEnabled()) {
             taskManager.start();
         }
 

@@ -98,6 +98,10 @@ public class Config {
         return getEnv("OIDC_CLIENT_SECRET", null);
     }
 
+    public boolean isTasksEnabled() {
+        return Boolean.parseBoolean(getEnv("TASKS_ENABLED", "true"));
+    }
+
     public static class Watch {
         public final long crawlId;
         public final Path dir;
