@@ -2,6 +2,8 @@ package bamboo.task;
 
 import bamboo.core.*;
 import bamboo.crawl.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -16,6 +18,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class ImportJob {
+	private static final Logger log = LoggerFactory.getLogger(ImportJob.class);
 	private Config config;
 	final Crawls crawls;
 	final long crawlId;
@@ -38,20 +41,19 @@ public class ImportJob {
 			throw new RuntimeException("TODO: implement imports without a series");
 
 		try {
+			log.info("Importing crawl id " + crawlId + " " + heritrixJob.dir());
 			heritrixJob = HeritrixJob.byName(config.getHeritrixJobs(), crawl.getName());
 			heritrixJob.checkSuitableForArchiving();
 
 			Path dest = crawls.allocateCrawlPath(crawlId);
-
-			crawls.addWarcs(crawlId, heritrixJob.warcs().collect(Collectors.toList()));
-
 			constructCrawlBundle(heritrixJob.dir(), dest);
 
+			crawls.addWarcs(crawlId, heritrixJob.warcs().collect(Collectors.toList()));
 			crawls.updateState(crawlId, Crawl.ARCHIVED);
-
-		} catch (IOException e) {
+			log.info("Import complete of crawl id " + crawlId + " " + heritrixJob.dir());
+		} catch (Exception e) {
 			crawls.updateState(crawlId, Crawl.IMPORT_FAILED);
-			throw new UncheckedIOException(e);
+			log.error("Error importing crawl id " + crawlId + " " + heritrixJob.dir(), e);
 		}
 	}
 
