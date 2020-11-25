@@ -41,7 +41,7 @@ public class ImportJob {
 			throw new RuntimeException("TODO: implement imports without a series");
 
 		try {
-			log.info("Importing crawl id " + crawlId + " " + heritrixJob.dir());
+			log.info("Importing crawl id " + crawlId + " " + crawl.getName());
 			heritrixJob = HeritrixJob.byName(config.getHeritrixJobs(), crawl.getName());
 			heritrixJob.checkSuitableForArchiving();
 
@@ -50,10 +50,10 @@ public class ImportJob {
 
 			crawls.addWarcs(crawlId, heritrixJob.warcs().collect(Collectors.toList()));
 			crawls.updateState(crawlId, Crawl.ARCHIVED);
-			log.info("Import complete of crawl id " + crawlId + " " + heritrixJob.dir());
+			log.info("Import complete of crawl id " + crawlId + " " + crawl.getName());
 		} catch (Exception e) {
 			crawls.updateState(crawlId, Crawl.IMPORT_FAILED);
-			log.error("Error importing crawl id " + crawlId + " " + heritrixJob.dir(), e);
+			log.error("Error importing crawl id " + crawlId + " " + crawl.getName(), e);
 		}
 	}
 
