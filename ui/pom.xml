@@ -325,6 +325,11 @@
             <artifactId>doss-local</artifactId>
             <version>${doss.version}</version>
         </dependency>
+        <dependency>
+            <groupId>au.gov.nla</groupId>
+            <artifactId>doss-s3</artifactId>
+            <version>${doss.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>org.brotli</groupId>
