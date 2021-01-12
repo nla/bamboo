@@ -5,12 +5,13 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Date;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 public class WarcsTest {
 
@@ -47,5 +48,14 @@ public class WarcsTest {
         assertEquals(100, crawl2.getRecordBytes());
         assertEquals(time, crawl2.getStartTime());
         assertEquals(time, crawl2.getEndTime());
+    }
+
+    @Test
+    public void testHasGzipSignature() throws IOException {
+        assertFalse(Warcs.hasGzipSignature(new ByteArrayInputStream(new byte[0])));
+        assertFalse(Warcs.hasGzipSignature(new ByteArrayInputStream(new byte[]{0x1})));
+        assertFalse(Warcs.hasGzipSignature(new ByteArrayInputStream(new byte[]{0x1, 0x2})));
+        assertFalse(Warcs.hasGzipSignature(new ByteArrayInputStream(new byte[]{0x1, 0x2, 0x3})));
+        assertTrue(Warcs.hasGzipSignature(new ByteArrayInputStream(new byte[]{0x1f, (byte) 0x8b, 0x3})));
     }
 }

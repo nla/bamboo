@@ -13,6 +13,7 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -227,6 +228,12 @@ public class Warcs {
 
     public static Warc fromBlob(Blob blob, String filename) throws IOException {
         if (filename == null || filename.isEmpty()) throw new IllegalArgumentException("filename is required");
+
+        // workaround webrecorder naming .warc.gz files .warc
+        if (filename.toLowerCase(Locale.ROOT).endsWith(".warc") && hasGzipSignature(blob)) {
+            filename = filename + ".gz";
+        }
+
         Warc warc = new Warc();
         warc.setBlobId(blob.id());
         warc.setFilename(filename);
@@ -238,6 +245,18 @@ public class Warcs {
         }
         warc.setStateId(Warc.IMPORTED);
         return warc;
+    }
+
+    private static boolean hasGzipSignature(Blob blob) throws IOException {
+        try (InputStream stream = blob.openStream()) {
+            return hasGzipSignature(stream);
+        }
+    }
+
+    static boolean hasGzipSignature(InputStream stream) throws IOException {
+        byte[] buf = new byte[2];
+        int n = stream.read(buf);
+        return n == 2 && (buf[0] & 0xff) == 0x1f && (buf[1] & 0xff) == 0x8b;
     }
 
 
