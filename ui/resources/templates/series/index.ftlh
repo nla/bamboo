@@ -1,6 +1,6 @@
 [#-- @ftlvariable name="seriesPager" type="org.springframework.data.domain.Page<bamboo.crawl.Series>" --]
 [@page title="Series"]
-<h3>All ${(agency.abbreviation)!""} Crawl Series [#if auth.hasRole("agadmin")]<a href="series/new" class="btn btn-primary pull-right">New Series</a>[/#if]</h3>
+<h3>All ${(agency.abbreviation)!""} Crawl Series [#if auth.hasRole("panadmin")]<a href="series/new" class="btn btn-primary pull-right">New Series</a>[/#if]</h3>
 
 <table class="table">
     <thead>
