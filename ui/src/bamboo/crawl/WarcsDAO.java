@@ -129,6 +129,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlUpdate("UPDATE warc SET sha256 = :digest WHERE id = :id")
     int updateWarcSha256(@Bind("id") long id, @Bind("digest") String digest);
 
+    @SqlUpdate("UPDATE warc SET blob_id = :blobId WHERE id = :id")
+    int updateWarcBlobId(long id, Long blobId);
+
     @SqlQuery("SELECT name FROM warc_state WHERE id = :stateId")
     String findWarcStateName(@Bind("stateId") int stateId);
 

@@ -21,6 +21,7 @@ import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
 import doss.Blob;
 import doss.BlobStore;
+import doss.BlobTx;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.warc.WARCReaderFactory;
@@ -213,6 +214,20 @@ public class Warcs {
             out.println("ERROR: reading " + warc.getPath());
             e.printStackTrace(out);
             return false;
+        }
+    }
+
+    public String moveToBlobStorage(long warcId) throws IOException {
+        Warc warc = get(warcId);
+        if (warc.getBlobId() != null) return "already blob " + warc.getBlobId();
+        if (warc.getPath() == null) return "failed - has no path";
+
+        try (BlobTx tx = blobStore.begin()) {
+            Blob blob = tx.put(warc.getPath());
+            int rows = dao.updateWarcBlobId(warc.getId(), blob.id());
+            if (rows != 1) throw new RuntimeException("updating blob id failed");
+            tx.commit();
+            return "moved to blob " + blob.id();
         }
     }
 

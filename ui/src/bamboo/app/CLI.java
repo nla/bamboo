@@ -66,6 +66,17 @@ public class CLI {
                         bamboo.warcs.create(crawlId, Warc.IMPORTED, path, path.getFileName().toString(), size, digest);
                     }
                     break;
+
+                case "move-warc-to-blob-storage": {
+                    for (int i = 1; i < args.length; i++) {
+                        long warcId = Long.parseLong(args[i]);
+                        System.out.print("warc " + warcId + " ");
+                        System.out.flush();
+                        String status = bamboo.warcs.moveToBlobStorage(warcId);
+                        System.out.println(status);
+                    }
+                }
+
                 case "recalculate-warc-stats":
                     System.out.println("Recalculating WARC stats for crawls");
                     bamboo.crawls.recalculateWarcStats();
