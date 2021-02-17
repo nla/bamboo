@@ -75,6 +75,7 @@ public class CLI {
                         String status = bamboo.warcs.moveToBlobStorage(warcId);
                         System.out.println(status);
                     }
+                    break;
                 }
 
                 case "recalculate-warc-stats":
