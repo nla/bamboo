@@ -154,6 +154,7 @@ public class WarcsController {
         response.setContentType("application/warc");
         response.setHeader("Content-Range", range.toString());
         response.setHeader("Content-Length", Long.toString(range.length));
+        wa.warcs.copy(warc, response.getOutputStream(), range.start, range.length);
         try (OutputStream out = response.getOutputStream();
              SeekableByteChannel in = wa.warcs.openChannel(warc)) {
             in.position(range.start);

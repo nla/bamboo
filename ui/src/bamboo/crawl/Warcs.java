@@ -2,8 +2,10 @@ package bamboo.crawl;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.*;
+import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
@@ -18,13 +20,17 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import bamboo.core.NotFoundException;
+import bamboo.core.Streams;
 import bamboo.util.Pager;
 import doss.Blob;
 import doss.BlobStore;
 import doss.BlobTx;
+import doss.http.HttpBlob;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.warc.WARCReaderFactory;
+
+import javax.servlet.ServletOutputStream;
 
 import static java.nio.charset.StandardCharsets.*;
 
@@ -355,5 +361,23 @@ public class Warcs {
 
     public List<Warc> streamSeries(long fromWarcId, long seriesId, int limit) {
         return dao.streamWarcsInSeries(fromWarcId, seriesId, limit);
+    }
+
+    public void copy(Warc warc, OutputStream outputStream, long start, long length) throws IOException {
+        // optimisation for HttpBlob: use an exact range
+        if (warc.getBlobId() != null) {
+            Blob blob = blobStore.get(warc.getBlobId());
+            if (blob instanceof HttpBlob) {
+                try (InputStream in = ((HttpBlob) blob).openStream(start, length)) {
+                    Streams.copy(in, outputStream);
+                    return;
+                }
+            }
+        }
+
+        try (SeekableByteChannel in = openChannel(warc)) {
+            in.position(start);
+            Streams.copy(Channels.newInputStream(in), outputStream, length);
+        }
     }
 }
