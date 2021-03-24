@@ -8,6 +8,7 @@ import doss.BlobStore;
 import doss.BlobTx;
 import doss.SizedWritable;
 import org.apache.commons.io.IOUtils;
+import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
+import java.sql.SQLTransactionRollbackException;
 import java.util.*;
 import java.util.Collection;
 import java.util.Collections;
@@ -90,14 +92,28 @@ public class Crawls {
     public void addWarcs(long crawlId, MultipartFile[] warcFiles) throws IOException {
         try (BlobTx tx = blobStore.begin()) {
             List<Warc> warcs = storeWarcs(tx, warcFiles);
-            dao.inTransaction((dao1, ts) -> {
-                long totalBytes = warcs.stream().mapToLong(Warc::getSize).sum();
-                dao.warcs().batchInsertWarcsWithoutRollup(crawlId, warcs.iterator());
-                int warcFilesDelta = warcs.size();
-                dao.warcs().incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, totalBytes);
-                dao.warcs().incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, totalBytes);
-                return null;
-            });
+            int tries = 5;
+            while (true) {
+                try {
+                    dao.inTransaction((dao1, ts) -> {
+                        long totalBytes = warcs.stream().mapToLong(Warc::getSize).sum();
+                        dao.warcs().batchInsertWarcsWithoutRollup(crawlId, warcs.iterator());
+                        int warcFilesDelta = warcs.size();
+                        dao.warcs().incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, totalBytes);
+                        dao.warcs().incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, totalBytes);
+                        return null;
+                    });
+                    break;
+                } catch (UnableToExecuteStatementException e) {
+                    if (e.getMessage().contains("try restarting transaction")) {
+                        tries -= 1;
+                        if (tries > 0) {
+                            continue;
+                        }
+                    }
+                    throw e;
+                }
+            }
             tx.commit();
         }
     }
