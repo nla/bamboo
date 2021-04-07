@@ -48,7 +48,7 @@ public class ImportJob {
 			Path dest = crawls.allocateCrawlPath(crawlId);
 			constructCrawlBundle(heritrixJob.dir(), dest);
 
-			crawls.addWarcs(crawlId, heritrixJob.warcs().collect(Collectors.toList()));
+			crawls.addWarcsFromPaths(crawlId, heritrixJob.warcs().collect(Collectors.toList()));
 			crawls.updateState(crawlId, Crawl.ARCHIVED);
 			log.info("Import complete of crawl id " + crawlId + " " + crawl.getName());
 		} catch (Exception e) {

@@ -9,7 +9,6 @@ import doss.BlobTx;
 import doss.SizedWritable;
 import org.apache.commons.io.IOUtils;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -22,8 +21,6 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.sql.SQLException;
-import java.sql.SQLTransactionRollbackException;
 import java.util.*;
 import java.util.Collection;
 import java.util.Collections;
@@ -89,7 +86,7 @@ public class Crawls {
         return id;
     }
 
-    public void addWarcs(long crawlId, MultipartFile[] warcFiles) throws IOException {
+    public void addWarcs(long crawlId, List<NamedStream> warcFiles) throws IOException {
         try (BlobTx tx = blobStore.begin()) {
             List<Warc> warcs = storeWarcs(tx, warcFiles);
             int tries = 5;
@@ -118,7 +115,29 @@ public class Crawls {
         }
     }
 
-    public long create(Crawl crawl, MultipartFile[] warcFiles, MultipartFile[] artifactFiles) throws IOException {
+    public void addArtifacts(long crawlId, List<NamedStream> streams) throws IOException {
+        try (BlobTx tx = blobStore.begin()) {
+            List<Artifact> artifacts = storeArtifacts(tx, streams);
+            int tries = 5;
+            while (true) {
+                try {
+                    dao.batchInsertArtifacts(crawlId, artifacts.iterator());
+                    break;
+                } catch (UnableToExecuteStatementException e) {
+                    if (e.getMessage().contains("try restarting transaction")) {
+                        tries -= 1;
+                        if (tries > 0) {
+                            continue;
+                        }
+                    }
+                    throw e;
+                }
+            }
+            tx.commit();
+        }
+    }
+
+    public long createFromStreams(Crawl crawl, List<NamedStream> warcFiles, List<NamedStream> artifactFiles) throws IOException {
         try (BlobTx tx = blobStore.begin()) {
             List<Warc> warcs = storeWarcs(tx, warcFiles);
             List<Artifact> artifacts = storeArtifacts(tx, artifactFiles);
@@ -128,34 +147,31 @@ public class Crawls {
         }
     }
 
-    private List<Artifact> storeArtifacts(BlobTx tx, MultipartFile[] artifactFiles) throws IOException {
+    private List<Artifact> storeArtifacts(BlobTx tx, List<NamedStream> artifactFiles) throws IOException {
         List<Artifact> artifacts = new ArrayList<>();
-        for (MultipartFile file: artifactFiles) {
-            if (file.isEmpty()) continue;
-
+        for (NamedStream file: artifactFiles) {
             Blob blob = tx.put(writable(file));
-            Artifact artifact = new Artifact(blob, file.getOriginalFilename());
+            Artifact artifact = new Artifact(blob, file.name());
             artifacts.add(artifact);
         }
         return artifacts;
     }
 
-    private List<Warc> storeWarcs(BlobTx tx, MultipartFile[] warcFiles) throws IOException {
+    private List<Warc> storeWarcs(BlobTx tx, List<NamedStream> warcFiles) throws IOException {
         List<Warc> warcs = new ArrayList<>();
 
-        for (MultipartFile warcFile: warcFiles) {
-            if (warcFile.isEmpty()) continue; // blank form makes an empty file
+        for (NamedStream warcFile: warcFiles) {
             Blob blob = tx.put(writable(warcFile));
-            warcs.add(Warcs.fromBlob(blob, warcFile.getOriginalFilename()));
+            warcs.add(Warcs.fromBlob(blob, warcFile.name()));
         }
         return warcs;
     }
 
-    private SizedWritable writable(MultipartFile warcFile) {
+    private SizedWritable writable(NamedStream warcFile) {
         return new SizedWritable() {
             @Override
             public void writeTo(WritableByteChannel writableByteChannel) throws IOException {
-                try (InputStream stream = warcFile.getInputStream();
+                try (InputStream stream = warcFile.openStream();
                      OutputStream out = Channels.newOutputStream(writableByteChannel)) {
                     IOUtils.copy(stream, out);
                 }
@@ -163,7 +179,7 @@ public class Crawls {
 
             @Override
             public long size() {
-                return warcFile.getSize();
+                return warcFile.length();
             }
         };
     }
@@ -242,7 +258,7 @@ public class Crawls {
     /**
      * Copies a collection of warc files into this crawl.
      */
-    public void addWarcs(long crawlId, List<Path> warcFiles) throws IOException {
+    public void addWarcsFromPaths(long crawlId, List<Path> warcFiles) throws IOException {
         // FIXME: handle failures
         Crawl crawl = get(crawlId);
 

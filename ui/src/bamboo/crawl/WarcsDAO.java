@@ -90,6 +90,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlQuery("SELECT * FROM warc WHERE filename = :filename")
     Warc findWarcByFilename(@Bind("filename") String filename);
 
+    @SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId AND filename = :filename")
+    Warc findWarcByCrawlIdAndFilename(@Bind("crawlId") long crawlId, @Bind("filename") String filename);
+
     @SqlQuery("SELECT * FROM warc WHERE crawl_id = :crawlId")
     List<Warc> findWarcsByCrawlId(@Bind("crawlId") long crawlId);
 

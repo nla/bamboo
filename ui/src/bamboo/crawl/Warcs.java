@@ -89,6 +89,15 @@ public class Warcs {
         return NotFoundException.check(getOrNullByFilename(filename), "warc with filename: " + filename, 0);
     }
 
+    public Warc getByCrawlIdAndFilename(long crawlId, String filename) {
+        return NotFoundException.check(getOrNullByCrawlIdAndFilename(crawlId, filename), "warc with filename: " + filename, 0);
+    }
+
+    public Warc getOrNullByCrawlIdAndFilename(long crawlId, String filename) {
+        return dao.findWarcByCrawlIdAndFilename(crawlId, filename);
+    }
+
+
     public String stateName(int stateId) {
         return dao.findWarcStateName(stateId);
     }

@@ -16,6 +16,8 @@ import org.archive.io.ArchiveRecord;
 import org.archive.url.SURT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.codec.Hex;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +29,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.*;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -123,6 +126,21 @@ public class WarcsController {
                  @RequestHeader(value = "Range", required = false) String rangeHeader,
                  HttpServletRequest request, HttpServletResponse response) {
         Warc warc = findWarc(id);
+        serveWarc(warc, rangeHeader, request, response);
+    }
+
+
+    @GetMapping("/crawls/{id}/warcs/{filename}")
+    @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'view')")
+    public void serveInCrawl(@PathVariable("id") long crawlId, @PathVariable("filename") String filename,
+                 @RequestHeader(value = "Range", required = false) String rangeHeader,
+                 HttpServletRequest request,
+                 HttpServletResponse response) {
+        Warc warc = wa.warcs.getByCrawlIdAndFilename(crawlId, filename);
+        serveWarc(warc, rangeHeader, request, response);
+    }
+
+    public void serveWarc(Warc warc, String rangeHeader, HttpServletRequest request, HttpServletResponse response) {
         List<Range> ranges = Range.parseHeader(rangeHeader, warc.getSize());
         try {
             if (ranges == null || ranges.isEmpty()) {
@@ -130,50 +148,48 @@ public class WarcsController {
                 response.setHeader("Content-Length", Long.toString(warc.getSize()));
                 response.setHeader("Content-Disposition", "filename=" + warc.getFilename());
                 response.setHeader("Accept-Ranges", "bytes");
+                String sha256 = warc.getSha256();
+                if (sha256 != null) {
+                    response.setHeader("Digest", "sha-256=" + Base64.getEncoder().encodeToString(Hex.decode(sha256)));
+                }
+                if (request.getMethod().equals("HEAD")) return;
 
                 try (InputStream src = wa.warcs.openStream(warc);
                      OutputStream dst = response.getOutputStream()) {
                     Streams.copy(src, dst);
                 }
             } else if (ranges.size() == 1) {
-                singleRangeResponse(response, warc, ranges.get(0));
+                singleRangeResponse(request, response, warc, ranges.get(0));
             } else {
-                multipleRangeResponse(response, warc, ranges);
+                multipleRangeResponse(request, response, warc, ranges);
             }
         } catch (IOException e) {
             if (e.getMessage().contains("Connection reset by peer") || e.getMessage().contains("Broken pipe")) {
-                return; // suppress error if the client just closed
+                return;
             }
             throw new UncheckedIOException(e);
         }
     }
 
-
-    private void singleRangeResponse(HttpServletResponse response, Warc warc, Range range) throws IOException {
+    private void singleRangeResponse(HttpServletRequest request, HttpServletResponse response, Warc warc, Range range) throws IOException {
         response.setStatus(206);
         response.setContentType("application/warc");
         response.setHeader("Content-Range", range.toString());
         response.setHeader("Content-Length", Long.toString(range.length));
+        if (request.getMethod().equals("HEAD")) return;
         wa.warcs.copy(warc, response.getOutputStream(), range.start, range.length);
-        try (OutputStream out = response.getOutputStream();
-             SeekableByteChannel in = wa.warcs.openChannel(warc)) {
-            in.position(range.start);
-            Streams.copy(Channels.newInputStream(in), out, range.length);
-        }
     }
 
     private static final String boundary = "Te2akaimeeThe8eip5oh";
 
-    private void multipleRangeResponse(HttpServletResponse response, Warc warc, List<Range> ranges) throws IOException {
+    private void multipleRangeResponse(HttpServletRequest request, HttpServletResponse response, Warc warc, List<Range> ranges) throws IOException {
         response.setStatus(206);
         response.setContentType("multipart/byteranges; boundary=" + boundary);
-        try (OutputStream out = response.getOutputStream();
-             SeekableByteChannel in = wa.warcs.openChannel(warc);
-             InputStream ins = Channels.newInputStream(in)) {
+        if (request.getMethod().equals("HEAD")) return;
+        try (OutputStream out = response.getOutputStream()) {
             for (Range range : ranges) {
                 out.write(("--" + boundary + "\r\nContent-Type: application/warc\r\nContent-Range: " + range.toString() + "\r\n\r\n").getBytes(US_ASCII));
-                in.position(range.start);
-                Streams.copy(ins, out, range.length);
+                wa.warcs.copy(warc, out, range.start, range.length);
                 out.write("\r\n".getBytes(US_ASCII));
             }
             out.write(("--" + boundary + "--\r\n").getBytes(US_ASCII));

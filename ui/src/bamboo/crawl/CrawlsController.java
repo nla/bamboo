@@ -8,6 +8,7 @@ import bamboo.util.Pager;
 import org.apache.commons.io.IOUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.codec.Hex;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.AntPathMatcher;
@@ -21,10 +22,12 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.*;
 import java.util.Collections;
-import java.util.List;
+import java.util.stream.Collectors;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -138,9 +141,10 @@ public class CrawlsController {
     @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'view')")
     void downloadArtifactById(@PathVariable("id") long crawlId,
                                      @PathVariable("artifactId") long artifactId,
+                                     HttpServletRequest request,
                                      HttpServletResponse response) throws IOException {
         Artifact artifact = bamboo.crawls.getArtifact(artifactId);
-        downloadArtifact(response, artifact);
+        downloadArtifact(request, response, artifact);
     }
 
     @GetMapping("/crawls/{id}/artifacts/**")
@@ -152,17 +156,55 @@ public class CrawlsController {
         String pattern = (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
         String relpath = new AntPathMatcher().extractPathWithinPattern(pattern, path);
         Artifact artifact = bamboo.crawls.getArtifactByRelpath(crawlId, relpath);
-        downloadArtifact(response, artifact);
+        downloadArtifact(request, response, artifact);
     }
 
-    private void downloadArtifact(HttpServletResponse response, Artifact artifact) throws IOException {
+    private void downloadArtifact(HttpServletRequest request, HttpServletResponse response, Artifact artifact) throws IOException {
         String filename = artifact.getRelpath().replaceFirst(".*/", "");
         response.setContentType(artifact.guessContentType());
+        response.setContentLengthLong(artifact.getSize());
         response.setHeader("Content-Disposition", "filename=" + filename);
+        String sha256 = artifact.getSha256();
+        if (sha256 != null) {
+            response.setHeader("Digest", "sha-256=" + Base64.getEncoder().encodeToString(Hex.decode(sha256)));
+        }
+
+        if (request.getMethod().equals("HEAD")) return;
         try (InputStream is = bamboo.crawls.openArtifactStream(artifact);
              OutputStream os = response.getOutputStream()) {
             IOUtils.copy(is, os);
         }
+    }
+
+    @PutMapping("/crawls/{id}/artifacts/**")
+    @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
+    @ResponseStatus(HttpStatus.CREATED)
+    void putArtifactByPath(@PathVariable("id") long crawlId,
+                                HttpServletRequest request,
+                                HttpServletResponse response) throws IOException {
+        String path = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        String pattern = (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+        String relpath = new AntPathMatcher().extractPathWithinPattern(pattern, path);
+
+        bamboo.crawls.get(crawlId);
+        Artifact existing = bamboo.crawls.getArtifactByRelpathOrNull(crawlId, relpath);
+        if (existing != null) throw new ResponseStatusException(HttpStatus.CONFLICT, "artifact already exists");
+        bamboo.crawls.addArtifacts(crawlId, List.of(new NamedStream() {
+            @Override
+            public String name() {
+                return relpath;
+            }
+
+            @Override
+            public long length() {
+                return request.getContentLengthLong();
+            }
+
+            @Override
+            public InputStream openStream() throws IOException {
+                return request.getInputStream();
+            }
+        }));
     }
 
     @GetMapping("/crawls/{id}/warcs/corrupt")
@@ -274,7 +316,7 @@ public class CrawlsController {
                          @RequestPart(value = "artifact", required = false) MultipartFile[] artifacts) throws IOException {
         if (warcFiles == null) warcFiles = new MultipartFile[0];
         if (artifacts == null) artifacts = new MultipartFile[0];
-        long crawlId = bamboo.crawls.create(crawl, warcFiles, artifacts);
+        long crawlId = bamboo.crawls.createFromStreams(crawl, NamedStream.of(warcFiles), NamedStream.of(artifacts));
         return "redirect:/crawls/" + crawlId;
     }
 
@@ -305,8 +347,33 @@ public class CrawlsController {
     @PostMapping("/crawls/{crawlId}/warcs/upload")
     @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
     public String create(@PathVariable("crawlId") long crawlId, @RequestPart("warcFile") MultipartFile[] warcFiles) throws IOException {
-        bamboo.crawls.addWarcs(crawlId, warcFiles);
+        bamboo.crawls.addWarcs(crawlId, NamedStream.of(warcFiles));
         return "redirect:/crawls/" + crawlId + "/warcs";
     }
 
+    @PutMapping("/crawls/{crawlId}/warcs/{filename}")
+    @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
+    @ResponseStatus(HttpStatus.CREATED)
+    public void putWarc(@PathVariable("crawlId") long crawlId, @PathVariable("filename") String filename,
+                          HttpServletRequest request) throws IOException {
+        bamboo.crawls.get(crawlId); // ensure the crawl exists
+        Warc existing = bamboo.warcs.getOrNullByCrawlIdAndFilename(crawlId, filename);
+        if (existing != null) throw new ResponseStatusException(HttpStatus.CONFLICT, "File already exists");
+        bamboo.crawls.addWarcs(crawlId, List.of(new NamedStream() {
+            @Override
+            public String name() {
+                return filename;
+            }
+
+            @Override
+            public long length() {
+                return request.getContentLengthLong();
+            }
+
+            @Override
+            public InputStream openStream() throws IOException {
+                return request.getInputStream();
+            }
+        }));
+    }
 }
