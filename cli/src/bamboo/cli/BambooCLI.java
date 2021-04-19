@@ -35,7 +35,7 @@ public class BambooCLI {
             case "login":
                 login(args.length > 1 ? args[1] : null, args.length > 2 ? args[2] : null, args.length > 3 ? args[3] : null);
                 break;
-            case "add-warc":
+            case "add-warc": {
                 long crawlId = Long.parseLong(args[1]);
                 var warcFiles = Arrays.stream(args).skip(2).map(Paths::get).collect(Collectors.toList());
                 for (Path file : warcFiles) {
@@ -49,8 +49,18 @@ public class BambooCLI {
                     var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
                     System.out.println(response.statusCode() + " " + response.body() + " " + response.headers().firstValue("Location").orElse(""));
                 }
-
                 break;
+            }
+            case "delete-warc":{
+                Long warcId = Long.parseLong(args[1]);
+                var request = HttpRequest.newBuilder(URI.create(baseUrl + "/warcs/" + warcId))
+                        .header("Authorization", auth.bearer())
+                        .DELETE()
+                        .build();
+                var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                System.out.println(response.statusCode() + " " + response.body());
+                break;
+            }
             default:
                 usage();
                 return -1;
