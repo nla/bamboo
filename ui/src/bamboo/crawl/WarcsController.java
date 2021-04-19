@@ -368,6 +368,6 @@ public class WarcsController {
     @PreAuthorize("hasPermission(#warcId, 'Warc', 'edit')")
     public String deleteWarcWithPost(@PathVariable("warcId") long warcId) throws IOException {
         deleteWarc(warcId);
-        return "redirect:/warcs/" + warcId;
+        return "redirect:/warcs/" + warcId + "/details";
     }
 }
