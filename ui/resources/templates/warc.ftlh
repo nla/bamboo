@@ -14,11 +14,15 @@
     <tr><th>SHA-256 Digest</th><td>${warc.sha256!}</td></tr>
 </table>
 
-<form action="warcs/${warc.id?c}/reindex" method="post">
-    <button type="submit" class="btn btn-default">Reindex</button>
-</form>
-<form action="warcs/${warc.id?c}/delete" method="post">
-    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you certain you wish to delete ${warc.filename}?')">Delete</button>
-</form>
+<div class="action-buttons">
+    <form action="warcs/${warc.id?c}/reindex" method="post" style="display: inline">
+        <button type="submit" class="btn btn-default">Reindex</button>
+    </form>
+    [#if warc.stateId != -4]
+        <form action="warcs/${warc.id?c}/delete" method="post" style="display: inline; float: right">
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you certain you wish to delete ${warc.filename}?')">Delete</button>
+        </form>
+    [/#if]
+</div>
 
 [/@page]
