@@ -26,10 +26,19 @@ public class BambooCLI {
     }
 
     void usage() {
-        System.err.println("Usage: bamboo subcommand [args]");
+        System.err.println("Usage: bamboo subcommand [args]\n" +
+                "\n" +
+                "Subcommands:\n" +
+                "  login <auth-url> <user>        Login to Bamboo\n" +
+                "  add-warc <crawl-id> <files..>  Upload WARC files to an existing crawl\n" +
+                "  delete-warc <warc-id>          Mark a WARC file as deleted and remove it from the CDX index\n");
     }
 
     int run(String[] args) throws Exception {
+        if (args.length == 0) {
+            usage();
+            System.exit(0);
+        }
         auth.tryLoad();
         switch (args[0]) {
             case "login":
