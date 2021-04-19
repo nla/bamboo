@@ -357,12 +357,17 @@ public class WarcsController {
     }
 
     @DeleteMapping("/warcs/{warcId}")
-    @PostMapping("/warcs/{warcId}/delete")
     @PreAuthorize("hasPermission(#warcId, 'Warc', 'edit')")
-    @ResponseBody
     public void deleteWarc(@PathVariable("warcId") long warcId) throws IOException {
         Warc warc = wa.warcs.get(warcId);
         if (warc.getStateId() == Warc.DELETED) return;
         wa.cdxIndexer.deindexWarc(warc);
+    }
+
+    @PostMapping("/warcs/{warcId}/delete")
+    @PreAuthorize("hasPermission(#warcId, 'Warc', 'edit')")
+    public String deleteWarcWithPost(@PathVariable("warcId") long warcId) throws IOException {
+        deleteWarc(warcId);
+        return "redirect:/warcs/" + warcId;
     }
 }
