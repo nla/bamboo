@@ -133,10 +133,18 @@ public class Warcs {
         dao.insertWarcHistory(id, stateId);
     }
 
-    public void updateRecordStats(long warcId, RecordStats stats) {
+    public void updateRecordStats(long warcId, RecordStats stats, boolean deleteMode) {
         dao.inTransaction((dao, ts) -> {
-            dao.updateRecordStatsRollupForCrawl(warcId, stats);
-            dao.updateRecordStatsRollupForSeries(warcId, stats);
+            long records = stats.getRecords();
+            long recordBytes = stats.getRecordBytes();
+            if (deleteMode) {
+                records = -records;
+                recordBytes = -recordBytes;
+            }
+            dao.updateRecordStatsRollupForCrawl(warcId, records, recordBytes,
+                    stats.getStartTime(), stats.getEndTime());
+            dao.updateRecordStatsRollupForSeries(warcId, records, recordBytes,
+                    stats.getStartTime(), stats.getEndTime());
             int rows = dao.updateWarcRecordStats(warcId, stats);
             if (rows == 0) {
                 throw new NotFoundException("warc", warcId);
@@ -145,14 +153,14 @@ public class Warcs {
         });
     }
 
-    public void updateCollections(long warcId, Map<Long, RecordStats> collectionStatsMap) {
+    public void updateCollections(long warcId, Map<Long, RecordStats> collectionStatsMap, boolean deleteMode) {
         for (Map.Entry<Long, RecordStats> entry : collectionStatsMap.entrySet()) {
             long collectionId = entry.getKey();
             RecordStats stats = entry.getValue();
 
             dao.inTransaction((dao, ts) -> {
-                long recordsDelta = stats.getRecords();
-                long bytesDelta = stats.getRecordBytes();
+                long recordsDelta = deleteMode ? 0 : stats.getRecords();
+                long bytesDelta = deleteMode ? 0 : stats.getRecordBytes();
 
                 CollectionWarc old = dao.selectCollectionWarcForUpdate(collectionId, warcId);
                 if (old != null) {
@@ -161,8 +169,10 @@ public class Warcs {
                 }
 
                 dao.deleteCollectionWarc(collectionId, warcId);
-                dao.insertCollectionWarc(collectionId, warcId, stats.getRecords(), stats.getRecordBytes());
-                dao.incrementRecordStatsForCollection(collectionId, recordsDelta, bytesDelta);
+                if (!deleteMode) {
+                    dao.insertCollectionWarc(collectionId, warcId, stats.getRecords(), stats.getRecordBytes());
+                    dao.incrementRecordStatsForCollection(collectionId, recordsDelta, bytesDelta);
+                }
 
                 return null;
             });

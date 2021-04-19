@@ -5,6 +5,7 @@ import bamboo.app.Bamboo;
 import bamboo.core.Role;
 import bamboo.crawl.Crawl;
 import bamboo.crawl.Series;
+import bamboo.crawl.Warc;
 import org.springframework.security.access.PermissionEvaluator;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -55,6 +56,8 @@ public class BambooPermissionEvaluator implements PermissionEvaluator {
             case "Crawl:view":
                 if (authorities.contains(SERIES_VIEW_ALL)) return true;
                 return hasPermission(authentication, ((Crawl)target).getCrawlSeriesId(), "Series", "view");
+            case "Warc:edit":
+                return hasPermission(authentication, ((Warc)target).getCrawlId(), "Crawl", "edit");
             default:
                 throw new IllegalArgumentException("Unknown permission: " + qualified);
         }
@@ -69,6 +72,8 @@ public class BambooPermissionEvaluator implements PermissionEvaluator {
                 return hasPermission(authentication, bamboo.crawls.get((Long) targetId), permission);
             case "Series":
                 return hasPermission(authentication, bamboo.serieses.get((Long) targetId), permission);
+            case "Warc":
+                return hasPermission(authentication, bamboo.warcs.get((Long) targetId), permission);
             default:
                 throw new IllegalArgumentException("Permissions for " + targetType + " not implemented");
         }

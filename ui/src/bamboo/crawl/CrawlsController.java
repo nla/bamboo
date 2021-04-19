@@ -376,4 +376,13 @@ public class CrawlsController {
             }
         }));
     }
+
+    @DeleteMapping("/crawls/{crawlId}/warcs/{filename}")
+    @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
+    @ResponseStatus(HttpStatus.OK)
+    public void deleteWarc(@PathVariable("crawlId") long crawlId, @PathVariable("filename") String filename) throws IOException {
+        Warc warc = bamboo.warcs.getByFilename(filename);
+        if (warc.getStateId() == Warc.DELETED) return;
+        bamboo.cdxIndexer.deindexWarc(warc);
+    }
 }

@@ -141,19 +141,23 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
 
     @SqlUpdate(
             "UPDATE crawl SET " +
-            "  records = records + :stats.records - (SELECT records FROM warc WHERE id = :warcId), " +
-            "  record_bytes = record_bytes + :stats.recordBytes - (SELECT record_bytes FROM warc WHERE id = :warcId), " +
-            "  start_time = COALESCE(LEAST(start_time, :stats.startTime), :stats.startTime), " +
-            "  end_time = COALESCE(GREATEST(end_time, :stats.endTime), :stats.endTime) " +
+            "  records = records + :records - (SELECT records FROM warc WHERE id = :warcId), " +
+            "  record_bytes = record_bytes + :recordBytes - (SELECT record_bytes FROM warc WHERE id = :warcId), " +
+            "  start_time = COALESCE(LEAST(start_time, :startTime), :startTime), " +
+            "  end_time = COALESCE(GREATEST(end_time, :endTime), :endTime) " +
             "WHERE id = (SELECT crawl_id FROM warc WHERE id = :warcId)")
-    int updateRecordStatsRollupForCrawl(@Bind("warcId") long warcId, @BindBean("stats") RecordStats stats);
+    int updateRecordStatsRollupForCrawl(@Bind("warcId") long warcId, @Bind("records") long records,
+                                        @Bind("recordBytes") long recordBytes, @Bind("startTime") Date startTime,
+                                        @Bind("endTime") Date endTime);
 
     @SqlUpdate(
             "UPDATE crawl_series SET " +
-            "  records = records + :stats.records - (SELECT records FROM warc WHERE id = :warcId), " +
-            "  record_bytes = record_bytes + :stats.recordBytes - (SELECT record_bytes FROM warc WHERE id = :warcId) " +
+            "  records = records + :records - (SELECT records FROM warc WHERE id = :warcId), " +
+            "  record_bytes = record_bytes + :recordBytes - (SELECT record_bytes FROM warc WHERE id = :warcId) " +
             "WHERE id = (SELECT crawl.crawl_series_id FROM crawl INNER JOIN warc ON warc.crawl_id = crawl.id WHERE warc.id = :warcId)")
-    int updateRecordStatsRollupForSeries(@Bind("warcId") long warcId, @BindBean("stats") RecordStats stats);
+    int updateRecordStatsRollupForSeries(@Bind("warcId") long warcId, @Bind("records") long records,
+                                         @Bind("recordBytes") long recordBytes, @Bind("startTime") Date startTime,
+                                         @Bind("endTime") Date endTime);
 
     class CollectionWarcMapper implements ResultSetMapper<CollectionWarc> {
         @Override

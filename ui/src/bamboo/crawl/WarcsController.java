@@ -16,6 +16,7 @@ import org.archive.io.ArchiveRecord;
 import org.archive.url.SURT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.codec.Hex;
 import org.springframework.stereotype.Controller;
@@ -355,4 +356,12 @@ public class WarcsController {
         return "CDX indexed " + stats.getRecords() + " records";
     }
 
+    @DeleteMapping("/warcs/{warcId}")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasPermission(#warcId, 'Warc', 'edit')")
+    public void deleteWarc(@PathVariable("warcId") long warcId) throws IOException {
+        Warc warc = wa.warcs.get(warcId);
+        if (warc.getStateId() == Warc.DELETED) return;
+        wa.cdxIndexer.deindexWarc(warc);
+    }
 }

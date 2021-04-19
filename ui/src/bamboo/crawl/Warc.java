@@ -8,7 +8,7 @@ import java.util.Date;
 @Entity
 public class Warc {
     public final static int OPEN = 0, IMPORTED = 1, CDX_INDEXED = 2, SOLR_INDEXED = 3;
-    public final static int IMPORT_ERROR = -1, CDX_ERROR = -2, SOLR_ERROR = -3;
+    public final static int IMPORT_ERROR = -1, CDX_ERROR = -2, SOLR_ERROR = -3, DELETED = -4;
 
     private @Id @GeneratedValue(strategy=GenerationType.IDENTITY) long id;
     private long crawlId;

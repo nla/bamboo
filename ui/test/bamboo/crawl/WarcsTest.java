@@ -37,7 +37,7 @@ public class WarcsTest {
         RecordStats stats = new RecordStats();
         Date time = new Date();
         stats.update(100, time);
-        warcs.updateRecordStats(warcId, stats);
+        warcs.updateRecordStats(warcId, stats, false);
 
         Warc warc = warcs.get(warcId);
         assertEquals(100, warc.getRecordBytes());

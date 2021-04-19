@@ -95,7 +95,10 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     @SqlQuery("SELECT COUNT(*) FROM crawl WHERE crawl_series_id = :seriesId")
     long countCrawlsWithSeriesId(@Bind("seriesId") long seriesId);
 
-    @SqlUpdate("UPDATE crawl SET warc_files = (SELECT COALESCE(COUNT(*), 0) FROM warc WHERE warc.crawl_id = crawl.id), warc_size = (SELECT COALESCE(SUM(size), 0) FROM warc WHERE warc.crawl_id = crawl.id), records = (SELECT COALESCE(SUM(records), 0) FROM warc WHERE warc.crawl_id = crawl.id), record_bytes = (SELECT COALESCE(SUM(record_bytes), 0) FROM warc WHERE warc.crawl_id = crawl.id)")
+    @SqlUpdate("UPDATE crawl SET warc_files = (SELECT COALESCE(COUNT(*), 0) FROM warc WHERE warc.crawl_id = crawl.id AND warc.warc_state_id <> " + Warc.DELETED + "),\n" +
+            "warc_size = (SELECT COALESCE(SUM(size), 0) FROM warc WHERE warc.crawl_id = crawl.id AND warc.warc_state_id <> " + Warc.DELETED + "),\n" +
+            "records = (SELECT COALESCE(SUM(records), 0) FROM warc WHERE warc.crawl_id = crawl.id AND warc.warc_state_id <> " + Warc.DELETED + "),\n" +
+            "record_bytes = (SELECT COALESCE(SUM(record_bytes), 0) FROM warc WHERE warc.crawl_id = crawl.id AND warc.warc_state_id <> " + Warc.DELETED + ")")
     int recalculateWarcStats();
 
     @SqlUpdate("INSERT INTO artifact (crawl_id, type, path, size, sha256, relpath) VALUES (:crawl_id, :type, :path, :size, :sha256, :relpath)")

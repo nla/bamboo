@@ -91,6 +91,14 @@ public class CdxIndexer implements Runnable {
     }
 
     public RecordStats indexWarc(Warc warc) throws IOException {
+        return indexWarc(warc, false);
+    }
+
+    public RecordStats deindexWarc(Warc warc) throws IOException {
+        return indexWarc(warc, true);
+    }
+
+    private RecordStats indexWarc(Warc warc, boolean deleteMode) throws IOException {
         System.out.println("\nCDX indexing " + warc.getId() + " " + warc.getPath());
 
         // fetch the list of collections from the database
@@ -98,7 +106,7 @@ public class CdxIndexer implements Runnable {
         Crawl crawl = crawls.get(warc.getCrawlId());
         for (CollectionWithFilters collection: collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())) {
             if (collection.getCdxUrl() != null && !collection.getCdxUrl().isEmpty()) {
-                buffers.add(new CdxBuffer(collection));
+                buffers.add(new CdxBuffer(collection, deleteMode));
             }
         }
 
@@ -133,7 +141,7 @@ public class CdxIndexer implements Runnable {
 
             // submit the records to each collection
             for (CdxBuffer buffer : buffers) {
-                buffer.submit();
+                buffer.submit(deleteMode);
                 collectionStats.put(buffer.collection.getId(), buffer.stats);
             }
         } finally {
@@ -142,13 +150,12 @@ public class CdxIndexer implements Runnable {
             }
         }
 
-
         // update the statistics in the database
-        warcs.updateRecordStats(warc.getId(), stats);
-        warcs.updateCollections(warc.getId(), collectionStats);
+        warcs.updateRecordStats(warc.getId(), stats, deleteMode);
+        warcs.updateCollections(warc.getId(), collectionStats, deleteMode);
 
         // mark indexing as finished
-        warcs.updateState(warc.getId(), Warc.CDX_INDEXED);
+        warcs.updateState(warc.getId(), deleteMode ? Warc.DELETED : Warc.CDX_INDEXED);
 
         System.out.println("Finished CDX indexing " + warc.getId() + " " + warc.getPath() + " " + stats);
         return stats;
@@ -190,16 +197,16 @@ public class CdxIndexer implements Runnable {
 
     private class CdxBuffer implements Closeable {
         final Collection collection;
-        final URL cdxServer;
+        private final URL cdxServer;
         final SurtFilter filter;
         final Writer writer;
         final RecordStats stats = new RecordStats();
         private final Path bufferPath;
         private final FileChannel channel;
 
-        CdxBuffer(CollectionWithFilters collection) throws IOException {
+        CdxBuffer(CollectionWithFilters collection, boolean deleteMode) throws IOException {
             this.collection = collection;
-            cdxServer = new URL(collection.getCdxUrl());
+            cdxServer = new URL(collection.getCdxUrl() + (deleteMode ? "/delete" : ""));
             filter = new SurtFilter(collection.urlFilters);
 
             bufferPath = Files.createTempFile("bamboo", ".cdx");
@@ -221,7 +228,7 @@ public class CdxIndexer implements Runnable {
             }
         }
 
-        void submit() throws IOException {
+        void submit(boolean deleteMode) throws IOException {
             writer.flush();
             channel.position(0);
 
