@@ -141,7 +141,7 @@ public class CdxIndexer implements Runnable {
 
             // submit the records to each collection
             for (CdxBuffer buffer : buffers) {
-                buffer.submit(deleteMode);
+                buffer.submit();
                 collectionStats.put(buffer.collection.getId(), buffer.stats);
             }
         } finally {
@@ -203,9 +203,11 @@ public class CdxIndexer implements Runnable {
         final RecordStats stats = new RecordStats();
         private final Path bufferPath;
         private final FileChannel channel;
+        private final boolean deleteMode;
 
         CdxBuffer(CollectionWithFilters collection, boolean deleteMode) throws IOException {
             this.collection = collection;
+            this.deleteMode = deleteMode;
             cdxServer = new URL(collection.getCdxUrl() + (deleteMode ? "/delete" : ""));
             filter = new SurtFilter(collection.urlFilters);
 
@@ -228,7 +230,7 @@ public class CdxIndexer implements Runnable {
             }
         }
 
-        void submit(boolean deleteMode) throws IOException {
+        void submit() throws IOException {
             writer.flush();
             channel.position(0);
 
@@ -265,6 +267,7 @@ public class CdxIndexer implements Runnable {
         }
 
         void appendAlias(String alias, String target) {
+            if (deleteMode) return; // FIXME: add alias delete to support OutbackCDX
             String surt = toSchemalessSURT(alias);
             if (filter == null || filter.accepts(surt)) {
                 try {
