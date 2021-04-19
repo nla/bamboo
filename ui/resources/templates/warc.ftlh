@@ -17,5 +17,8 @@
 <form action="warcs/${warc.id?c}/reindex" method="post">
     <button type="submit" class="btn btn-default">Reindex</button>
 </form>
+<form action="warcs/${warc.id?c}/delete" method="post">
+    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you certain you wish to delete ${warc.filename}?')">Delete</button>
+</form>
 
 [/@page]

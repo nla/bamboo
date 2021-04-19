@@ -357,8 +357,9 @@ public class WarcsController {
     }
 
     @DeleteMapping("/warcs/{warcId}")
-    @ResponseStatus(HttpStatus.OK)
+    @PostMapping("/warcs/{warcId}/delete")
     @PreAuthorize("hasPermission(#warcId, 'Warc', 'edit')")
+    @ResponseBody
     public void deleteWarc(@PathVariable("warcId") long warcId) throws IOException {
         Warc warc = wa.warcs.get(warcId);
         if (warc.getStateId() == Warc.DELETED) return;
