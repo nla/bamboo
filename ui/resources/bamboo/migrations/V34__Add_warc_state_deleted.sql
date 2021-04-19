@@ -1,0 +1,1 @@
+INSERT INTO warc_state (id, name) VALUES (-4, 'deleted');

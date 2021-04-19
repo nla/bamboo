@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class BambooCLI {
@@ -42,7 +43,7 @@ public class BambooCLI {
         auth.tryLoad();
         switch (args[0]) {
             case "login":
-                login(args.length > 1 ? args[1] : null, args.length > 2 ? args[2] : null, args.length > 3 ? args[3] : null);
+                login(args.length > 1 ? args[1] : null, args.length > 2 ? args[2] : null);
                 break;
             case "add-warc": {
                 long crawlId = Long.parseLong(args[1]);
@@ -77,8 +78,19 @@ public class BambooCLI {
         return 0;
     }
 
-    void login(String url, String username, String password) throws IOException, InterruptedException, JsonParserException {
-        if (url == null) url = System.console().readLine("Auth server URL: ");
+    void login(String username, String password) throws IOException, InterruptedException, JsonParserException {
+        var request = HttpRequest.newBuilder(URI.create(baseUrl + "/oauth2/authorization/oidc")).GET().build();
+        var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() == 200) {
+            System.err.println("Server returned 200 OK. No login appears to be required?");
+            System.exit(1);
+        } else if (response.statusCode() != 302) {
+            System.err.println("Unexpected repsonse code: " + response.statusCode());
+            System.exit(1);
+        }
+        String location = response.headers().firstValue("Location").orElseThrow();
+        String url = location.replaceFirst("/protocol/openid-connect/auth\\?.*", "");
+        System.out.println("Authenticating to realm " + url);
         if (username == null) username = System.console().readLine("Username: ");
         if (password == null) password = new String(System.console().readPassword("Password: "));
         auth.login(url, username, password);
