@@ -45,37 +45,43 @@ public class BambooCLI {
             case "login":
                 login(args.length > 1 ? args[1] : null, args.length > 2 ? args[2] : null);
                 break;
-            case "add-warc": {
-                long crawlId = Long.parseLong(args[1]);
-                var warcFiles = Arrays.stream(args).skip(2).map(Paths::get).collect(Collectors.toList());
-                for (Path file : warcFiles) {
-                    MultipartBodyPublisher body = MultipartBodyPublisher.newBuilder().filePart("warcFile", file, MediaType.parse("application/warc")).build();
-                    ProgressTracker tracker = ProgressTracker.newBuilder().timePassedThreshold(Duration.ofSeconds(1)).build();
-                    var request = HttpRequest.newBuilder(URI.create(baseUrl + "/crawls/" + crawlId + "/warcs/upload"))
-                            .header("Content-Type", body.mediaType().toString())
-                            .header("Authorization", auth.bearer())
-                            .POST(tracker.trackingMultipart(body, item -> System.out.println(file.getFileName() + " " + item.partProgress())))
-                            .build();
-                    var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                    System.out.println(response.statusCode() + " " + response.body() + " " + response.headers().firstValue("Location").orElse(""));
-                }
+            case "add-warc":
+                addWarc(args);
                 break;
-            }
-            case "delete-warc":{
-                Long warcId = Long.parseLong(args[1]);
-                var request = HttpRequest.newBuilder(URI.create(baseUrl + "/warcs/" + warcId))
-                        .header("Authorization", auth.bearer())
-                        .DELETE()
-                        .build();
-                var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                System.out.println(response.statusCode() + " " + response.body());
+            case "delete-warc":
+                deleteWarc(args[1]);
                 break;
-            }
             default:
                 usage();
                 return -1;
         }
         return 0;
+    }
+
+    private void deleteWarc(String arg) throws IOException, InterruptedException {
+        long warcId = Long.parseLong(arg);
+        var request = HttpRequest.newBuilder(URI.create(baseUrl + "/warcs/" + warcId))
+                .header("Authorization", auth.bearer())
+                .DELETE()
+                .build();
+        var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        System.out.println(response.statusCode() + " " + response.body());
+    }
+
+    private void addWarc(String[] args) throws IOException, InterruptedException {
+        long crawlId = Long.parseLong(args[1]);
+        var warcFiles = Arrays.stream(args).skip(2).map(Paths::get).collect(Collectors.toList());
+        for (Path file : warcFiles) {
+            MultipartBodyPublisher body = MultipartBodyPublisher.newBuilder().filePart("warcFile", file, MediaType.parse("application/warc")).build();
+            ProgressTracker tracker = ProgressTracker.newBuilder().timePassedThreshold(Duration.ofSeconds(1)).build();
+            var request = HttpRequest.newBuilder(URI.create(baseUrl + "/crawls/" + crawlId + "/warcs/upload"))
+                    .header("Content-Type", body.mediaType().toString())
+                    .header("Authorization", auth.bearer())
+                    .POST(tracker.trackingMultipart(body, item -> System.out.println(file.getFileName() + " " + item.partProgress())))
+                    .build();
+            var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            System.out.println(response.statusCode() + " " + response.body() + " " + response.headers().firstValue("Location").orElse(""));
+        }
     }
 
     void login(String username, String password) throws IOException, InterruptedException, JsonParserException {
@@ -95,5 +101,4 @@ public class BambooCLI {
         if (password == null) password = new String(System.console().readPassword("Password: "));
         auth.login(url, username, password);
     }
-
 }
