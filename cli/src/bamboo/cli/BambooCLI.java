@@ -6,15 +6,19 @@ import com.github.mizosoft.methanol.ProgressTracker;
 import com.grack.nanojson.JsonParserException;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class BambooCLI {
@@ -30,9 +34,10 @@ public class BambooCLI {
         System.err.println("Usage: bamboo subcommand [args]\n" +
                 "\n" +
                 "Subcommands:\n" +
-                "  login <auth-url> <user>        Login to Bamboo\n" +
-                "  add-warc <crawl-id> <files..>  Upload WARC files to an existing crawl\n" +
-                "  delete-warc <warc-id>          Mark a WARC file as deleted and remove it from the CDX index\n");
+                "  login <auth-url> <user>            Login to Bamboo\n" +
+                "  add-artifact <crawl-id> <files..>  Upload artifacts to an existing crawl\n" +
+                "  add-warc <crawl-id> <files..>      Upload WARC files to an existing crawl\n" +
+                "  delete-warc <warc-id>              Mark a WARC file as deleted and remove it from the CDX index\n");
     }
 
     int run(String[] args) throws Exception {
@@ -42,14 +47,17 @@ public class BambooCLI {
         }
         auth.tryLoad();
         switch (args[0]) {
-            case "login":
-                login(args.length > 1 ? args[1] : null, args.length > 2 ? args[2] : null);
+            case "add-artifact":
+                addArtifact(args);
                 break;
             case "add-warc":
                 addWarc(args);
                 break;
             case "delete-warc":
                 deleteWarc(args[1]);
+                break;
+            case "login":
+                login(args.length > 1 ? args[1] : null, args.length > 2 ? args[2] : null);
                 break;
             default:
                 usage();
@@ -58,14 +66,31 @@ public class BambooCLI {
         return 0;
     }
 
-    private void deleteWarc(String arg) throws IOException, InterruptedException {
-        long warcId = Long.parseLong(arg);
-        var request = HttpRequest.newBuilder(URI.create(baseUrl + "/warcs/" + warcId))
-                .header("Authorization", auth.bearer())
-                .DELETE()
-                .build();
-        var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        System.out.println(response.statusCode() + " " + response.body());
+    private void addArtifact(String[] args) throws IOException, InterruptedException {
+        long crawlId = Long.parseLong(args[1]);
+        for (int i = 2; i < args.length; i++) {
+            Path path = Paths.get(args[i]);
+            long size = Files.size(path);
+            try (InputStream inputStream = Files.newInputStream(path)) {
+                var connection = (HttpURLConnection) new URL(baseUrl + "/crawls/" + crawlId + "/artifacts/" + path).openConnection();
+                connection.setInstanceFollowRedirects(false);
+                connection.setRequestMethod("PUT");
+                connection.setFixedLengthStreamingMode(size);
+                connection.addRequestProperty("Authorization", auth.bearer());
+                connection.setDoOutput(true);
+                try (OutputStream outputStream = connection.getOutputStream()) {
+                    long written = inputStream.transferTo(outputStream);
+                    if (written != size) {
+                        connection.disconnect();
+                        throw new IOException("wrote " + written + " bytes but expected to write " + size);
+                    }
+                }
+                int status = connection.getResponseCode();
+                if (status != 201) {
+                    throw new IOException("expected status 201 but got status " + status);
+                }
+            }
+        }
     }
 
     private void addWarc(String[] args) throws IOException, InterruptedException {
@@ -82,6 +107,16 @@ public class BambooCLI {
             var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             System.out.println(response.statusCode() + " " + response.body() + " " + response.headers().firstValue("Location").orElse(""));
         }
+    }
+
+    private void deleteWarc(String arg) throws IOException, InterruptedException {
+        long warcId = Long.parseLong(arg);
+        var request = HttpRequest.newBuilder(URI.create(baseUrl + "/warcs/" + warcId))
+                .header("Authorization", auth.bearer())
+                .DELETE()
+                .build();
+        var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        System.out.println(response.statusCode() + " " + response.body());
     }
 
     void login(String username, String password) throws IOException, InterruptedException, JsonParserException {
