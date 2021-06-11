@@ -58,6 +58,8 @@ public class ImportJob {
 	}
 
 	private static boolean shouldIncludeInCrawlBundle(Path path) {
+		if (path.getParent().getFileName().toString().equals("state")) return false;
+		if (path.toString().endsWith(".jdb")) return false;
 		return !path.getParent().getFileName().toString().equals("warcs") &&
 				Files.isRegularFile(path);
 	}
