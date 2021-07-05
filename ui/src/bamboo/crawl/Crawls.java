@@ -3,27 +3,21 @@ package bamboo.crawl;
 import bamboo.AuthHelper;
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
-import doss.Blob;
-import doss.BlobStore;
-import doss.BlobTx;
-import doss.SizedWritable;
-import org.apache.commons.io.IOUtils;
+import doss.*;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.*;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.*;
 
 public class Crawls {
     private final CrawlsDAO dao;
@@ -167,21 +161,28 @@ public class Crawls {
         return warcs;
     }
 
-    private SizedWritable writable(NamedStream warcFile) {
-        return new SizedWritable() {
-            @Override
-            public void writeTo(WritableByteChannel writableByteChannel) throws IOException {
-                try (InputStream stream = warcFile.openStream();
-                     OutputStream out = Channels.newOutputStream(writableByteChannel)) {
-                    IOUtils.copy(stream, out);
+    private Writable writable(NamedStream warcFile) {
+        if (warcFile.length() >= 0) {
+            return new SizedWritable() {
+                @Override
+                public void writeTo(WritableByteChannel channel) throws IOException {
+                    try (InputStream stream = warcFile.openStream()) {
+                        stream.transferTo(Channels.newOutputStream(channel));
+                    }
                 }
-            }
 
-            @Override
-            public long size() {
-                return warcFile.length();
-            }
-        };
+                @Override
+                public long size() {
+                    return warcFile.length();
+                }
+            };
+        } else {
+            return channel -> {
+                try (InputStream stream = warcFile.openStream()) {
+                    stream.transferTo(Channels.newOutputStream(channel));
+                }
+            };
+        }
     }
 
 
