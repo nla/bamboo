@@ -50,7 +50,7 @@
 
     <properties>
         <spring.version>2.2.1.RELEASE</spring.version>
-        <spring-security.version>5.2.1.RELEASE</spring-security.version>
+        <spring-security.version>5.2.11.RELEASE</spring-security.version>
         <doss.version>1.7.1</doss.version>
     </properties>
 
