@@ -1,6 +1,6 @@
 package bamboo.crawl;
 
-import java.util.Map;
+import bamboo.util.Units;
 
 public class CrawlStats {
 
@@ -30,5 +30,8 @@ public class CrawlStats {
 
     public long getArtifactBytes() {
         return artifactBytes;
+    }
+    public String getArtifactDisplaySize() {
+        return Units.displaySize(getArtifactBytes());
     }
 }

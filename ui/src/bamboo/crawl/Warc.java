@@ -1,5 +1,7 @@
 package bamboo.crawl;
 
+import org.apache.commons.io.FileUtils;
+
 import javax.persistence.*;
 import java.nio.file.Path;
 import java.util.Date;
@@ -62,6 +64,10 @@ public class Warc {
         return size;
     }
 
+    public String getDisplaySize() {
+        return FileUtils.byteCountToDisplaySize(getSize()).replace("B", "iB");
+    }
+
     public void setSize(long size) {
         this.size = size;
     }
@@ -76,6 +82,10 @@ public class Warc {
 
     public long getRecordBytes() {
         return recordBytes;
+    }
+
+    public String getRecordBytesDisplay() {
+        return FileUtils.byteCountToDisplaySize(getRecordBytes()).replace("B", "iB");
     }
 
     public void setRecordBytes(long recordBytes) {

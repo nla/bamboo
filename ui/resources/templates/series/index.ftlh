@@ -16,7 +16,7 @@
             <tr>
                 [#if !agency??]<td>${(series.agency.abbreviation)!""}</td>[/#if]
                 <td><a href="series/${series.id?c}">${series.name}</a></td>
-                <td>${si(series.recordBytes)}B</td>
+                <td>${series.warcDisplaySize}</td>
                 <td>${series.crawlCount}</td>
             </tr>
         [/#list]

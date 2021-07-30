@@ -15,7 +15,7 @@
         <tr>
             <td><a href="warcs/${warc.id?c}/details">${warc.filename}</a></td>
             <td>${warc.records}</td>
-            <td>${si(warc.size)}</td>
+            <td>${warc.displaySize}</td>
         </tr>
     [/#list]
     </tbody>

@@ -69,33 +69,6 @@
 </html>
 [/#macro]
 
-[#--
- # Format Number of Bytes in SI Units
- # from Horatio Alderaan's https://stackoverflow.com/a/20622900
- # --]
-[#function si num2]
-    [#if (num2 < 0)]
-        [#assign sign = "-"]
-        [#assign num = -num2]
-    [#else]
-        [#assign sign = ""]
-        [#assign num = num2]
-    [/#if]
-    [#assign order     = num?round?c?length /]
-    [#assign thousands = ((order - 1) / 3)?floor /]
-    [#if (thousands < 0)][#assign thousands = 0 /][/#if]
-    [#assign siMap = [
-        {"factor": 1, "unit": ""},
-        {"factor": 1000, "unit": "K"},
-        {"factor": 1000000, "unit": "M"},
-        {"factor": 1000000000, "unit":"G"},
-        {"factor": 1000000000000, "unit": "T"},
-        {"factor": 1000000000000000, "unit": "P"}
-    ]/]
-    [#assign siStr = sign + (num / (siMap[thousands].factor))?string("0.#") + siMap[thousands].unit /]
-    [#return siStr /]
-[/#function]
-
 [#function max x y]
     [#if x > y]
         [#return x]

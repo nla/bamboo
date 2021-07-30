@@ -29,8 +29,8 @@
             <tr>
                 <th>Size</th>
                 <td>
-                    ${series.records} records; <abbr title="${series.recordBytes} bytes">${si(series.recordBytes)}B</abbr><br>
-                    ${series.warcFiles} warc files; <abbr title="${series.warcSize} bytes">${si(series.warcSize)}B</abbr>
+                    ${series.records} records<br>
+                    ${series.warcFiles} warc files; <abbr title="${series.warcSize} bytes">${series.warcDisplaySize}</abbr>
                 </td>
             </tr>
             [#if auth.hasRole("panadmin")]
@@ -83,7 +83,7 @@
     <tr>
         <td><a href="crawls/${crawl.id?c}">${crawl.name}</a></td>
         <td>${crawl.creator!""}</td>
-        <td>${si(crawl.recordBytes)}B</td>
+        <td>${crawl.warcDisplaySize}</td>
         <td style="white-space: nowrap">${(crawl.endTime?date)!""}</td>
     </tr>
     [/#list]

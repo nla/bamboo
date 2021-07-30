@@ -1,9 +1,7 @@
 package bamboo.crawl;
 
-import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.*;
-import org.skife.jdbi.v2.sqlobject.customizers.FetchSize;
 import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
 import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
@@ -16,7 +14,8 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-@RegisterMapper({WarcsDAO.WarcMapper.class, WarcsDAO.CollectionWarcMapper.class, WarcsDAO.WarcResumptionTokenMapper.class})
+@RegisterMapper({WarcsDAO.WarcMapper.class, WarcsDAO.CollectionWarcMapper.class, WarcsDAO.WarcResumptionTokenMapper.class,
+    WarcsDAO.StatisticsMapper.class})
 public interface WarcsDAO extends Transactional<WarcsDAO> {
 
     class WarcMapper implements ResultSetMapper<Warc> {
@@ -47,6 +46,19 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
         long getSize();
         String getSha256();
     }
+
+    public class StatisticsMapper implements ResultSetMapper<Statistics> {
+        @Override
+        public Statistics map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+            return new Statistics(
+                    r.getLong("totalFiles"),
+                    r.getLong("totalSize"),
+                    r.getLong("totalRecords"));
+        }
+    }
+
+    @SqlQuery("SELECT COUNT(*) totalFiles, SUM(size) totalSize, SUM(records) totalRecords FROM warc WHERE warc_state_id <> -4")
+    Statistics getStatistics();
 
     @SqlUpdate("UPDATE warc SET warc_state_id = :stateId, path = :path, filename = :filename, size = :size, sha256 = :sha256 WHERE id = :warcId")
     int updateWarcWithoutRollup(@Bind("warcId") long warcId, @Bind("stateId") int stateId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256);
@@ -220,5 +232,4 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
                     resultSet.getLong("urlCount"));
         }
     }
-
 }

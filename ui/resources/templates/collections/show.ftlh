@@ -18,7 +18,7 @@
             <tr>
                 <th>Size</th>
                 <td>
-                    ${collection.records} records; <abbr title="${collection.recordBytes} bytes">${si(collection.recordBytes)}B</abbr><br>
+                    ${collection.records} records; <abbr title="${collection.recordBytes} bytes">${collection.recordBytesDisplay}</abbr><br>
                 </td></tr>
             <tr>
             <tr><th>CDX</th><td>${collection.cdxUrl!"None"}</td></tr>

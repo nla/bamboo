@@ -1,5 +1,8 @@
 package bamboo.crawl;
 
+import bamboo.util.Units;
+import org.apache.commons.io.FileUtils;
+
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -165,6 +168,10 @@ public class Crawl {
 		return warcSize;
 	}
 
+	public String getWarcDisplaySize() {
+		return Units.displaySize(getWarcSize());
+	}
+
 	public void setWarcSize(long warcSize) {
 		this.warcSize = warcSize;
 	}
@@ -179,6 +186,10 @@ public class Crawl {
 
 	public long getRecordBytes() {
 		return recordBytes;
+	}
+
+	public String getRecordBytesDisplay() {
+    	return Units.displaySize(getRecordBytes());
 	}
 
 	public void setRecordBytes(long recordBytes) {

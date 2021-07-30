@@ -30,8 +30,6 @@ import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.warc.WARCReaderFactory;
 
-import javax.servlet.ServletOutputStream;
-
 import static java.nio.charset.StandardCharsets.*;
 
 public class Warcs {
@@ -398,5 +396,9 @@ public class Warcs {
             in.position(start);
             Streams.copy(Channels.newInputStream(in), outputStream, length);
         }
+    }
+
+    public Statistics getStatistics() {
+        return dao.getStatistics();
     }
 }

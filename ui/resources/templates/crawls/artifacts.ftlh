@@ -22,7 +22,7 @@
             <td>${artifact.type}</td>
             <td>[#if artifact.blobId??]nla.doss-${artifact.blobId?c}[/#if]</td>
             <td><abbr title="${artifact.sha256}">${artifact.sha256?substring(0, 8)}...</abbr></td>
-            <td>${si(artifact.size)}</td>
+            <td>${artifact.displaySize}</td>
         </tr>
     [/#list]
     </tbody>

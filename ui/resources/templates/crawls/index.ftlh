@@ -22,7 +22,7 @@
         <tr>
             <td><a href="crawls/${crawl.id?c}">${crawl.name}</a></td>
             <td>[#if crawl.crawlSeriesId??]<a href="series/${crawl.crawlSeriesId?c}">${crawl.seriesName}</a>[/#if]</td>
-            <td>${si(crawl.recordBytes)}B</td>
+            <td>${crawl.warcDisplaySize}</td>
             <td>${(crawl.endTime?date)!""}</td>
         </tr>
         [/#list]

@@ -354,4 +354,8 @@ public class Crawls {
     public List<Long> listPandasCrawlIds(long start) {
         return dao.listPandasCrawlIds(start);
     }
+
+    public Statistics getArtifactStatistics() {
+        return dao.getArtifactStatistics();
+    }
 }

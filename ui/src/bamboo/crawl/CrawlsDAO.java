@@ -1,5 +1,6 @@
 package bamboo.crawl;
 
+import org.apache.tools.ant.taskdefs.War;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.sqlobject.*;
 import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
@@ -15,7 +16,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-@RegisterMapper({CrawlsDAO.CrawlMapper.class, CrawlsDAO.CrawlWithSeriesNameMapper.class, CrawlsDAO.ArtifactMapper.class})
+@RegisterMapper({CrawlsDAO.CrawlMapper.class, CrawlsDAO.CrawlWithSeriesNameMapper.class, CrawlsDAO.ArtifactMapper.class,
+        WarcsDAO.StatisticsMapper.class})
 public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     class CrawlMapper implements ResultSetMapper<Crawl> {
         @Override
@@ -122,5 +124,8 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
 
     @SqlQuery("SELECT * FROM artifact WHERE crawl_id = :crawlId AND relpath = :relpath LIMIT 1")
     Artifact findArtifactByRelpath(@Bind("crawlId") long crawlId, @Bind("relpath") String relpath);
+
+    @SqlQuery("SELECT COUNT(*) totalFiles, SUM(size) totalSize, 0 totalRecords FROM artifact")
+    Statistics getArtifactStatistics();
 
 }

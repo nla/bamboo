@@ -1,6 +1,8 @@
 package bamboo.crawl;
 
+import bamboo.util.Units;
 import doss.Blob;
+import org.apache.commons.io.FileUtils;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -52,6 +54,10 @@ public class Artifact {
 
     public long getSize() {
         return size;
+    }
+
+    public String getDisplaySize() {
+        return Units.displaySize(getSize());
     }
 
     public String getType() {

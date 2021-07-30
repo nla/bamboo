@@ -1,6 +1,7 @@
 package bamboo.crawl;
 
 import bamboo.core.Permission;
+import bamboo.util.Units;
 import org.hibernate.annotations.Formula;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -107,6 +108,10 @@ public class Series {
         this.warcSize = warcSize;
     }
 
+    public String getWarcDisplaySize() {
+        return Units.displaySize(getWarcSize());
+    }
+
     public long getRecords() {
         return records;
     }
@@ -117,6 +122,10 @@ public class Series {
 
     public long getRecordBytes() {
         return recordBytes;
+    }
+
+    public String getRecordBytesDisplay() {
+        return Units.displaySize(getRecordBytes());
     }
 
     public void setRecordBytes(long recordBytes) {

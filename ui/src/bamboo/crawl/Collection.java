@@ -1,5 +1,8 @@
 package bamboo.crawl;
 
+import bamboo.util.Units;
+import org.apache.commons.io.FileUtils;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -61,6 +64,10 @@ public class Collection {
 
     public void setRecordBytes(long recordBytes) {
         this.recordBytes = recordBytes;
+    }
+
+    public String getRecordBytesDisplay() {
+        return Units.displaySize(getRecordBytes());
     }
 
     public String getDescription() {

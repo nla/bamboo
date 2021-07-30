@@ -1,7 +1,7 @@
 [@page title="${titlePrefix!} WARC files in ${crawl.name}"]
 
 <h3>${titlePrefix!} WARC files in <a href="crawls/${crawl.id?c}">${crawl.name}</a>
-    <a class="btn btn-primary pull-right" href="crawls/${crawl.id?c}/warcs/download">Download All (${si(crawl.warcSize)}B)</a>
+    <a class="btn btn-primary pull-right" href="crawls/${crawl.id?c}/warcs/download">Download All (${crawl.warcDisplaySize})</a>
     <a class="btn pull-right" href="crawls/${crawl.id?c}/warcs/upload">Upload</a>
 </h3>
 
@@ -18,7 +18,7 @@
         <tr>
             <td><a href="warcs/${warc.id?c}/details">${warc.filename}</a></td>
             <td>${warc.records}</td>
-            <td>${si(warc.size)}</td>
+            <td>${warc.displaySize}</td>
             <td><a href="warcs/${warc.id?c}/cdx">CDX</a> | <a href="warcs/${warc.id?c}">Download</a></td>
         </tr>
     [/#list]
