@@ -69,13 +69,17 @@ public class Cdx {
                 Instant instant = record.date();
                 String date = ARC_DATE.format(instant);
                 int status = record instanceof WarcResponse ? ((WarcResponse) record).http().status() : 200;
-                String digest = payload.digest().map(WarcDigest::base32).orElse("-");
+                String digest = payload.digest().map(WarcDigest::base32).orElse(null);
                 long position = reader.position();
 
                 if (instant.isBefore(YEAR1990)) {
                     // garbage. skip.
                     record = reader.next().orElse(null);
                     continue;
+                }
+
+                if (digest == null) {
+                    digest = WarcUtils.calcDigest(payload.body().stream());
                 }
 
                 // advance to the next record so we can calculate the length

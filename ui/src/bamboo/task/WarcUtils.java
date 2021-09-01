@@ -10,6 +10,7 @@ import org.netpreserve.urlcanon.Canonicalizer;
 import org.netpreserve.urlcanon.ParsedUrl;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -72,24 +73,13 @@ public class WarcUtils {
         return warcToArcDate(repairCorruptArcDate(h.getDate()));
     }
 
-    static String getOrCalcDigest(ArchiveRecord record) throws IOException {
-        String digest = (String) record.getHeader().getHeaderValue("WARC-Payload-Digest");
-        if (digest == null) {
-            return calcDigest(record);
-        } else if (digest.startsWith("sha1:")) {
-            return digest.substring(5);
-        } else {
-            return digest;
-        }
-    }
-
-    static String calcDigest(ArchiveRecord record) throws IOException {
+    static String calcDigest(InputStream stream) throws IOException {
         String digest;
         try {
             MessageDigest md = MessageDigest.getInstance("SHA1");
             byte[] buf = new byte[8192];
             for (; ; ) {
-                int len = record.read(buf);
+                int len = stream.read(buf);
                 if (len < 0) break;
                 md.update(buf, 0, len);
             }
