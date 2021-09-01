@@ -336,6 +336,12 @@
             <artifactId>dec</artifactId>
             <version>0.1.2</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.netpreserve</groupId>
+            <artifactId>jwarc</artifactId>
+            <version>0.14.0</version>
+        </dependency>
     </dependencies>
 
     <repositories>

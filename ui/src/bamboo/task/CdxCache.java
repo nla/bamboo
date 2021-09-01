@@ -2,13 +2,12 @@ package bamboo.task;
 
 import bamboo.crawl.Warc;
 import bamboo.crawl.Warcs;
-import org.archive.io.ArchiveReader;
+import org.netpreserve.jwarc.WarcReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -46,9 +45,10 @@ public class CdxCache {
         Files.createDirectories(path.getParent());
         Path tmpPath = Paths.get(path.toString() + ".tmp");
         try {
-            try (ArchiveReader reader = warcs.openReader(warc);
-                 Writer writer = new OutputStreamWriter(new GZIPOutputStream(Files.newOutputStream(tmpPath), 8192), UTF_8)) {
-                Cdx.writeCdx(reader, warc.getFilename(), warc.getSize(), writer);
+            try (WarcReader warcReader = new WarcReader(warcs.openStream(warc));
+                 PrintWriter writer = new PrintWriter(new GZIPOutputStream(Files.newOutputStream(tmpPath), 8192), false, UTF_8)) {
+                Cdx.buildIndex(warcReader, writer, warc.getFilename());
+                writer.flush();
             }
             Files.move(tmpPath, path, ATOMIC_MOVE, REPLACE_EXISTING);
         } finally {

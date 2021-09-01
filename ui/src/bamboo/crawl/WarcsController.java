@@ -14,9 +14,9 @@ import org.apache.commons.io.output.TeeOutputStream;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
 import org.archive.url.SURT;
+import org.netpreserve.jwarc.WarcReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.codec.Hex;
 import org.springframework.stereotype.Controller;
@@ -26,8 +26,6 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
-import java.nio.channels.Channels;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -201,9 +199,9 @@ public class WarcsController {
     public void showCdx(@PathVariable("id") String id, HttpServletResponse response) {
         Warc warc = findWarc(id);
         response.setContentType("text/plain");
-        try (Writer out = new BufferedWriter(new OutputStreamWriter(response.getOutputStream(), UTF_8));
-             ArchiveReader reader = wa.warcs.openReader(warc)) {
-            Cdx.writeCdx(reader, warc.getFilename(), warc.getSize(), out);
+        try (PrintWriter out = new PrintWriter(response.getOutputStream(), false, UTF_8);
+             WarcReader warcReader = new WarcReader(wa.warcs.openStream(warc))) {
+            Cdx.buildIndex(warcReader, out, warc.getFilename());
             out.flush();
         } catch (Exception e) {
             log.error("Unable to produce CDX for warc " + warc.getId(), e);
