@@ -170,7 +170,7 @@ public class WebTest {
         mockMvc.perform(get("/warcs/" + warc.getId() + "/details")).andExpect(status().isOk());
         mockMvc.perform(get("/warcs/" + warc.getId() + "/cdx")).andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.TEXT_PLAIN))
-                .andExpect(content().string(containsString("http://www-test.nla.gov.au/xinq/presentations/abstract.html 20161116220655 http://www-test.nla.gov.au/xinq/presentations/abstract.html text/html 200 387f5ef1511fe47bf91ca9fdcf6c41511fc3e480 - - 2756 339 example.warc.gz")));
+                .andExpect(content().string(containsString("http://www-test.nla.gov.au/xinq/presentations/abstract.html 20161116220655 http://www-test.nla.gov.au/xinq/presentations/abstract.html text/html 200 HB7V54KRD7SHX6I4VH6463CBKEP4HZEA - - 2756 339 example.warc.gz")));
         mockMvc.perform(get("/warcs/" + warc.getId() + "/text")).andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(content().string(containsString("Search and browse tool")));
