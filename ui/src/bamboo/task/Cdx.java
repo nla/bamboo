@@ -64,7 +64,7 @@ public class Cdx {
                 } catch (IllegalArgumentException e) {
                     type = MediaType.OCTET_STREAM;
                 }
-                URI id = record.id();
+                URI id = record.version().getProtocol().equals("ARC") ? null : record.id();
                 String url = ((WarcCaptureRecord) record).target();
                 Instant instant = record.date();
                 String date = ARC_DATE.format(instant);
