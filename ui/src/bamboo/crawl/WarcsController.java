@@ -195,15 +195,17 @@ public class WarcsController {
     }
 
     @GetMapping(value = "/warcs/{id}/cdx")
-    public void showCdx(@PathVariable("id") String id, HttpServletResponse response) {
+    public void showCdx(@PathVariable("id") String id, HttpServletResponse response) throws IOException {
         Warc warc = findWarc(id);
         response.setContentType("text/plain");
-        try (PrintWriter out = new PrintWriter(response.getOutputStream(), false, UTF_8);
-             WarcReader warcReader = new WarcReader(wa.warcs.openStream(warc))) {
+        PrintWriter out = new PrintWriter(response.getOutputStream(), false, UTF_8);
+        try (WarcReader warcReader = new WarcReader(wa.warcs.openStream(warc))) {
             Cdx.buildIndex(warcReader, out, warc.getFilename());
-            out.flush();
         } catch (Exception e) {
             log.error("Unable to produce CDX for warc " + warc.getId(), e);
+            e.printStackTrace(out);
+        } finally {
+            out.flush();
         }
     }
 
