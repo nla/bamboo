@@ -7,6 +7,8 @@ import com.fasterxml.jackson.core.JsonParser;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
 import org.netpreserve.jwarc.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.URI;
@@ -30,6 +32,7 @@ public class Cdx {
     private static final MediaType JSON = MediaType.parse("application/json");
     private static final DateTimeFormatter ARC_DATE = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(UTC);
     private static final Instant YEAR1990 = Instant.ofEpochMilli(631152000L);
+    private static final Logger log = LoggerFactory.getLogger(Cdx.class);
 
     public static void main(String[] args) throws IOException {
         for (String arg : args) {
@@ -47,64 +50,69 @@ public class Cdx {
         PandoraAliaser pandoraAliaser = filename.startsWith("nla.arc") ? new PandoraAliaser(out) : null;
         WarcRecord record = reader.next().orElse(null);
         while (record != null) {
-            if ((record instanceof WarcResponse || record instanceof WarcResource) &&
-                    ((WarcCaptureRecord) record).payload().isPresent()) {
-                if (pandoraAliaser != null) {
-                    boolean skip = pandoraAliaser.accept((WarcCaptureRecord) record);
-                    if (skip) {
-                        record = reader.next().orElse(null);
-                        continue;
-                    }
-                }
-
-                WarcPayload payload = ((WarcCaptureRecord) record).payload().get();
-                MediaType type;
-                try {
-                    type = payload.type().base();
-                } catch (IllegalArgumentException e) {
-                    type = MediaType.OCTET_STREAM;
-                }
-                URI id = record.version().getProtocol().equals("ARC") ? null : record.id();
-                String url = ((WarcCaptureRecord) record).target();
-                Instant instant = record.date();
-                String date = ARC_DATE.format(instant);
-                int status = record instanceof WarcResponse ? ((WarcResponse) record).http().status() : 200;
-                String digest = payload.digest().map(WarcDigest::base32).orElse(null);
-                long position = reader.position();
-
-                if (instant.isBefore(YEAR1990)) {
-                    // garbage. skip.
-                    record = reader.next().orElse(null);
-                    continue;
-                }
-
-                if (digest == null) {
-                    digest = WarcUtils.calcDigest(payload.body().stream());
-                }
-
-                // advance to the next record so we can calculate the length
-                record = reader.next().orElse(null);
-                long length = reader.position() - position;
-
-                // check for a corresponding request record
-                while (record instanceof WarcCaptureRecord && ((WarcCaptureRecord) record).concurrentTo().contains(id)) {
-                    if (record instanceof WarcRequest) {
-                        HttpRequest httpRequest = ((WarcRequest) record).http();
-                        if (httpRequest.method().equals("POST") || httpRequest.method().equals("PUT")) {
-                            url += (url.contains("?") ? "&" : "?") + "__wb_method=" + httpRequest.method();
-                            if (httpRequest.contentType().base().equals(JSON)) {
-                                url += encodeJsonRequest(httpRequest.body().stream());
-                            }
-                            break;
+            try {
+                if ((record instanceof WarcResponse || record instanceof WarcResource) &&
+                        ((WarcCaptureRecord) record).payload().isPresent()) {
+                    if (pandoraAliaser != null) {
+                        boolean skip = pandoraAliaser.accept((WarcCaptureRecord) record);
+                        if (skip) {
+                            record = reader.next().orElse(null);
+                            continue;
                         }
                     }
 
+                    WarcPayload payload = ((WarcCaptureRecord) record).payload().get();
+                    MediaType type;
+                    try {
+                        type = payload.type().base();
+                    } catch (IllegalArgumentException e) {
+                        type = MediaType.OCTET_STREAM;
+                    }
+                    URI id = record.version().getProtocol().equals("ARC") ? null : record.id();
+                    String url = ((WarcCaptureRecord) record).target();
+                    Instant instant = record.date();
+                    String date = ARC_DATE.format(instant);
+                    int status = record instanceof WarcResponse ? ((WarcResponse) record).http().status() : 200;
+                    String digest = payload.digest().map(WarcDigest::base32).orElse(null);
+                    long position = reader.position();
+
+                    if (instant.isBefore(YEAR1990)) {
+                        // garbage. skip.
+                        record = reader.next().orElse(null);
+                        continue;
+                    }
+
+                    if (digest == null) {
+                        digest = WarcUtils.calcDigest(payload.body().stream());
+                    }
+
+                    // advance to the next record so we can calculate the length
+                    record = reader.next().orElse(null);
+                    long length = reader.position() - position;
+
+                    // check for a corresponding request record
+                    while (record instanceof WarcCaptureRecord && ((WarcCaptureRecord) record).concurrentTo().contains(id)) {
+                        if (record instanceof WarcRequest) {
+                            HttpRequest httpRequest = ((WarcRequest) record).http();
+                            if (httpRequest.method().equals("POST") || httpRequest.method().equals("PUT")) {
+                                url += (url.contains("?") ? "&" : "?") + "__wb_method=" + httpRequest.method();
+                                if (httpRequest.contentType().base().equals(JSON)) {
+                                    url += encodeJsonRequest(httpRequest.body().stream());
+                                }
+                                break;
+                            }
+                        }
+
+                        record = reader.next().orElse(null);
+                    }
+
+                    out.printf("%s %s %s %s %d %s - - %d %d %s%n", url, date, url, type, status, digest, length, position, filename);
+                    stats.update(length, Date.from(instant));
+                } else {
                     record = reader.next().orElse(null);
                 }
-
-                out.printf("%s %s %s %s %d %s - - %d %d %s%n", url, date, url, type, status, digest, length, position, filename);
-                stats.update(length, Date.from(instant));
-            } else {
+            } catch (ParsingException e) {
+                log.warn("Bad record in " + filename + " (position " + reader.position() + ")", e);
                 record = reader.next().orElse(null);
             }
         }
