@@ -13,7 +13,7 @@ public class Collections {
         this.dao = dao;
     }
 
-    public List<CollectionWithFilters> listWhereSeriesId(long seriesId) {
+    public List<Collection> listWhereSeriesId(long seriesId) {
         return dao.listCollectionsForCrawlSeries(seriesId);
     }
 
@@ -50,7 +50,7 @@ public class Collections {
     }
 
 
-    public List<CollectionWithFilters> findByCrawlSeriesId(long crawlSeriesId) {
+    public List<Collection> findByCrawlSeriesId(long crawlSeriesId) {
         return dao.listCollectionsForCrawlSeries(crawlSeriesId);
     }
 }

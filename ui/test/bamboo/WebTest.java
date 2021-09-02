@@ -11,8 +11,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.security.test.context.support.WithSecurityContext;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -111,7 +109,7 @@ public class WebTest {
         Series series = new Series();
         series.setName("Test series");
         long seriesId = bamboo.serieses.create(series);
-        bamboo.serieses.update(seriesId, series, Arrays.asList(collectionId), Arrays.asList(""));
+        bamboo.serieses.update(seriesId, series, Arrays.asList(collectionId));
 
         long crawlId;
         Warc warc;

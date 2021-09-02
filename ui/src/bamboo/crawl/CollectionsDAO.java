@@ -13,20 +13,13 @@ import org.skife.jdbi.v2.sqlobject.SqlUpdate;
 import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
-@RegisterMapper({CollectionsDAO.CollectionMapper.class, CollectionsDAO.CollectionWithFiltersMapper.class})
+@RegisterMapper({CollectionsDAO.CollectionMapper.class})
 public interface CollectionsDAO {
 
     class CollectionMapper implements ResultSetMapper<Collection> {
         @Override
         public Collection map(int index, ResultSet rs, StatementContext ctx) throws SQLException {
             return new Collection(rs);
-        }
-    }
-
-    class CollectionWithFiltersMapper implements ResultSetMapper<CollectionWithFilters> {
-        @Override
-        public CollectionWithFilters map(int index, ResultSet rs, StatementContext ctx) throws SQLException {
-            return new CollectionWithFilters(rs);
         }
     }
 
@@ -39,8 +32,8 @@ public interface CollectionsDAO {
     @SqlQuery("SELECT * FROM collection ORDER BY name LIMIT :limit OFFSET :offset")
     List<Collection> paginateCollections(@Bind("limit") long limit, @Bind("offset") long offset);
 
-    @SqlQuery("SELECT collection.*, collection_series.url_filters FROM collection_series LEFT JOIN collection ON collection.id = collection_id WHERE crawl_series_id = :it")
-    List<CollectionWithFilters> listCollectionsForCrawlSeries(@Bind long crawlSeriesId);
+    @SqlQuery("SELECT collection.* FROM collection_series LEFT JOIN collection ON collection.id = collection_id WHERE crawl_series_id = :it")
+    List<Collection> listCollectionsForCrawlSeries(@Bind long crawlSeriesId);
 
     @SqlQuery("SELECT * FROM collection WHERE id = :id")
     Collection findCollection(@Bind("id") long id);

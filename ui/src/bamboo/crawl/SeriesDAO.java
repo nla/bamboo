@@ -77,6 +77,6 @@ public interface SeriesDAO {
     @SqlUpdate("DELETE FROM collection_series WHERE crawl_series_id = :it")
     void removeCrawlSeriesFromAllCollections(@Bind long crawlSeriesId);
 
-    @SqlBatch("INSERT INTO collection_series (crawl_series_id, collection_id, url_filters) VALUES (:crawl_series_id, :collection_id, :url_filters)")
-    void addCrawlSeriesToCollections(@Bind("crawl_series_id") long crawlSeriesId, @Bind("collection_id") List<Long> collectionIds, @Bind("url_filters") List<String> urlFilters);
+    @SqlBatch("INSERT INTO collection_series (crawl_series_id, collection_id) VALUES (:crawl_series_id, :collection_id)")
+    void addCrawlSeriesToCollections(@Bind("crawl_series_id") long crawlSeriesId, @Bind("collection_id") List<Long> collectionIds);
 }

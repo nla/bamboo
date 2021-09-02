@@ -38,12 +38,12 @@ public class Serieses {
         return dao.createCrawlSeries(series.getName(), series.getPath(), series.getDescription(), AuthHelper.currentUser(), series.getAgencyId());
     }
 
-    public void update(long seriesId, Series series, List<Long> collectionIds, List<String> collectionUrlFilters) {
+    public void update(long seriesId, Series series, List<Long> collectionIds) {
         String path = series.getPath() == null ? null : series.getPath().toString();
         int rows1 = dao.updateCrawlSeries(seriesId, series.getName(), path, series.getDescription(), AuthHelper.currentUser());
         if (rows1 > 0) {
             dao.removeCrawlSeriesFromAllCollections(seriesId);
-            dao.addCrawlSeriesToCollections(seriesId, collectionIds, collectionUrlFilters);
+            dao.addCrawlSeriesToCollections(seriesId, collectionIds);
         }
         int rows = rows1;
         if (rows == 0) {

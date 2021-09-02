@@ -41,13 +41,7 @@
                         [#else]
                             <ul>
                                 [#list collections as collection]
-                                    <li><a href="collections/${collection.id?c}">${collection.name}</a>
-                                        [#if collection.urlFilters?has_content] (filtered)
-                                        <div class="text-indent-8">
-                                            <pre>${collection.urlFilters}</pre>
-                                        </div>
-                                        [/#if]
-                                    </li>
+                                    <li><a href="collections/${collection.id?c}">${collection.name}</a></li>
                                 [/#list]
                             </ul>
                         [/#if]

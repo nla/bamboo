@@ -5,7 +5,6 @@ import bamboo.app.Bamboo;
 import bamboo.core.Permission;
 import bamboo.util.Markdown;
 import bamboo.util.Pager;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,13 +15,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @Controller
 public class SeriesController {
@@ -102,15 +99,10 @@ public class SeriesController {
     @PreAuthorize("hasPermission(#seriesId, 'Series', 'edit')")
     String update(@PathVariable("id") long seriesId,
                   Series series,
-                  @RequestParam(value = "collection.id", required = false) List<Long> collectionIds,
-                  @RequestParam(value = "collection.urlFilters", required = false) List<String> collectionUrlFilters) {
+                  @RequestParam(value = "collection.id", required = false) List<Long> collectionIds) {
         if (collectionIds == null) collectionIds = emptyList();
-        if (collectionUrlFilters == null) collectionUrlFilters = emptyList();
-        if (collectionIds.size() != collectionUrlFilters.size()) {
-            throw new ResponseStatusException(BAD_REQUEST, "collection.id and collection.urlFilters mismatch");
-        }
 
-        wa.serieses.update(seriesId, series, collectionIds, collectionUrlFilters);
+        wa.serieses.update(seriesId, series, collectionIds);
         return "redirect:/series/" + seriesId;
     }
 }

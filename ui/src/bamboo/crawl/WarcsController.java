@@ -3,7 +3,6 @@ package bamboo.crawl;
 import bamboo.app.Bamboo;
 import bamboo.core.Streams;
 import bamboo.task.*;
-import bamboo.util.SurtFilter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -221,18 +220,16 @@ public class WarcsController {
     }
 
     static class CollectionMatcher {
-        private final SurtFilter filter;
         final CollectionInfo info;
 
-        public CollectionMatcher(CollectionWithFilters collectionWithFilters) {
+        public CollectionMatcher(Collection collection) {
             this.info = new CollectionInfo();
-            info.setId(collectionWithFilters.getId());
-            info.setName(collectionWithFilters.getName());
-            this.filter = new SurtFilter(collectionWithFilters.urlFilters);
+            info.setId(collection.getId());
+            info.setName(collection.getName());
         }
 
         public boolean matches(String surt) {
-            return this.filter.accepts(surt);
+            return true;
         }
     }
 

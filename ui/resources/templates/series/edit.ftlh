@@ -29,7 +29,6 @@
                                 [#list collections as collection]
                                     <tr id="collection-${collection.id?c}">
                                         <td>${collection.name}<input type='hidden' name='collection.id' value="${collection.id?c}"></td>
-                                        <td><textarea name="collection.urlFilters">${collection.urlFilters}</textarea></td>
                                         <td><button class='btn btn-danger removeButton' type='button'>Remove</button></td>
                                     </tr>
                                 [/#list]
@@ -88,7 +87,6 @@ $("#addToCollectionButton").click(function() {
     if (row.length == 0) {
         row = $("<tr>").attr("id", "collection-" + collectionId).hide();
         $("<td>").text(option.text).append($("<input type='hidden' name='collection.id'>").attr("value", option.value)).appendTo(row);
-        $("<td><textarea name='collection.urlFilters'></textarea></td>").appendTo(row);
         $("<td>").append($("<button class='btn btn-danger' type='button'>Remove</button>").click(removeFromCollection)).appendTo(row);
         $("#collectionsTable > tbody > tr:last").before(row);
     } else {

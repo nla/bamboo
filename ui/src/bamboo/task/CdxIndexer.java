@@ -98,7 +98,7 @@ public class CdxIndexer implements Runnable {
         List<URL> cdxServerUrls = new ArrayList<>();
         Crawl crawl = crawls.get(warc.getCrawlId());
         Map<Long, RecordStats> collectionStats = new HashMap<>();
-        for (CollectionWithFilters collection: collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())) {
+        for (Collection collection: collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())) {
             if (collection.getCdxUrl() != null && !collection.getCdxUrl().isEmpty()) {
                 cdxServerUrls.add(new URL(collection.getCdxUrl() + (deleteMode ? "/delete" : "")));
                 collectionStats.put(collection.getId(), null);
