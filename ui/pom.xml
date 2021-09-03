@@ -340,7 +340,7 @@
         <dependency>
             <groupId>org.netpreserve</groupId>
             <artifactId>jwarc</artifactId>
-            <version>0.16.2</version>
+            <version>0.16.3</version>
         </dependency>
     </dependencies>
 
