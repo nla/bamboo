@@ -109,9 +109,9 @@ public class CdxIndexer implements Runnable {
 
         Path tempFile = Files.createTempFile("bamboo-", ".cdx");
         try (FileChannel tempChannel = FileChannel.open(tempFile, READ, WRITE, CREATE, DELETE_ON_CLOSE)) {
+            PrintWriter printWriter = new PrintWriter(Channels.newOutputStream(tempChannel), false, UTF_8);
             // parse the warc file
-            try (WarcReader warcReader = new WarcReader(warcs.openStream(warc));
-                PrintWriter printWriter = new PrintWriter(Channels.newOutputStream(tempChannel), false, UTF_8)) {
+            try (WarcReader warcReader = new WarcReader(warcs.openStream(warc))) {
                 stats = Cdx.buildIndex(warcReader, printWriter, warc.getFilename());
                 printWriter.flush();
             } catch (RuntimeException e) {
