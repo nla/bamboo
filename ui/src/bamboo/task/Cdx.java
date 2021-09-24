@@ -45,9 +45,14 @@ public class Cdx {
         }
     }
 
+
     public static RecordStats buildIndex(WarcReader reader, PrintWriter out, String filename) throws IOException {
+        return buildIndex(reader, out, filename, true);
+    }
+
+    public static RecordStats buildIndex(WarcReader reader, PrintWriter out, String filename, boolean allowAliases) throws IOException {
         RecordStats stats = new RecordStats();
-        PandoraAliaser pandoraAliaser = filename.startsWith("nla.arc") ? new PandoraAliaser(out) : null;
+        PandoraAliaser pandoraAliaser = allowAliases && filename.startsWith("nla.arc") ? new PandoraAliaser(out) : null;
         WarcRecord record = reader.next().orElse(null);
         while (record != null) {
             try {

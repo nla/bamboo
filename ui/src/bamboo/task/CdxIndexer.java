@@ -112,7 +112,7 @@ public class CdxIndexer implements Runnable {
             PrintWriter printWriter = new PrintWriter(Channels.newOutputStream(tempChannel), false, UTF_8);
             // parse the warc file
             try (WarcReader warcReader = new WarcReader(warcs.openStream(warc))) {
-                stats = Cdx.buildIndex(warcReader, printWriter, warc.getFilename());
+                stats = Cdx.buildIndex(warcReader, printWriter, warc.getFilename(), !deleteMode);
                 printWriter.flush();
             } catch (RuntimeException e) {
                 if (e.getCause() != null && e.getCause() instanceof ZipException) {
