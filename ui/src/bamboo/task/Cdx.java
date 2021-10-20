@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
@@ -22,6 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static bamboo.task.WarcUtils.cleanUrl;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.time.ZoneOffset.UTC;
 
@@ -30,6 +32,7 @@ public class Cdx {
     final static Pattern PANDORA_RECURSIVE_URL = Pattern.compile("^http://pandora\\.nla\\.gov\\.au/pan/([0-9]+/[0-9-]+)/pandora\\.nla\\.gov\\.au/pan/.*");
 
     private static final MediaType JSON = MediaType.parse("application/json");
+    private static final MediaType FORM_URLENCODED = MediaType.parse("application/x-www-form-urlencoded");
     private static final DateTimeFormatter ARC_DATE = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(UTC);
     private static final Instant YEAR1990 = Instant.ofEpochMilli(631152000L);
     private static final Logger log = LoggerFactory.getLogger(Cdx.class);
@@ -101,8 +104,11 @@ public class Cdx {
                             HttpRequest httpRequest = ((WarcRequest) record).http();
                             if (httpRequest.method().equals("POST") || httpRequest.method().equals("PUT")) {
                                 url += (url.contains("?") ? "&" : "?") + "__wb_method=" + httpRequest.method();
-                                if (httpRequest.contentType().base().equals(JSON)) {
+                                MediaType baseContentType = httpRequest.contentType().base();
+                                if (baseContentType.equals(JSON)) {
                                     url += encodeJsonRequest(httpRequest.body().stream());
+                                } else if (baseContentType.equals(FORM_URLENCODED)) {
+                                    url += "&" + new String(httpRequest.body().stream().readAllBytes(), ISO_8859_1);
                                 }
                                 break;
                             }
