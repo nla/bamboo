@@ -103,12 +103,16 @@ public class Cdx {
                         if (record instanceof WarcRequest) {
                             HttpRequest httpRequest = ((WarcRequest) record).http();
                             if (httpRequest.method().equals("POST") || httpRequest.method().equals("PUT")) {
-                                url += (url.contains("?") ? "&" : "?") + "__wb_method=" + httpRequest.method();
-                                MediaType baseContentType = httpRequest.contentType().base();
-                                if (baseContentType.equals(JSON)) {
-                                    url += encodeJsonRequest(httpRequest.body().stream());
-                                } else if (baseContentType.equals(FORM_URLENCODED)) {
-                                    url += "&" + new String(httpRequest.body().stream().readAllBytes(), ISO_8859_1);
+                                try {
+                                    url += (url.contains("?") ? "&" : "?") + "__wb_method=" + httpRequest.method();
+                                    MediaType baseContentType = httpRequest.contentType().base();
+                                    if (baseContentType.equals(JSON)) {
+                                        url += encodeJsonRequest(httpRequest.body().stream());
+                                    } else if (baseContentType.equals(FORM_URLENCODED)) {
+                                        url += "&" + new String(httpRequest.body().stream().readAllBytes(), ISO_8859_1);
+                                    }
+                                } catch (IllegalArgumentException e) {
+                                    log.trace("Bad content-type: {}", httpRequest.headers().first("Content-Type"));
                                 }
                                 break;
                             }
