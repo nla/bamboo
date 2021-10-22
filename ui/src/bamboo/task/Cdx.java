@@ -121,7 +121,7 @@ public class Cdx {
                         record = reader.next().orElse(null);
                     }
 
-                    out.printf("%s %s %s %s %d %s - - %d %d %s%n", url, date, url, type, status, digest, length, position, filename);
+                    out.printf("%s %s %s %s %d %s - - %d %d %s%n", "-", date, url, type, status, digest, length, position, filename);
                     stats.update(length, Date.from(instant));
                 } else {
                     record = reader.next().orElse(null);
