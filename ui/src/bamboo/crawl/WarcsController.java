@@ -25,7 +25,10 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -366,5 +369,14 @@ public class WarcsController {
     public String deleteWarcWithPost(@PathVariable("warcId") long warcId) throws IOException {
         deleteWarc(warcId);
         return "redirect:/warcs/" + warcId + "/details";
+    }
+
+    @PostMapping("/warcs/{warcId}/move-to-blob-storage")
+    @ResponseBody
+    @PreAuthorize("hasRole('SYSADMIN')")
+    public String moveToBlobStorage(
+            @PathVariable("warcId") long warcId,
+            @RequestParam(value = "deleteOriginal", defaultValue = "true") boolean deleteOriginal) throws IOException {
+        return wa.warcs.moveToBlobStorage(warcId, deleteOriginal);
     }
 }

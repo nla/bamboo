@@ -29,10 +29,14 @@ import doss.http.HttpBlob;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.warc.WARCReaderFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static java.nio.charset.StandardCharsets.*;
 
 public class Warcs {
+    private static final Logger log = LoggerFactory.getLogger(Warcs.class);
+
     private final WarcsDAO dao;
     private final BlobStore blobStore;
     private final String baseUrl;
@@ -240,17 +244,35 @@ public class Warcs {
         }
     }
 
-    public String moveToBlobStorage(long warcId) throws IOException {
+    public String moveToBlobStorage(long warcId, boolean deleteOriginal) throws IOException {
         Warc warc = get(warcId);
         if (warc.getBlobId() != null) return "already blob " + warc.getBlobId();
         if (warc.getPath() == null) return "failed - has no path";
 
+        String sha256 = Scrub.calculateDigest("SHA-256", warc.getPath());
+        if (warc.getSha256() != null && !warc.getSha256().equals(sha256)) {
+            throw new RuntimeException("store digest for warc " + warcId + " doesn't match " + warc.getPath());
+        }
+
         try (BlobTx tx = blobStore.begin()) {
             Blob blob = tx.put(warc.getPath());
+
+            String blobSha256 = blob.digest("SHA-256");
+            if (!sha256.equals(blobSha256)) throw new RuntimeException("blob digest doesn't match");
+
             int rows = dao.updateWarcBlobId(warc.getId(), blob.id());
             if (rows != 1) throw new RuntimeException("updating blob id failed");
             tx.commit();
+
+            try {
+                Files.deleteIfExists(warc.getPath());
+            } catch (IOException e) {
+                log.warn("moveToBlobStorage: unable to delete " + warc.getPath(), e);
+            }
+
             return "moved to blob " + blob.id();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         }
     }
 
