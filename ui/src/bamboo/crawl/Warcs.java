@@ -264,10 +264,13 @@ public class Warcs {
             if (rows != 1) throw new RuntimeException("updating blob id failed");
             tx.commit();
 
-            try {
-                Files.deleteIfExists(warc.getPath());
-            } catch (IOException e) {
-                log.warn("moveToBlobStorage: unable to delete " + warc.getPath(), e);
+            if (deleteOriginal) {
+                try {
+                    Files.deleteIfExists(warc.getPath());
+                    dao.updateWarcPath(warc.getId(), null);
+                } catch (IOException e) {
+                    log.warn("moveToBlobStorage: unable to delete " + warc.getPath(), e);
+                }
             }
 
             return "moved to blob " + blob.id();

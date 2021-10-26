@@ -72,7 +72,7 @@ public class CLI {
                         long warcId = Long.parseLong(args[i]);
                         System.out.print("warc " + warcId + " ");
                         System.out.flush();
-                        String status = bamboo.warcs.moveToBlobStorage(warcId);
+                        String status = bamboo.warcs.moveToBlobStorage(warcId, true);
                         System.out.println(status);
                     }
                     break;
