@@ -18,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Crawls {
     private final CrawlsDAO dao;
@@ -260,27 +261,12 @@ public class Crawls {
      * Copies a collection of warc files into this crawl.
      */
     public void addWarcsFromPaths(long crawlId, List<Path> warcFiles) throws IOException {
-        // FIXME: handle failures
-        Crawl crawl = get(crawlId);
-
-        Path warcsDir = createWarcsDir(crawl);
-
-        long i = crawl.getWarcFiles();
-        for (Path src : warcFiles) {
-            Path destDir = warcsDir.resolve(String.format("%03d", i++ / 1000));
-            Path dest = destDir.resolve(src.getFileName());
-            long size = Files.size(src);
-            if (Files.exists(dest) && Files.size(dest) == size) {
-                continue;
-            }
-            if (!Files.exists(destDir)) {
-                Files.createDirectory(destDir);
-            }
-            String digest = Scrub.calculateDigest("SHA-256", src);
-            Files.copy(src, dest, StandardCopyOption.REPLACE_EXISTING);
-
-            warcs.create(crawlId, Warc.IMPORTED, dest, dest.getFileName().toString(), size, digest);
+        var streams = new ArrayList<NamedStream>();
+        for (Path warcFile : warcFiles) {
+            NamedStream of = NamedStream.of(warcFile);
+            streams.add(of);
         }
+        addWarcs(crawlId, streams);
     }
 
 
