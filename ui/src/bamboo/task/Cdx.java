@@ -3,6 +3,7 @@ package bamboo.task;
 import bamboo.crawl.RecordStats;
 import bamboo.util.Urls;
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
@@ -259,63 +260,67 @@ public class Cdx {
         Map<String,Long> serials = new HashMap<>();
         Deque<String> nameStack = new ArrayDeque<>();
         String name = null;
-        while (parser.nextToken() != null && output.length() < 4096) {
-            switch (parser.currentToken()) {
-                case FIELD_NAME:
-                    name = parser.getCurrentName();
-                    break;
-                case VALUE_FALSE:
-                case VALUE_TRUE:
-                case VALUE_NUMBER_FLOAT:
-                case VALUE_STRING:
-                case VALUE_NUMBER_INT:
-                case VALUE_NULL:
-                    if (name != null) {
-                        long serial = serials.compute(name, (key, value) -> value == null ? 1 : value + 1);
-                        String key = name;
-                        if (serial > 1) {
-                            key += "." + serial + "_";
+        try {
+            while (parser.nextToken() != null && output.length() < 4096) {
+                switch (parser.currentToken()) {
+                    case FIELD_NAME:
+                        name = parser.getCurrentName();
+                        break;
+                    case VALUE_FALSE:
+                    case VALUE_TRUE:
+                    case VALUE_NUMBER_FLOAT:
+                    case VALUE_STRING:
+                    case VALUE_NUMBER_INT:
+                    case VALUE_NULL:
+                        if (name != null) {
+                            long serial = serials.compute(name, (key, value) -> value == null ? 1 : value + 1);
+                            String key = name;
+                            if (serial > 1) {
+                                key += "." + serial + "_";
+                            }
+                            output.append('&');
+                            output.append(URIUtil.encodeWithinQuery(key));
+                            output.append('=');
+                            String value;
+                            switch (parser.currentToken()) {
+                                case VALUE_NULL:
+                                    value = "None"; // using Python names for pywb compatibility
+                                    break;
+                                case VALUE_FALSE:
+                                    value = "False";
+                                    break;
+                                case VALUE_TRUE:
+                                    value = "True";
+                                    break;
+                                case VALUE_NUMBER_INT:
+                                    value = String.valueOf(parser.getLongValue());
+                                    break;
+                                case VALUE_NUMBER_FLOAT:
+                                    value = String.valueOf(parser.getDoubleValue());
+                                    break;
+                                default:
+                                    value = URIUtil.encodeWithinQuery(parser.getValueAsString());
+                            }
+                            output.append(value);
                         }
-                        output.append('&');
-                        output.append(URIUtil.encodeWithinQuery(key));
-                        output.append('=');
-                        String value;
-                        switch (parser.currentToken()) {
-                            case VALUE_NULL:
-                                value = "None"; // using Python names for pywb compatibility
-                                break;
-                            case VALUE_FALSE:
-                                value = "False";
-                                break;
-                            case VALUE_TRUE:
-                                value = "True";
-                                break;
-                            case VALUE_NUMBER_INT:
-                                value = String.valueOf(parser.getLongValue());
-                                break;
-                            case VALUE_NUMBER_FLOAT:
-                                value = String.valueOf(parser.getDoubleValue());
-                                break;
-                            default:
-                                value = URIUtil.encodeWithinQuery(parser.getValueAsString());
+                        break;
+                    case START_OBJECT:
+                        if (name != null) {
+                            nameStack.push(name);
                         }
-                        output.append(value);
-                    }
-                    break;
-                case START_OBJECT:
-                    if (name != null) {
-                        nameStack.push(name);
-                    }
-                    break;
-                case END_OBJECT:
-                    name = nameStack.isEmpty() ? null : nameStack.pop();
-                    break;
-                case START_ARRAY:
-                case END_ARRAY:
-                    break;
-                default:
-                    throw new IllegalStateException("Unexpected: " + parser.currentToken());
+                        break;
+                    case END_OBJECT:
+                        name = nameStack.isEmpty() ? null : nameStack.pop();
+                        break;
+                    case START_ARRAY:
+                    case END_ARRAY:
+                        break;
+                    default:
+                        throw new IllegalStateException("Unexpected: " + parser.currentToken());
+                }
             }
+        } catch (JsonParseException e) {
+            log.debug("Encountered an error parsing a JSON request, skipping the rest of it.", e);
         }
         return output.toString();
     }
