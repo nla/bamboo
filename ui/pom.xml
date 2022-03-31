@@ -49,7 +49,7 @@
     </build>
 
     <properties>
-        <spring.version>2.2.1.RELEASE</spring.version>
+        <spring.version>2.5.12</spring.version>
         <spring-security.version>5.2.11.RELEASE</spring-security.version>
         <doss.version>1.7.1</doss.version>
     </properties>
