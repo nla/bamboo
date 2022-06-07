@@ -50,15 +50,15 @@
     <h3>Comparing <a href="seedlists/${seedlist1.id?c}">${seedlist1.name}</a> to <a href="seedlists/${seedlist2.id?c}">${seedlist2.name}</a></h3>
 
     [@seedpanel onlyIn1 "${baseUrl}/onlyin1"]
-        ${onlyIn1.size()} seeds unique to <a href="seedlists/${seedlist1.id?c}">${seedlist1.name}</a>
+        ${onlyIn1?size} seeds unique to <a href="seedlists/${seedlist1.id?c}">${seedlist1.name}</a>
     [/@seedpanel]
 
     [@seedpanel onlyIn2 "${baseUrl}/onlyin2"]
-        ${onlyIn2.size()} seeds unique to <a href="seedlists/${seedlist2.id?c}">${seedlist2.name}</a>
+        ${onlyIn2?size} seeds unique to <a href="seedlists/${seedlist2.id?c}">${seedlist2.name}</a>
     [/@seedpanel]
 
     [@seedpanel common "${baseUrl}/common"]
-        ${common.size()} seeds in common
+        ${common?size} seeds in common
     [/@seedpanel]
 
 [/@page]
