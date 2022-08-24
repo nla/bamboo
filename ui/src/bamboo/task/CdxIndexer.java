@@ -17,7 +17,11 @@ import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -35,6 +39,8 @@ public class CdxIndexer implements Runnable {
     private final LockManager lockManager;
     private final Oidc oidc;
     private final int threads;
+
+    private Map<Long, Instant> temporaryFailues = new ConcurrentHashMap<>();
 
     public CdxIndexer(Warcs warcs, Crawls crawls, Collections collections, LockManager lockManager,
                       Oidc oidc, int threads) {
@@ -57,6 +63,10 @@ public class CdxIndexer implements Runnable {
         ExecutorService threadPool = Executors.newFixedThreadPool(threads);
         try {
             for (Warc warc : candidates) {
+                Instant failedUntil = temporaryFailues.get(warc.getId());
+                if (failedUntil != null && failedUntil.isAfter(Instant.now())) {
+                    continue;
+                }
                 threadPool.submit(() -> {
                     try {
                         String lockName = "warc-" + warc.getId();
@@ -71,6 +81,8 @@ public class CdxIndexer implements Runnable {
                         }
                     } catch (Throwable t) {
                         t.printStackTrace();
+                        log.info("Marking warc {} as temporary failure, will retry in 1 hour", warc.getId());
+                        temporaryFailues.put(warc.getId(), Instant.now().plus(1, ChronoUnit.HOURS));
                     }
                 });
             }
