@@ -81,8 +81,7 @@ public class CdxIndexer implements Runnable {
                         }
                     } catch (Throwable t) {
                         t.printStackTrace();
-                        log.info("Marking warc {} as temporary failure, will retry in 1 hour", warc.getId());
-                        temporaryFailues.put(warc.getId(), Instant.now().plus(1, ChronoUnit.HOURS));
+                        temporarilyFail(warc);
                     }
                 });
             }
@@ -93,6 +92,11 @@ public class CdxIndexer implements Runnable {
         } finally {
             threadPool.shutdownNow();
         }
+    }
+
+    private void temporarilyFail(Warc warc) {
+        log.info("Marking warc {} as temporary failure, will retry in 1 hour", warc.getId());
+        temporaryFailues.put(warc.getId(), Instant.now().plus(1, ChronoUnit.HOURS));
     }
 
     public RecordStats indexWarc(Warc warc) throws IOException {
@@ -166,6 +170,7 @@ public class CdxIndexer implements Runnable {
                 }
                 if (connection.getResponseCode() != 200) {
                     log.error(url + " returned " + connection.getResponseCode());
+                    temporarilyFail(warc);
                     // try again later ?
                     return null;
                 }
