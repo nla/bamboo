@@ -95,6 +95,17 @@ public class Cdx {
                         digest = WarcUtils.calcDigest(payload.body().stream());
                     }
 
+//                    long contentLength = payload.body().size();
+//                    if (contentLength == -1) {
+//                        try {
+//                            payload.body().consume();
+//                        } catch (EOFException e) {
+//                            // record seems to be truncated. that's ok.
+//                            log.warn(e + " for record " + id + " in " + filename + " at " + position);
+//                        }
+//                        contentLength = payload.body().position();
+//                    }
+
                     // advance to the next record so we can calculate the length
                     record = reader.next().orElse(null);
                     long length = reader.position() - position;
@@ -110,7 +121,10 @@ public class Cdx {
                                     if (baseContentType.equals(JSON)) {
                                         url += encodeJsonRequest(httpRequest.body().stream());
                                     } else if (baseContentType.equals(FORM_URLENCODED)) {
-                                        url += "&" + new String(httpRequest.body().stream().readAllBytes(), ISO_8859_1);
+                                        String body = new String(httpRequest.body().stream().readAllBytes(), ISO_8859_1);
+                                        body = body.trim();
+                                        body = URIs.percentEncodeIllegals(body);
+                                        if (!body.isEmpty()) url += "&" + body;
                                     }
                                 } catch (IllegalArgumentException e) {
                                     log.trace("Bad content-type: {}", httpRequest.headers().first("Content-Type"));
