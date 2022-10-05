@@ -22,12 +22,11 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.Collections;
-import java.util.stream.Collectors;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -355,10 +354,20 @@ public class CrawlsController {
     @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
     @ResponseStatus(HttpStatus.CREATED)
     public void putWarc(@PathVariable("crawlId") long crawlId, @PathVariable("filename") String filename,
-                          HttpServletRequest request) throws IOException {
+                          @RequestParam(name= "replaceCorrupt", defaultValue = "false") boolean replaceCorrupt,
+                          HttpServletRequest request) throws IOException, NoSuchAlgorithmException {
         bamboo.crawls.get(crawlId); // ensure the crawl exists
         Warc existing = bamboo.warcs.getOrNullByCrawlIdAndFilename(crawlId, filename);
-        if (existing != null) throw new ResponseStatusException(HttpStatus.CONFLICT, "File already exists");
+        if (existing != null) {
+            if (!replaceCorrupt) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "File already exists");
+            }
+            boolean didReplace = bamboo.warcs.replaceCorruptBlob(existing, request.getInputStream(), request.getContentLengthLong());
+            if (!didReplace) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "File already exists and appears valid");
+            }
+            return;
+        }
         bamboo.crawls.addWarcs(crawlId, List.of(new NamedStream() {
             @Override
             public String name() {

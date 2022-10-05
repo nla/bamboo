@@ -8,6 +8,7 @@ import java.net.*;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -22,15 +23,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import bamboo.core.NotFoundException;
 import bamboo.core.Streams;
 import bamboo.util.Pager;
-import doss.Blob;
-import doss.BlobStore;
-import doss.BlobTx;
+import doss.*;
 import doss.http.HttpBlob;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveReaderFactory;
 import org.archive.io.warc.WARCReaderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import static java.nio.charset.StandardCharsets.*;
 
@@ -425,5 +426,41 @@ public class Warcs {
 
     public Statistics getStatistics() {
         return dao.getStatistics();
+    }
+
+    /**
+     * Replaces the blob for the warc. The replacement must have the same size and SHA-256 digest.
+     * This was only created to deal with some broken records caused by a DOSS1-DOSS2 migration
+     * mistake and has no normal use case.
+     */
+    public boolean replaceCorruptBlob(Warc existing, InputStream inputStream, long size) throws IOException, NoSuchAlgorithmException {
+        try {
+            openStream(existing).read();
+            return false;
+        } catch (IOException e) {
+            // OK.
+        }
+
+        try (BlobTx tx = blobStore.begin()) {
+            Blob blob = tx.put(new SizedWritable() {
+                @Override
+                public long size() throws IOException {
+                    return size;
+                }
+
+                @Override
+                public void writeTo(WritableByteChannel writableByteChannel) throws IOException {
+                    inputStream.transferTo(Channels.newOutputStream(writableByteChannel));
+                }
+            });
+
+            String blobSha256 = blob.digest("SHA-256");
+            if (!existing.getSha256().equals(blobSha256)) throw new RuntimeException("new digest doesn't match");
+
+            dao.updateWarcBlobId(existing.getId(), blob.id());
+
+            tx.commit();
+            return true;
+        }
     }
 }
