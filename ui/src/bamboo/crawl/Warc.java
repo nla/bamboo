@@ -2,7 +2,7 @@ package bamboo.crawl;
 
 import org.apache.commons.io.FileUtils;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.nio.file.Path;
 import java.util.Date;
 

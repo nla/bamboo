@@ -1,17 +1,17 @@
 package bamboo.crawl;
 
 import bamboo.pandas.PandasAgency;
-import org.skife.jdbi.v2.sqlobject.Bind;
-import org.skife.jdbi.v2.sqlobject.BindBean;
-import org.skife.jdbi.v2.sqlobject.SqlBatch;
-import org.skife.jdbi.v2.sqlobject.SqlQuery;
-import org.skife.jdbi.v2.sqlobject.helpers.MapResultAsBean;
+import org.jdbi.v3.sqlobject.config.RegisterBeanMapper;
+import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.customizer.BindBean;
+import org.jdbi.v3.sqlobject.statement.SqlBatch;
+import org.jdbi.v3.sqlobject.statement.SqlQuery;
 
 import java.util.List;
 
 public interface AgencyDAO {
     @SqlQuery("SELECT * FROM agency WHERE id = :id")
-    @MapResultAsBean
+    @RegisterBeanMapper(Agency.class)
     Agency findAgencyById(@Bind("id") int id);
 
     @SqlBatch("INSERT INTO agency (id, name, abbreviation, url, logo) " +

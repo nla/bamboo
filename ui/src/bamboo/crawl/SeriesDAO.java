@@ -1,20 +1,21 @@
 package bamboo.crawl;
 
+import org.jdbi.v3.core.mapper.RowMapper;
+import org.jdbi.v3.core.statement.StatementContext;
+import org.jdbi.v3.sqlobject.config.RegisterRowMapper;
+import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.statement.GetGeneratedKeys;
+import org.jdbi.v3.sqlobject.statement.SqlBatch;
+import org.jdbi.v3.sqlobject.statement.SqlQuery;
+import org.jdbi.v3.sqlobject.statement.SqlUpdate;
+
 import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.sqlobject.Bind;
-import org.skife.jdbi.v2.sqlobject.GetGeneratedKeys;
-import org.skife.jdbi.v2.sqlobject.SqlBatch;
-import org.skife.jdbi.v2.sqlobject.SqlQuery;
-import org.skife.jdbi.v2.sqlobject.SqlUpdate;
-import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
-
-@RegisterMapper({SeriesDAO.CrawlSeriesMapper.class, SeriesDAO.CrawlSeriesWithCountMapper.class})
+@RegisterRowMapper(SeriesDAO.CrawlSeriesMapper.class)
+@RegisterRowMapper(SeriesDAO.CrawlSeriesWithCountMapper.class)
 public interface SeriesDAO {
 
     class CrawlSeriesWithCount extends Series {
@@ -26,16 +27,16 @@ public interface SeriesDAO {
         }
     }
 
-    class CrawlSeriesMapper implements ResultSetMapper<Series> {
+    class CrawlSeriesMapper implements RowMapper<Series> {
         @Override
-        public Series map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+        public Series map(ResultSet r, StatementContext ctx) throws SQLException {
             return new Series(r);
         }
     }
 
-    class CrawlSeriesWithCountMapper implements ResultSetMapper<CrawlSeriesWithCount> {
+    class CrawlSeriesWithCountMapper implements RowMapper<CrawlSeriesWithCount> {
         @Override
-        public CrawlSeriesWithCount map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+        public CrawlSeriesWithCount map(ResultSet r, StatementContext ctx) throws SQLException {
             return new CrawlSeriesWithCount(r);
         }
     }
@@ -75,7 +76,7 @@ public interface SeriesDAO {
     int recalculateWarcStats();
 
     @SqlUpdate("DELETE FROM collection_series WHERE crawl_series_id = :it")
-    void removeCrawlSeriesFromAllCollections(@Bind long crawlSeriesId);
+    void removeCrawlSeriesFromAllCollections(@Bind("it") long crawlSeriesId);
 
     @SqlBatch("INSERT INTO collection_series (crawl_series_id, collection_id) VALUES (:crawl_series_id, :collection_id)")
     void addCrawlSeriesToCollections(@Bind("crawl_series_id") long crawlSeriesId, @Bind("collection_id") List<Long> collectionIds);

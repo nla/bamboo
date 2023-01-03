@@ -4,7 +4,6 @@ import bamboo.seedlist.Seed;
 import bamboo.seedlist.Seedlist;
 import bamboo.seedlist.Seedlists;
 import org.archive.url.WaybackURLKeyMaker;
-import org.skife.jdbi.v2.ResultIterator;
 
 import java.net.URISyntaxException;
 import java.util.*;
@@ -36,29 +35,32 @@ public class PandasComparison {
          * gets a lot more titles but for now it's acceptable (< 2 seconds)
          * and doesn't require any caching or schema changes.
          */
-        try (ResultIterator<PandasTitle> it = dao.iterateTitles()) {
-            while (it.hasNext()) {
-                PandasTitle title = it.next();
-                if (title.gatherUrl == null) {
-                    continue;
-                }
-                String url = title.gatherUrl.trim();
-                if (url.isEmpty()) {
-                    continue;
-                }
-                String key;
-                try {
-                    key = keyMaker.makeKey(title.gatherUrl);
-                } catch (URISyntaxException e) {
-                    continue;
-                }
-                Seed seed = seeds.get(key);
-                if (seed != null) {
-                    matches.add(new Match(seed, title));
-                    unmatched.remove(seed);
+        dao.inTransaction(tx -> {
+            try (var it = tx.iterateTitles()) {
+                while (it.hasNext()) {
+                    PandasTitle title = it.next();
+                    if (title.gatherUrl == null) {
+                        continue;
+                    }
+                    String url = title.gatherUrl.trim();
+                    if (url.isEmpty()) {
+                        continue;
+                    }
+                    String key;
+                    try {
+                        key = keyMaker.makeKey(title.gatherUrl);
+                    } catch (URISyntaxException e) {
+                        continue;
+                    }
+                    Seed seed = seeds.get(key);
+                    if (seed != null) {
+                        matches.add(new Match(seed, title));
+                        unmatched.remove(seed);
+                    }
                 }
             }
-        }
+            return null;
+        });
 
         matches.sort((a, b) -> a.seed.getSurt().compareTo(b.seed.getSurt()));
         List<Seed> unmatchedSorted = new ArrayList<>(unmatched);

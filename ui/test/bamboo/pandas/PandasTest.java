@@ -6,11 +6,11 @@ import bamboo.crawl.Crawls;
 import bamboo.crawl.Series;
 import bamboo.crawl.Serieses;
 import bamboo.crawl.Warcs;
+import org.jdbi.v3.core.Handle;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.skife.jdbi.v2.Handle;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -193,7 +193,12 @@ public class PandasTest {
     @Test
     public void testIterateTitles() throws IOException {
         List<PandasTitle> titles = new ArrayList<>();
-        pandas.iterateTitles().forEachRemaining(titles::add);
+        pandas.dao.inTransaction(tx -> {
+            try (var it = tx.iterateTitles()) {
+                it.forEachRemaining(titles::add);
+            }
+            return null;
+        });
         assertEquals(2, titles.size());
         assertTrue(titles.get(0).name.equals("test title"));
     }

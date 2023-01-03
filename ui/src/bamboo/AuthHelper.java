@@ -1,13 +1,10 @@
 package bamboo;
 
 import bamboo.core.Permission;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.access.PermissionEvaluator;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-
-import javax.servlet.http.HttpServletRequest;
-import java.security.Principal;
 
 /**
  * Instances of this class are globally available as 'auth' in freemarker templates. See GlobalControllerAdvice.

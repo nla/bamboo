@@ -1,17 +1,23 @@
 package bamboo.seedlist;
 
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.sqlobject.*;
-import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
-import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
+import org.jdbi.v3.core.mapper.RowMapper;
+import org.jdbi.v3.core.statement.StatementContext;
+import org.jdbi.v3.sqlobject.config.RegisterRowMapper;
+import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.customizer.BindBean;
+import org.jdbi.v3.sqlobject.statement.GetGeneratedKeys;
+import org.jdbi.v3.sqlobject.statement.SqlBatch;
+import org.jdbi.v3.sqlobject.statement.SqlQuery;
+import org.jdbi.v3.sqlobject.statement.SqlUpdate;
+import org.jdbi.v3.sqlobject.transaction.Transactional;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
 
-@RegisterMapper({SeedlistsDAO.SeedlistMapper.class, SeedlistsDAO.SeedMapper.class})
+@RegisterRowMapper(SeedlistsDAO.SeedlistMapper.class)
+@RegisterRowMapper(SeedlistsDAO.SeedMapper.class)
 public interface SeedlistsDAO extends Transactional<SeedlistsDAO> {
     @SqlQuery("SELECT * FROM seed WHERE seedlist_id = :id ORDER BY surt")
     List<Seed> findSeedsBySeedListId(@Bind("id") long seedlistId);
@@ -38,16 +44,16 @@ public interface SeedlistsDAO extends Transactional<SeedlistsDAO> {
     @SqlUpdate("DELETE FROM seedlist WHERE id = :seedlistId")
     int deleteSeedlistOnly(@Bind("seedlistId") long seedlistId);
 
-    class SeedlistMapper implements ResultSetMapper<Seedlist> {
+    class SeedlistMapper implements RowMapper<Seedlist> {
         @Override
-        public Seedlist map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+        public Seedlist map(ResultSet resultSet, StatementContext statementContext) throws SQLException {
             return new Seedlist(resultSet);
         }
     }
 
-    class SeedMapper implements ResultSetMapper<Seed> {
+    class SeedMapper implements RowMapper<Seed> {
         @Override
-        public Seed map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+        public Seed map(ResultSet resultSet, StatementContext statementContext) throws SQLException {
             return new Seed(resultSet);
         }
     }

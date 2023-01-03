@@ -1,22 +1,25 @@
 package bamboo.pandas;
 
 import bamboo.core.Config;
-import org.skife.jdbi.v2.ResultIterator;
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.sqlobject.Bind;
-import org.skife.jdbi.v2.sqlobject.SqlQuery;
-import org.skife.jdbi.v2.sqlobject.customizers.FetchSize;
-import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
-import org.skife.jdbi.v2.sqlobject.helpers.MapResultAsBean;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
+import org.jdbi.v3.core.Handle;
+import org.jdbi.v3.core.mapper.RowMapper;
+import org.jdbi.v3.core.result.ResultIterator;
+import org.jdbi.v3.core.statement.StatementContext;
+import org.jdbi.v3.sqlobject.SqlObject;
+import org.jdbi.v3.sqlobject.config.RegisterBeanMapper;
+import org.jdbi.v3.sqlobject.config.RegisterRowMapper;
+import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.customizer.FetchSize;
+import org.jdbi.v3.sqlobject.statement.SqlQuery;
+import org.jdbi.v3.sqlobject.transaction.Transactional;
 
 import java.io.Closeable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-@RegisterMapper({PandasDAO.TitleMapper.class})
-interface PandasDAO extends Closeable {
+@RegisterRowMapper(PandasDAO.TitleMapper.class)
+interface PandasDAO extends SqlObject, Transactional<PandasDAO> {
 
     @SqlQuery("select GATHER_URL, PI, TITLE.NAME, STATUS_NAME, INDIVIDUAL.USERID as OWNER, ORGANISATION.ALIAS as AGENCY\n" +
             "from TITLE_GATHER\n" +
@@ -39,7 +42,7 @@ interface PandasDAO extends Closeable {
     String SELECT_SUBJECT = "select SUBJECT.SUBJECT_ID id, SUBJECT_NAME name, SUBJECT_PARENT_ID parentId from SUBJECT ";
 
     @SqlQuery(SELECT_SUBJECT + "order by subject_parent_id asc")
-    @MapResultAsBean
+    @RegisterBeanMapper(PandasSubject.class)
     List<PandasSubject> listSubjects();
 
     @SqlQuery(SELECT_SUBJECT + "left join COL_SUBS on SUBJECT.SUBJECT_ID = COL_SUBS.SUBJECT_ID where COL_ID = :collectionId")
@@ -47,21 +50,21 @@ interface PandasDAO extends Closeable {
 
 
     @SqlQuery("select COL_ID id, DISPLAY_COMMENT displayComment, DISPLAY_ORDER displayOrder, IS_DISPLAYED displayed, NAME name, COL_PARENT_ID parentId from COL")
-    @MapResultAsBean
+    @RegisterBeanMapper(PandasCollection.class)
     List<PandasCollection> listCollections();
 
     @SqlQuery("select AGENCY.AGENCY_ID id, LOGO logo, ORGANISATION.NAME name, ORGANISATION.URL url, ORGANISATION.ALIAS abbreviation from agency left join organisation on ORGANISATION.ORGANISATION_ID = AGENCY.ORGANISATION_ID")
-    @MapResultAsBean
+    @RegisterBeanMapper(PandasAgency.class)
     List<PandasAgency> listAgencies();
 
-    class TitleMapper implements ResultSetMapper<PandasTitle> {
+    class TitleMapper implements RowMapper<PandasTitle> {
         @Override
-        public PandasTitle map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+        public PandasTitle map(ResultSet resultSet, StatementContext statementContext) throws SQLException {
             return new PandasTitle(resultSet);
         }
     }
 
-    class InstanceMapper implements ResultSetMapper<PandasInstance> {
+    class InstanceMapper implements RowMapper<PandasInstance> {
         private final Config config;
 
         public InstanceMapper(Config config) {
@@ -69,7 +72,7 @@ interface PandasDAO extends Closeable {
         }
 
         @Override
-        public PandasInstance map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+        public PandasInstance map(ResultSet resultSet, StatementContext statementContext) throws SQLException {
             return new PandasInstance(config.getPandasWarcDir(), resultSet);
         }
     }
@@ -79,8 +82,5 @@ interface PandasDAO extends Closeable {
 
     @SqlQuery("SELECT instance_id, pi, TO_CHAR(instance_date, 'YYYYMMDD-HH24MI') dt, name FROM instance, title WHERE instance.title_id = :titleId AND title.title_id = :titleId")
     List<PandasInstance> listInstancesForTitle(@Bind("titleId") long titleId);
-
-    void close();
-
 
 }

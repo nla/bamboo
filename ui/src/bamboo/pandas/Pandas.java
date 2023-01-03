@@ -6,7 +6,7 @@ import bamboo.crawl.AgencyDAO;
 import bamboo.crawl.Crawl;
 import bamboo.crawl.Crawls;
 import bamboo.seedlist.Seedlists;
-import org.skife.jdbi.v2.ResultIterator;
+import org.jdbi.v3.core.result.ResultIterator;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 public class Pandas implements AutoCloseable {
     private final Crawls crawls;
-    private final PandasDAO dao;
+    final PandasDAO dao;
     private final Seedlists seedlists;
     final PandasDB db;
     private final AgencyDAO agencyDAO;

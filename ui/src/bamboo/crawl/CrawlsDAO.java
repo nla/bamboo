@@ -1,12 +1,17 @@
 package bamboo.crawl;
 
 import org.apache.tools.ant.taskdefs.War;
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.sqlobject.*;
-import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
-import org.skife.jdbi.v2.sqlobject.helpers.MapResultAsBean;
-import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
+import org.jdbi.v3.core.mapper.RowMapper;
+import org.jdbi.v3.core.statement.StatementContext;
+import org.jdbi.v3.sqlobject.*;
+import org.jdbi.v3.sqlobject.config.RegisterRowMapper;
+import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.customizer.BindBean;
+import org.jdbi.v3.sqlobject.statement.GetGeneratedKeys;
+import org.jdbi.v3.sqlobject.statement.SqlBatch;
+import org.jdbi.v3.sqlobject.statement.SqlQuery;
+import org.jdbi.v3.sqlobject.statement.SqlUpdate;
+import org.jdbi.v3.sqlobject.transaction.Transactional;
 
 import java.nio.file.Path;
 import java.sql.ResultSet;
@@ -16,27 +21,29 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-@RegisterMapper({CrawlsDAO.CrawlMapper.class, CrawlsDAO.CrawlWithSeriesNameMapper.class, CrawlsDAO.ArtifactMapper.class,
-        WarcsDAO.StatisticsMapper.class})
+@RegisterRowMapper(CrawlsDAO.CrawlMapper.class)
+@RegisterRowMapper(CrawlsDAO.CrawlWithSeriesNameMapper.class)
+@RegisterRowMapper(CrawlsDAO.ArtifactMapper.class)
+@RegisterRowMapper(WarcsDAO.StatisticsMapper.class)
 public interface CrawlsDAO extends Transactional<CrawlsDAO> {
-    class CrawlMapper implements ResultSetMapper<Crawl> {
+    class CrawlMapper implements RowMapper<Crawl> {
         @Override
-        public Crawl map(int index, ResultSet r, StatementContext ctx) throws SQLException {
-            return new Crawl(r);
+        public Crawl map(ResultSet rs, StatementContext ctx) throws SQLException {
+            return new Crawl(rs);
         }
     }
 
-    class CrawlWithSeriesNameMapper implements ResultSetMapper<CrawlAndSeriesName> {
+    class CrawlWithSeriesNameMapper implements RowMapper<CrawlAndSeriesName> {
         @Override
-        public CrawlAndSeriesName map(int index, ResultSet r, StatementContext ctx) throws SQLException {
-            return new CrawlAndSeriesName(r);
+        public CrawlAndSeriesName map(ResultSet rs, StatementContext ctx) throws SQLException {
+            return new CrawlAndSeriesName(rs);
         }
     }
 
-    class ArtifactMapper implements ResultSetMapper<Artifact> {
+    class ArtifactMapper implements RowMapper<Artifact> {
         @Override
-        public Artifact map(int index, ResultSet r, StatementContext ctx) throws SQLException {
-            return new Artifact(r);
+        public Artifact map(ResultSet rs, StatementContext ctx) throws SQLException {
+            return new Artifact(rs);
         }
     }
 

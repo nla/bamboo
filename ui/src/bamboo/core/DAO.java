@@ -3,7 +3,7 @@ package bamboo.core;
 import bamboo.crawl.*;
 import bamboo.seedlist.SeedlistsDAO;
 import bamboo.task.TaskDAO;
-import org.skife.jdbi.v2.sqlobject.*;
+import org.jdbi.v3.sqlobject.*;
 
 public interface DAO {
 	// crawl package

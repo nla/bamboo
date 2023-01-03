@@ -22,7 +22,7 @@ public class WithMockBambooUserSecurityContextFactory implements WithSecurityCon
         Set<GrantedAuthority> authoritySet = new HashSet<>();
         authoritySet.add(Role.PANADMIN);
         authoritySet.addAll(Role.PANADMIN.getPermissions());
-        User principal = new User(authoritySet, new OidcIdToken("A", Instant.now(), Instant.now(), Map.of("username", "mockuser")),
+        User principal = new User(authoritySet, new OidcIdToken("A", Instant.now(), Instant.now().plusSeconds(60*60*24), Map.of("username", "mockuser")),
                 new OidcUserInfo(Map.of("username", "mockuser")), "username");
         Authentication auth = new UsernamePasswordAuthenticationToken(principal, "password", principal.getAuthorities());
         context.setAuthentication(auth);

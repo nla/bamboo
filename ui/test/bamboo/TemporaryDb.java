@@ -2,8 +2,8 @@ package bamboo;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.skife.jdbi.v2.DBI;
-import org.skife.jdbi.v2.Handle;
+import org.jdbi.v3.core.Handle;
+import org.jdbi.v3.core.Jdbi;
 
 import javax.sql.DataSource;
 import java.security.SecureRandom;
@@ -78,11 +78,11 @@ public class TemporaryDb {
     }
 
     public static void main(String args[]) throws SQLException {
-        try (Handle db = new DBI(TemporaryDb.dataSource("pizzadb")).open()) {
+        try (Handle db = Jdbi.create(TemporaryDb.dataSource("pizzadb")).open()) {
             db.execute("CREATE TABLE pizza(name VARCHAR(100))");
             db.execute("INSERT INTO pizza(name) VALUES (?)", "supreme");
             db.execute("INSERT INTO pizza(name) VALUES (?)", "vegetarian");
-            System.out.println(db.createQuery("SELECT name FROM pizza").list());
+            System.out.println(db.createQuery("SELECT name FROM pizza").mapToMap());
 
             throw new RuntimeException("oh noes! make sure we still cleanup after an exception");
         }

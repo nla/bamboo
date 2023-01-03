@@ -122,7 +122,7 @@ public class Warcs {
     }
 
     public void updateState(long id, int stateId) {
-        dao.inTransaction((dao, ts) -> {
+        dao.inTransaction(tx -> {
             updateState0(id, stateId);
             return null;
         });
@@ -137,18 +137,18 @@ public class Warcs {
     }
 
     public void updateRecordStats(long warcId, RecordStats stats, boolean deleteMode) {
-        dao.inTransaction((dao, ts) -> {
+        dao.inTransaction(tx -> {
             long records = stats.getRecords();
             long recordBytes = stats.getRecordBytes();
             if (deleteMode) {
                 records = -records;
                 recordBytes = -recordBytes;
             }
-            dao.updateRecordStatsRollupForCrawl(warcId, records, recordBytes,
+            tx.updateRecordStatsRollupForCrawl(warcId, records, recordBytes,
                     stats.getStartTime(), stats.getEndTime());
-            dao.updateRecordStatsRollupForSeries(warcId, records, recordBytes,
+            tx.updateRecordStatsRollupForSeries(warcId, records, recordBytes,
                     stats.getStartTime(), stats.getEndTime());
-            int rows = dao.updateWarcRecordStats(warcId, stats);
+            int rows = tx.updateWarcRecordStats(warcId, stats);
             if (rows == 0) {
                 throw new NotFoundException("warc", warcId);
             }
@@ -161,20 +161,20 @@ public class Warcs {
             long collectionId = entry.getKey();
             RecordStats stats = entry.getValue();
 
-            dao.inTransaction((dao, ts) -> {
+            dao.inTransaction(tx -> {
                 long recordsDelta = deleteMode ? 0 : stats.getRecords();
                 long bytesDelta = deleteMode ? 0 : stats.getRecordBytes();
 
-                CollectionWarc old = dao.selectCollectionWarcForUpdate(collectionId, warcId);
+                CollectionWarc old = tx.selectCollectionWarcForUpdate(collectionId, warcId);
                 if (old != null) {
                     recordsDelta -= old.records;
                     bytesDelta -= old.recordBytes;
                 }
 
-                dao.deleteCollectionWarc(collectionId, warcId);
+                tx.deleteCollectionWarc(collectionId, warcId);
                 if (!deleteMode) {
-                    dao.insertCollectionWarc(collectionId, warcId, stats.getRecords(), stats.getRecordBytes());
-                    dao.incrementRecordStatsForCollection(collectionId, recordsDelta, bytesDelta);
+                    tx.insertCollectionWarc(collectionId, warcId, stats.getRecords(), stats.getRecordBytes());
+                    tx.incrementRecordStatsForCollection(collectionId, recordsDelta, bytesDelta);
                 }
 
                 return null;
@@ -183,36 +183,36 @@ public class Warcs {
     }
 
     public long create(long crawlId, int stateId, Path path, String filename, long size, String sha256) {
-        return dao.inTransaction((dao, ts) -> {
-            dao.incrementWarcStatsForCrawlInternal(crawlId, 1, size);
-            dao.incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 1, size);
-            long warcId = dao.insertWarcWithoutRollup(crawlId, stateId, path.toString(), filename, size, sha256);
-            dao.insertWarcHistory(warcId, stateId);
+        return dao.inTransaction(tx -> {
+            tx.incrementWarcStatsForCrawlInternal(crawlId, 1, size);
+            tx.incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 1, size);
+            long warcId = tx.insertWarcWithoutRollup(crawlId, stateId, path.toString(), filename, size, sha256);
+            tx.insertWarcHistory(warcId, stateId);
             return warcId;
         });
     }
 
     public void updateSize(long warcId, long currentSize) {
-        dao.inTransaction((dao, ts) -> {
+        dao.inTransaction(tx -> {
             Warc prev = getAndLock(warcId);
-            dao.updateWarcSizeWithoutRollup(warcId, currentSize);
+            tx.updateWarcSizeWithoutRollup(warcId, currentSize);
             long crawlId = prev.getCrawlId();
             long sizeDelta = currentSize - prev.getSize();
-            dao.incrementWarcStatsForCrawlInternal(crawlId, 0, sizeDelta);
-            dao.incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 0, sizeDelta);
+            tx.incrementWarcStatsForCrawlInternal(crawlId, 0, sizeDelta);
+            tx.incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 0, sizeDelta);
             return null;
         });
     }
 
     public void update(long warcId, int stateId, Path path, String filename, long size, String digest) {
-        dao.inTransaction((dao, ts) -> {
+        dao.inTransaction(tx -> {
             Warc prev = getAndLock(warcId);
-            dao.updateWarcWithoutRollup(warcId, stateId, path.toString(), filename, size, digest);
-            dao.insertWarcHistory(warcId, stateId);
+            tx.updateWarcWithoutRollup(warcId, stateId, path.toString(), filename, size, digest);
+            tx.insertWarcHistory(warcId, stateId);
             long crawlId = prev.getCrawlId();
             long sizeDelta = size - prev.getSize();
-            dao.incrementWarcStatsForCrawlInternal(crawlId, 0, sizeDelta);
-            dao.incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 0, sizeDelta);
+            tx.incrementWarcStatsForCrawlInternal(crawlId, 0, sizeDelta);
+            tx.incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 0, sizeDelta);
             return null;
         });
     }

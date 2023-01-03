@@ -1,8 +1,8 @@
 package bamboo.core;
 
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.skife.jdbi.v2.sqlobject.Bind;
-import org.skife.jdbi.v2.sqlobject.SqlUpdate;
+import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 
 public interface LockManagerDAO {
     @SqlUpdate("UPDATE named_lock SET checkin_time = UNIX_TIMESTAMP() WHERE owner = :owner")

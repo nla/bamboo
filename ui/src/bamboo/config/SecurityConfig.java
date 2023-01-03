@@ -7,25 +7,28 @@ import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.web.SecurityFilterChain;
 
 import java.text.ParseException;
 import java.util.*;
 
+import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
+
 @Configuration
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
+public class SecurityConfig {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf().disable();
         String issuerUrl = System.getProperty("spring.security.oauth2.client.provider.oidc.issuer-uri");
         if (issuerUrl != null) {
@@ -34,28 +37,28 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             http.oauth2ResourceServer().jwt()
                     .jwkSetUri(issuerUrl + "/protocol/openid-connect/certs")
                     .jwtAuthenticationConverter(jwt -> new JwtAuthenticationToken(jwt, mapClaimsToAuthorities(jwt.getClaims())));
-            http.authorizeRequests()
+            http.authorizeHttpRequests(authorize -> authorize
                     // static content
-                    .antMatchers("/webjars/**").permitAll()
-                    .antMatchers("/assets/**").permitAll()
+                    .requestMatchers(antMatcher("/webjars/**")).permitAll()
+                    .requestMatchers(antMatcher("/assets/**")).permitAll()
 
                     // api: solr indexer
-                    .antMatchers("/collections/*/warcs/json").permitAll()
-                    .antMatchers("/collections/*/warcs/sync").permitAll()
-                    .antMatchers("/warcs/*/text").permitAll()
+                    .requestMatchers(antMatcher("/collections/*/warcs/json")).permitAll()
+                    .requestMatchers(antMatcher("/collections/*/warcs/sync")).permitAll()
+                    .requestMatchers(antMatcher("/warcs/*/text")).permitAll()
                     // api: wayback
-                    .antMatchers("/warcs/*").permitAll()
+                    .requestMatchers(antMatcher("/warcs/*")).permitAll()
 
-                    .antMatchers("/").hasRole(Role.STDUSER.name())
-                    .antMatchers("/series").permitAll()
-                    .antMatchers("/series/**").permitAll()
-                    .antMatchers("/crawls/**").permitAll()
+                    .requestMatchers(antMatcher("/")).hasRole(Role.STDUSER.name())
+                    .requestMatchers(antMatcher("/series")).permitAll()
+                    .requestMatchers(antMatcher("/series/**")).permitAll()
+                    .requestMatchers(antMatcher("/crawls/**")).permitAll()
 
-                    .antMatchers("/api/**").hasRole(Role.PANADMIN.name())
+                    .requestMatchers(antMatcher("/api/**")).hasRole(Role.PANADMIN.name())
 
-
-                    .anyRequest().hasRole(Role.PANADMIN.name());
+                    .anyRequest().hasRole(Role.PANADMIN.name()));
         }
+        return http.build();
     }
 
     private Set<GrantedAuthority> mapClaimsToAuthorities(Map<String, Object> claims) {

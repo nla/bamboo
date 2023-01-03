@@ -31,10 +31,10 @@ public class Seedlists {
     }
 
     public long create(Update update) {
-        return dao.inTransaction((dao, ts) -> {
+        return dao.inTransaction(tx -> {
             Collection<Seed> seeds = update.getSeeds();
-            long seedlistId = dao.insertSeedlist(update, seeds.size());
-            dao.insertSeedsOnly(seedlistId, seeds);
+            long seedlistId = tx.insertSeedlist(update, seeds.size());
+            tx.insertSeedsOnly(seedlistId, seeds);
             return seedlistId;
         });
     }
@@ -44,21 +44,21 @@ public class Seedlists {
     }
 
     public void update(long seedlistId, Update update) {
-        dao.inTransaction((dao, ts) -> {
-            int rows = dao.updateSeedlist(seedlistId, update, update.getSeeds().size());
+        dao.inTransaction(tx -> {
+            int rows = tx.updateSeedlist(seedlistId, update, update.getSeeds().size());
             if (rows == 0) {
                 throw new NotFoundException("seedlist", seedlistId);
             }
-            dao.deleteSeedsBySeedlistId(seedlistId);
-            dao.insertSeedsOnly(seedlistId, update.getSeeds());
+            tx.deleteSeedsBySeedlistId(seedlistId);
+            tx.insertSeedsOnly(seedlistId, update.getSeeds());
             return null;
         });
     }
 
     public void delete(long seedlistId) {
-        dao.inTransaction((dao, ts) -> {
-            dao.deleteSeedsBySeedlistId(seedlistId);
-            int rows = dao.deleteSeedlistOnly(seedlistId);
+        dao.inTransaction(tx -> {
+            tx.deleteSeedsBySeedlistId(seedlistId);
+            int rows = tx.deleteSeedlistOnly(seedlistId);
             if (rows == 0) {
                 throw new NotFoundException("seedlist", seedlistId);
             }

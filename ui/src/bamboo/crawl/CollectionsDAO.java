@@ -1,29 +1,29 @@
 package bamboo.crawl;
 
+import org.jdbi.v3.core.mapper.RowMapper;
+import org.jdbi.v3.core.statement.StatementContext;
+import org.jdbi.v3.sqlobject.config.RegisterRowMapper;
+import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.customizer.BindBean;
+import org.jdbi.v3.sqlobject.statement.GetGeneratedKeys;
+import org.jdbi.v3.sqlobject.statement.SqlQuery;
+import org.jdbi.v3.sqlobject.statement.SqlUpdate;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.sqlobject.Bind;
-import org.skife.jdbi.v2.sqlobject.BindBean;
-import org.skife.jdbi.v2.sqlobject.GetGeneratedKeys;
-import org.skife.jdbi.v2.sqlobject.SqlQuery;
-import org.skife.jdbi.v2.sqlobject.SqlUpdate;
-import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
-
-@RegisterMapper({CollectionsDAO.CollectionMapper.class})
+@RegisterRowMapper(CollectionsDAO.CollectionMapper.class)
 public interface CollectionsDAO {
 
-    class CollectionMapper implements ResultSetMapper<Collection> {
+    class CollectionMapper implements RowMapper<Collection> {
         @Override
-        public Collection map(int index, ResultSet rs, StatementContext ctx) throws SQLException {
+        public Collection map(ResultSet rs, StatementContext ctx) throws SQLException {
             return new Collection(rs);
         }
     }
 
-    @SqlUpdate("SELECT COUNT(*) FROM collection")
+    @SqlQuery("SELECT COUNT(*) FROM collection")
     long countCollections();
 
     @SqlQuery("SELECT * FROM collection ORDER BY name")
@@ -33,7 +33,7 @@ public interface CollectionsDAO {
     List<Collection> paginateCollections(@Bind("limit") long limit, @Bind("offset") long offset);
 
     @SqlQuery("SELECT collection.* FROM collection_series LEFT JOIN collection ON collection.id = collection_id WHERE crawl_series_id = :it")
-    List<Collection> listCollectionsForCrawlSeries(@Bind long crawlSeriesId);
+    List<Collection> listCollectionsForCrawlSeries(@Bind("it") long crawlSeriesId);
 
     @SqlQuery("SELECT * FROM collection WHERE id = :id")
     Collection findCollection(@Bind("id") long id);

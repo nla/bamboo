@@ -1,11 +1,16 @@
 package bamboo.core;
 
-import org.skife.jdbi.v2.DBI;
-import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.StatementContext;
+import org.hibernate.type.SqlTypes;
+import org.jdbi.v3.core.Handle;
+import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.core.argument.AbstractArgumentFactory;
+import org.jdbi.v3.core.argument.Argument;
+import org.jdbi.v3.core.argument.ArgumentFactory;
+import org.jdbi.v3.core.config.ConfigRegistry;
+import org.jdbi.v3.core.statement.Slf4JSqlLogger;
+import org.jdbi.v3.core.statement.StatementContext;
+import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.skife.jdbi.v2.logging.PrintStreamLog;
-import org.skife.jdbi.v2.tweak.Argument;
-import org.skife.jdbi.v2.tweak.ArgumentFactory;
 import org.vibur.dbcp.ViburDBCPDataSource;
 
 import org.flywaydb.core.Flyway;
@@ -13,11 +18,13 @@ import org.flywaydb.core.Flyway;
 import javax.sql.DataSource;
 import java.io.Closeable;
 import java.io.PrintWriter;
+import java.lang.reflect.Type;
 import java.nio.file.Path;
+import java.util.Optional;
 
 public class DbPool implements Closeable {
     final ViburDBCPDataSource ds;
-    public final DBI dbi;
+    public final Jdbi dbi;
     private final DAO dao;
 
     public DbPool(Config config) {
@@ -34,21 +41,11 @@ public class DbPool implements Closeable {
 
         System.out.println("Initialized connection pool in " + (System.currentTimeMillis() - start) + "ms");
 
-        dbi = new DBI(ds);
-        dbi.registerArgumentFactory(new PathArgumentFactory());
+        dbi = Jdbi.create(ds).installPlugin(new SqlObjectPlugin());
+        dbi.registerArgument(new PathArgumentFactory());
 
         if (System.getenv("SQL_LOG") != null) {
-            dbi.setSQLLog(new PrintStreamLog() {
-                @Override
-                public void logReleaseHandle(Handle h) {
-                    // suppress
-                }
-
-                @Override
-                public void logObtainHandle(long time, Handle h) {
-                    // suppress
-                }
-            });
+            dbi.setSqlLogger(new Slf4JSqlLogger());
         }
 
         dao = dbi.onDemand(DAO.class);
@@ -70,10 +67,6 @@ public class DbPool implements Closeable {
         return dao;
     }
 
-    public DAO take() {
-        return dbi.open(DAO.class);
-    }
-
     @Override
     public void close() {
         ds.terminate();
@@ -82,7 +75,7 @@ public class DbPool implements Closeable {
     public boolean healthcheck(PrintWriter out) {
         out.print("Checking database connection... ");
         try (Handle h = dbi.open()) {
-            boolean ok = !h.select("select 1").isEmpty();
+            boolean ok = !h.select("select 1").mapToMap().findOne().isEmpty();
             out.println(ok ? "OK" : "FAILED");
             return ok;
         } catch (Exception e) {
@@ -96,14 +89,13 @@ public class DbPool implements Closeable {
         return ds;
     }
 
-    public static class PathArgumentFactory implements ArgumentFactory<Path> {
-        @Override
-        public boolean accepts(Class<?> aClass, Object o, StatementContext statementContext) {
-            return o instanceof Path;
+    public static class PathArgumentFactory extends AbstractArgumentFactory<Path> {
+        protected PathArgumentFactory() {
+            super(SqlTypes.VARCHAR);
         }
 
         @Override
-        public Argument build(Class<?> aClass, Path path, StatementContext statementContext) {
+        protected Argument build(Path path, ConfigRegistry config) {
             return (i, stmt, ctx) -> stmt.setString(i, path.toString());
         }
     }

@@ -11,8 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.rest.core.config.RepositoryRestConfiguration;
 import org.springframework.data.rest.webmvc.config.RepositoryRestConfigurer;
-import org.springframework.data.rest.webmvc.config.RepositoryRestConfigurerAdapter;
-import org.springframework.http.MediaType;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 
 import javax.sql.DataSource;
 import java.io.IOException;
@@ -76,9 +75,9 @@ public class Application {
 
     @Bean
     public RepositoryRestConfigurer repositoryRestConfigurer() {
-        return new RepositoryRestConfigurerAdapter() {
+        return new RepositoryRestConfigurer() {
             @Override
-            public void configureRepositoryRestConfiguration(RepositoryRestConfiguration config) {
+            public void configureRepositoryRestConfiguration(RepositoryRestConfiguration config, CorsRegistry cors) {
                 config.exposeIdsFor(Crawl.class, Series.class, Warc.class);
             }
         };

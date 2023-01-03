@@ -4,7 +4,7 @@ import bamboo.AuthHelper;
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
 import doss.*;
-import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
+import org.jdbi.v3.core.statement.UnableToExecuteStatementException;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.io.IOException;
@@ -67,14 +67,14 @@ public class Crawls {
 
     private long create(Crawl metadata, List<Warc> warcs, List<Artifact> artifacts) {
         metadata.setCreator(AuthHelper.currentUser());
-        long id = dao.inTransaction((dao1, ts) -> {
+        long id = dao.inTransaction(tx -> {
             long totalBytes = warcs.stream().mapToLong(Warc::getSize).sum();
-            long crawlId = dao.createCrawl(metadata);
-            dao.warcs().batchInsertWarcsWithoutRollup(crawlId, warcs.iterator());
+            long crawlId = tx.createCrawl(metadata);
+            tx.warcs().batchInsertWarcsWithoutRollup(crawlId, warcs.iterator());
             int warcFilesDelta = warcs.size();
-            dao.warcs().incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, totalBytes);
-            dao.warcs().incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, totalBytes);
-            dao.batchInsertArtifacts(crawlId, artifacts.iterator());
+            tx.warcs().incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, totalBytes);
+            tx.warcs().incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, totalBytes);
+            tx.batchInsertArtifacts(crawlId, artifacts.iterator());
             return crawlId;
         });
         notifyStateChanged(id, Crawl.ARCHIVED);
@@ -87,12 +87,12 @@ public class Crawls {
             int tries = 5;
             while (true) {
                 try {
-                    dao.inTransaction((dao1, ts) -> {
+                    dao.inTransaction(dbtx -> {
                         long totalBytes = warcs.stream().mapToLong(Warc::getSize).sum();
-                        dao.warcs().batchInsertWarcsWithoutRollup(crawlId, warcs.iterator());
+                        dbtx.warcs().batchInsertWarcsWithoutRollup(crawlId, warcs.iterator());
                         int warcFilesDelta = warcs.size();
-                        dao.warcs().incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, totalBytes);
-                        dao.warcs().incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, totalBytes);
+                        dbtx.warcs().incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, totalBytes);
+                        dbtx.warcs().incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, totalBytes);
                         return null;
                     });
                     break;

@@ -1,10 +1,15 @@
 package bamboo.crawl;
 
-import org.skife.jdbi.v2.StatementContext;
-import org.skife.jdbi.v2.sqlobject.*;
-import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper;
-import org.skife.jdbi.v2.sqlobject.mixins.Transactional;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
+import org.jdbi.v3.core.mapper.RowMapper;
+import org.jdbi.v3.core.statement.StatementContext;
+import org.jdbi.v3.sqlobject.config.RegisterRowMapper;
+import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.customizer.BindBean;
+import org.jdbi.v3.sqlobject.statement.GetGeneratedKeys;
+import org.jdbi.v3.sqlobject.statement.SqlBatch;
+import org.jdbi.v3.sqlobject.statement.SqlQuery;
+import org.jdbi.v3.sqlobject.statement.SqlUpdate;
+import org.jdbi.v3.sqlobject.transaction.Transactional;
 
 import java.nio.file.Paths;
 import java.sql.ResultSet;
@@ -14,13 +19,15 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-@RegisterMapper({WarcsDAO.WarcMapper.class, WarcsDAO.CollectionWarcMapper.class, WarcsDAO.WarcResumptionTokenMapper.class,
-    WarcsDAO.StatisticsMapper.class})
+@RegisterRowMapper(WarcsDAO.WarcMapper.class)
+@RegisterRowMapper(WarcsDAO.CollectionWarcMapper.class)
+@RegisterRowMapper(WarcsDAO.WarcResumptionTokenMapper.class)
+@RegisterRowMapper(WarcsDAO.StatisticsMapper.class)
 public interface WarcsDAO extends Transactional<WarcsDAO> {
 
-    class WarcMapper implements ResultSetMapper<Warc> {
+    class WarcMapper implements RowMapper<Warc> {
         @Override
-        public Warc map(int i, ResultSet rs, StatementContext statementContext) throws SQLException {
+        public Warc map(ResultSet rs, StatementContext statementContext) throws SQLException {
             Warc warc = new Warc();
             warc.setId(rs.getLong("id"));
             warc.setCrawlId(rs.getLong("crawl_id"));
@@ -47,9 +54,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
         String getSha256();
     }
 
-    public class StatisticsMapper implements ResultSetMapper<Statistics> {
+    public class StatisticsMapper implements RowMapper<Statistics> {
         @Override
-        public Statistics map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+        public Statistics map(ResultSet r, StatementContext ctx) throws SQLException {
             return new Statistics(
                     r.getLong("totalFiles"),
                     r.getLong("totalSize"),
@@ -127,7 +134,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     List<Warc> paginateWarcsInCrawlAndState(@Bind("crawlId") long crawlId, @Bind("stateId") int stateId, @Bind("limit") long limit, @Bind("offset") long offset);
 
     @SqlQuery("SELECT COUNT(*) FROM warc WHERE crawl_id = :it AND warc_state_id = :stateId")
-    long countWarcsInCrawlAndState(@Bind long crawlId, @Bind("stateId") int stateId);
+    long countWarcsInCrawlAndState(@Bind("it") long crawlId, @Bind("stateId") int stateId);
 
     @SqlUpdate("UPDATE warc SET warc_state_id = :stateId WHERE id = :warcId")
     int updateWarcStateWithoutHistory(@Bind("warcId") long warcId, @Bind("stateId") int stateId);
@@ -174,9 +181,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
                                          @Bind("recordBytes") long recordBytes, @Bind("startTime") Date startTime,
                                          @Bind("endTime") Date endTime);
 
-    class CollectionWarcMapper implements ResultSetMapper<CollectionWarc> {
+    class CollectionWarcMapper implements RowMapper<CollectionWarc> {
         @Override
-        public CollectionWarc map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+        public CollectionWarc map(ResultSet r, StatementContext ctx) throws SQLException {
             return new CollectionWarc(r);
         }
     }
@@ -227,9 +234,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
             @Bind("afterWarcId") long warcId,
             @Bind("limit") int limit);
 
-    class WarcResumptionTokenMapper implements ResultSetMapper<WarcResumptionToken> {
+    class WarcResumptionTokenMapper implements RowMapper<WarcResumptionToken> {
         @Override
-        public WarcResumptionToken map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+        public WarcResumptionToken map(ResultSet resultSet, StatementContext statementContext) throws SQLException {
             return new WarcResumptionToken(resultSet.getTimestamp("time").toInstant(),
                     resultSet.getLong("warc_id"),
                     resultSet.getLong("urlCount"));

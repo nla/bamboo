@@ -1,15 +1,15 @@
 package bamboo.pandas;
 
 import bamboo.core.Config;
-import org.skife.jdbi.v2.DBI;
-import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.logging.PrintStreamLog;
+import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.core.statement.Slf4JSqlLogger;
+import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.vibur.dbcp.ViburDBCPDataSource;
 
 public class PandasDB implements Cloneable {
 
     private final ViburDBCPDataSource dataSource;
-    final DBI dbi;
+    final Jdbi dbi;
     final PandasDAO dao;
 
     PandasDB(Config config) {
@@ -20,24 +20,14 @@ public class PandasDB implements Cloneable {
         dataSource.setPassword(config.getPandasDbPassword());
         dataSource.start();
 
-        dbi = new DBI(dataSource);
-        dbi.setSQLLog(new PrintStreamLog() {
-            @Override
-            public void logReleaseHandle(Handle h) {
-                // suppress
-            }
-
-            @Override
-            public void logObtainHandle(long time, Handle h) {
-                // suppress
-            }
-        });
-        dbi.registerMapper(new PandasDAO.InstanceMapper(config));
+        dbi = Jdbi.create(dataSource).installPlugin(new SqlObjectPlugin());
+        dbi.setSqlLogger(new Slf4JSqlLogger());
+        dbi.registerRowMapper(new PandasDAO.InstanceMapper(config));
         this.dao = dbi.onDemand(PandasDAO.class);
     }
 
     public void close() {
-        dao.close();
+        dao.getHandle().close();
         dataSource.terminate();
     }
 }

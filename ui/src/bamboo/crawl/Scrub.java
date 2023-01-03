@@ -9,9 +9,9 @@ import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
-import javax.xml.bind.DatatypeConverter;
 
 import bamboo.app.Bamboo;
+import org.apache.commons.codec.binary.Hex;
 
 public class Scrub {
 
@@ -72,7 +72,7 @@ public class Scrub {
             md.update(buffer);
             buffer.clear();
         }
-        return DatatypeConverter.printHexBinary(md.digest()).toLowerCase();
+        return Hex.encodeHexString(md.digest(), true);
     }
 
     public static String calculateDigest(String algorithm, Path path) throws IOException {

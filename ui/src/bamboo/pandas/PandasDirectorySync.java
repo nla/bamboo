@@ -1,7 +1,5 @@
 package bamboo.pandas;
 
-import org.skife.jdbi.v2.ResultIterator;
-
 import java.util.*;
 
 import static bamboo.pandas.PandasType.AGENCY;
