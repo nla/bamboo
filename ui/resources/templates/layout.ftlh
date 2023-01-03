@@ -45,7 +45,7 @@
                     <li><a href="http://dl.nla.gov.au/agwa/stayback">Access Control</a></li>
                     <li [#if requestContext.requestUri?starts_with("/tasks")]class="active"[/#if]><a href="tasks">Task Manager</a></li>
                 [/#if]
-                [#if auth.hasRole("ROLE_USER")]
+                [#if auth.authenticated]
                     <li class="dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">${auth.username} <span class="caret"></span></a>
                         <ul class="dropdown-menu">

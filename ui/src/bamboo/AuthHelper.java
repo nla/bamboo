@@ -22,6 +22,10 @@ public class AuthHelper {
         return request.isUserInRole(role.toUpperCase());
     }
 
+    public boolean isAuthenticated() {
+        return currentUser() != null;
+    }
+
     public boolean hasPermission(String permission) {
         return request.isUserInRole(Permission.valueOf(permission).getAuthority());
     }

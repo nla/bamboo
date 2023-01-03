@@ -3,8 +3,6 @@ package bamboo.config;
 import bamboo.User;
 import bamboo.core.Role;
 import com.nimbusds.jwt.SignedJWT;
-import net.minidev.json.JSONArray;
-import net.minidev.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -19,7 +17,10 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.text.ParseException;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 
@@ -63,10 +64,9 @@ public class SecurityConfig {
 
     private Set<GrantedAuthority> mapClaimsToAuthorities(Map<String, Object> claims) {
         Set<GrantedAuthority> authorities = new HashSet<>();
-        JSONArray array = (JSONArray) (((JSONObject) claims.get("realm_access")).get("roles"));
-        HashSet<Object> clamedRoles = new HashSet<>(array);
+        var claimedRoles = (List<String>) ((Map<String, Object>) claims.get("realm_access")).get("roles");
         for (Role role : Role.values()) {
-            if (clamedRoles.contains(role.name().toLowerCase())) {
+            if (claimedRoles.contains(role.name().toLowerCase())) {
                 authorities.add(role);
                 authorities.addAll(role.getPermissions());
             }
