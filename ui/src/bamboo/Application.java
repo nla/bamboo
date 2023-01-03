@@ -47,6 +47,7 @@ public class Application {
             copyEnvToProperty("LOGIN_OIDC_URL", "spring.security.oauth2.client.provider.oidc.issuer-uri");
             copyEnvToProperty("LOGIN_OIDC_CLIENT_ID", "spring.security.oauth2.client.registration.oidc.client-id");
             copyEnvToProperty("LOGIN_OIDC_CLIENT_SECRET", "spring.security.oauth2.client.registration.oidc.client-secret");
+            System.setProperty("spring.security.oauth2.client.registration.oidc.scope", "openid");
         } else {
             copyEnvToProperty("OIDC_URL", "spring.security.oauth2.client.provider.oidc.issuer-uri");
             copyEnvToProperty("OIDC_CLIENT_ID", "spring.security.oauth2.client.registration.oidc.client-id");
