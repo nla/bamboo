@@ -57,7 +57,6 @@ public class Application {
             System.setProperty("spring.security.oauth2.client.registration.oidc.scope", "openid");
         }
 
-
         SpringApplication.run(Application.class, args);
     }
 

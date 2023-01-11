@@ -9,7 +9,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.safety.Cleaner;
-import org.jsoup.safety.Whitelist;
+import org.jsoup.safety.Safelist;
 import org.jsoup.select.Elements;
 
 import java.net.URI;
@@ -20,7 +20,7 @@ public class Markdown {
 
     public Markdown() {}
 
-    private static final Whitelist HTML_WHITELIST = Whitelist.relaxed().preserveRelativeLinks(true);
+    private static final Safelist HTML_SAFELIST = Safelist.relaxed().preserveRelativeLinks(true);
 
     public static String render(String markdown, String baseUri) {
         if (markdown == null || markdown.isEmpty()) {
@@ -39,7 +39,7 @@ public class Markdown {
         String html = renderer.render(document);
 
         Document dirty = Jsoup.parseBodyFragment(html, baseUri.toString());
-        Cleaner cleaner = new Cleaner(HTML_WHITELIST);
+        Cleaner cleaner = new Cleaner(HTML_SAFELIST);
         Document clean = cleaner.clean(dirty);
         rewriteFragmentLinks(clean, baseUri);
         return clean.body().html();
