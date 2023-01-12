@@ -49,6 +49,7 @@ public class SecurityConfig {
                     .requestMatchers(antMatcher("/warcs/*/text")).permitAll()
                     // api: wayback
                     .requestMatchers(antMatcher("/warcs/*")).permitAll()
+                    .requestMatchers(antMatcher("/healthcheck")).permitAll()
 
                     .requestMatchers(antMatcher("/")).hasRole(Role.STDUSER.name())
                     .requestMatchers(antMatcher("/series")).permitAll()
