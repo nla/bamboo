@@ -150,7 +150,7 @@ public class Cdx {
                         record = reader.next().orElse(null);
                     }
 
-                    out.printf("%s %s %s %s %d %s - - %d %d %s%n", "-", date, url, type, status, digest,
+                    out.printf("%s %s %s %s %d %s %s - %d %d %s%n", "-", date, url, type, status, digest,
                             redirect == null ? "-" : redirect, length, position, filename);
                     stats.update(length, Date.from(instant));
                 } else {
