@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
 import org.netpreserve.jwarc.*;
+import org.netpreserve.urlcanon.ParsedUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +86,19 @@ public class Cdx {
                     String digest = payload.digest().map(WarcDigest::base32).orElse(null);
                     long position = reader.position();
 
+                    String redirect = null;
+                    if (record instanceof WarcResponse response && status >= 300 && status <= 399) {
+                        redirect = response.http().headers().first("Location").orElse(null);
+                    }
+                    if (redirect != null) {
+                        try {
+                            redirect = new URI(url).resolve(redirect).toASCIIString();
+                        } catch (URISyntaxException | IllegalArgumentException e) {
+                            log.debug("Couldn't resolve Location header '{}' against URL '{}'", redirect, url, e);
+                            redirect = null;
+                        }
+                    }
+
                     if (instant.isBefore(YEAR1990)) {
                         // garbage. skip.
                         record = reader.next().orElse(null);
@@ -136,7 +150,8 @@ public class Cdx {
                         record = reader.next().orElse(null);
                     }
 
-                    out.printf("%s %s %s %s %d %s - - %d %d %s%n", "-", date, url, type, status, digest, length, position, filename);
+                    out.printf("%s %s %s %s %d %s - - %d %d %s%n", "-", date, url, type, status, digest,
+                            redirect == null ? "-" : redirect, length, position, filename);
                     stats.update(length, Date.from(instant));
                 } else {
                     record = reader.next().orElse(null);
