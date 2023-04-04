@@ -9,18 +9,19 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
+import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.text.ParseException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.time.Instant;
+import java.util.*;
 
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 
@@ -59,6 +60,19 @@ public class SecurityConfig {
                     .requestMatchers(antMatcher("/api/**")).hasRole(Role.PANADMIN.name())
 
                     .anyRequest().hasRole(Role.PANADMIN.name()));
+        } else {
+            // security is disabled, grant anonymous full access
+            log.warn("SECURITY IS DISABLED");
+            http.authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll());
+            Set<GrantedAuthority> authorities = new HashSet<>();
+            for (Role role : Role.values()) {
+                authorities.add(role);
+                authorities.addAll(role.getPermissions());
+            }
+            http.anonymous()
+                    .authorities(new ArrayList<>(authorities))
+                    .principal(new User(authorities, new OidcIdToken("A", Instant.now(), Instant.now().plusSeconds(60*60*24), Map.of("username", "admin")),
+                            new OidcUserInfo(Map.of("username", "admin")), "username"));
         }
         return http.build();
     }

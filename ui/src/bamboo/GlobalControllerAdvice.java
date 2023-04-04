@@ -18,8 +18,8 @@ public class GlobalControllerAdvice {
     private BambooPermissionEvaluator permissionEvaluator;
 
     @ModelAttribute("auth")
-    public AuthHelper getAuth(@Autowired HttpServletRequest request) {
-        return new AuthHelper(request, permissionEvaluator);
+    public AuthHelper getAuth() {
+        return new AuthHelper(permissionEvaluator);
     }
 
     @ExceptionHandler(NotFoundException.class)
@@ -27,7 +27,7 @@ public class GlobalControllerAdvice {
     public String handleNotFound(NotFoundException e, Model model, HttpServletRequest request) {
         model.addAttribute("status", 404);
         model.addAttribute("error", "Not Found");
-        model.addAttribute("auth", getAuth(request));
+        model.addAttribute("auth", getAuth());
         return "error";
     }
 }

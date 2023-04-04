@@ -1,6 +1,7 @@
 package bamboo;
 
 import bamboo.core.Permission;
+import bamboo.core.Role;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.access.PermissionEvaluator;
 import org.springframework.security.core.Authentication;
@@ -10,16 +11,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
  * Instances of this class are globally available as 'auth' in freemarker templates. See GlobalControllerAdvice.
  */
 public class AuthHelper {
-    private final HttpServletRequest request;
     private final PermissionEvaluator permissionEvaluator;
 
-    public AuthHelper(HttpServletRequest request, PermissionEvaluator permissionEvaluator) {
-        this.request = request;
+    public AuthHelper(PermissionEvaluator permissionEvaluator) {
         this.permissionEvaluator = permissionEvaluator;
     }
 
     public boolean hasRole(String role) {
-        return request.isUserInRole(role.toUpperCase());
+        return getUser().hasAuthority(Role.valueOf(role.toUpperCase()));
     }
 
     public boolean isAuthenticated() {
@@ -27,7 +26,7 @@ public class AuthHelper {
     }
 
     public boolean hasPermission(String permission) {
-        return request.isUserInRole(Permission.valueOf(permission).getAuthority());
+        return getUser().hasAuthority(Permission.valueOf(permission));
     }
 
     public boolean hasPermission(Object object, String permission) {
@@ -35,11 +34,11 @@ public class AuthHelper {
     }
 
     public User getUser() {
-        return (User)request.getUserPrincipal();
+        return (User)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
     public String getUsername() {
-        return request.getUserPrincipal().getName();
+        return getUser().getName();
     }
 
     public static String currentUser() {
