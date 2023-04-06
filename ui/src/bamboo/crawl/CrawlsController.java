@@ -19,6 +19,8 @@ import org.springframework.web.servlet.HandlerMapping;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -179,8 +181,7 @@ public class CrawlsController {
     @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
     @ResponseStatus(HttpStatus.CREATED)
     void putArtifactByPath(@PathVariable("id") long crawlId,
-                                HttpServletRequest request,
-                                HttpServletResponse response) throws IOException {
+                                HttpServletRequest request) throws IOException {
         String path = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
         String pattern = (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
         String relpath = new AntPathMatcher().extractPathWithinPattern(pattern, path);
@@ -355,7 +356,7 @@ public class CrawlsController {
     @ResponseStatus(HttpStatus.CREATED)
     public void putWarc(@PathVariable("crawlId") long crawlId, @PathVariable("filename") String filename,
                           @RequestParam(name= "replaceCorrupt", defaultValue = "false") boolean replaceCorrupt,
-                          HttpServletRequest request) throws IOException, NoSuchAlgorithmException {
+                          HttpServletRequest request, HttpServletResponse response) throws IOException, NoSuchAlgorithmException {
         bamboo.crawls.get(crawlId); // ensure the crawl exists
         Warc existing = bamboo.warcs.getOrNullByCrawlIdAndFilename(crawlId, filename);
         if (existing != null) {
@@ -368,7 +369,7 @@ public class CrawlsController {
             }
             return;
         }
-        bamboo.crawls.addWarcs(crawlId, List.of(new NamedStream() {
+        var warcs = bamboo.crawls.addWarcs(crawlId, List.of(new NamedStream() {
             @Override
             public String name() {
                 return filename;
@@ -384,6 +385,10 @@ public class CrawlsController {
                 return request.getInputStream();
             }
         }));
+        long warcId = warcs.get(0).getId();
+        var location = ServletUriComponentsBuilder.fromContextPath(request)
+                .path("/warcs").path(String.valueOf(warcId)).toUriString();
+        response.setHeader("Location", location);
     }
 
     @DeleteMapping("/crawls/{crawlId}/warcs/{filename}")
