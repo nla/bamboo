@@ -387,7 +387,7 @@ public class CrawlsController {
         }));
         long warcId = warcs.get(0).getId();
         var location = ServletUriComponentsBuilder.fromContextPath(request)
-                .path("/warcs").path(String.valueOf(warcId)).toUriString();
+                .pathSegment("warcs", String.valueOf(warcId)).toUriString();
         response.setHeader("Location", location);
     }
 
