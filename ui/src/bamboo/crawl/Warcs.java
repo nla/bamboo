@@ -186,7 +186,7 @@ public class Warcs {
         return dao.inTransaction(tx -> {
             tx.incrementWarcStatsForCrawlInternal(crawlId, 1, size);
             tx.incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, 1, size);
-            long warcId = tx.insertWarcWithoutRollup(crawlId, stateId, path.toString(), filename, size, sha256);
+            long warcId = tx.insertWarcWithoutRollup(crawlId, stateId, path.toString(), filename, size, sha256, null);
             tx.insertWarcHistory(warcId, stateId);
             return warcId;
         });

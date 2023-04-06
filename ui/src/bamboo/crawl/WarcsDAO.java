@@ -76,9 +76,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlUpdate("UPDATE crawl SET warc_files = warc_files + :warc_files, warc_size = warc_size + :warc_size WHERE id = :crawlId")
     void incrementWarcStatsForCrawlInternal(@Bind("crawlId") long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
 
-    @SqlUpdate("INSERT INTO warc (crawl_id, path, filename, size, warc_state_id, sha256) VALUES (:crawlId, :path, :filename, :size, :stateId, :sha256)")
+    @SqlUpdate("INSERT INTO warc (crawl_id, path, filename, size, warc_state_id, sha256, blob_id) VALUES (:crawlId, :path, :filename, :size, :stateId, :sha256, :blobId)")
     @GetGeneratedKeys
-    long insertWarcWithoutRollup(@Bind("crawlId") long crawlId, @Bind("stateId") int stateId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256);
+    long insertWarcWithoutRollup(@Bind("crawlId") long crawlId, @Bind("stateId") int stateId, @Bind("path") String path, @Bind("filename") String filename, @Bind("size") long size, @Bind("sha256") String sha256, @Bind("blobId") Long blobId);
 
     @SqlBatch("INSERT INTO warc (crawl_id, path, filename, size, warc_state_id, sha256, blob_id) VALUES (:crawlId, :warc.path, :warc.filename, :warc.size, :warc.stateId, :warc.sha256, :warc.blobId)")
     void batchInsertWarcsWithoutRollup(@Bind("crawlId") long crawlId, @BindBean("warc") Iterator<Warc> warcs);

@@ -14,11 +14,9 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Crawls {
     private final CrawlsDAO dao;
@@ -81,7 +79,7 @@ public class Crawls {
         return id;
     }
 
-    public void addWarcs(long crawlId, List<NamedStream> warcFiles) throws IOException {
+    public List<Warc> addWarcs(long crawlId, List<NamedStream> warcFiles) throws IOException {
         try (BlobTx tx = blobStore.begin()) {
             List<Warc> warcs = storeWarcs(tx, warcFiles);
             int tries = 5;
@@ -89,7 +87,10 @@ public class Crawls {
                 try {
                     dao.inTransaction(dbtx -> {
                         long totalBytes = warcs.stream().mapToLong(Warc::getSize).sum();
-                        dbtx.warcs().batchInsertWarcsWithoutRollup(crawlId, warcs.iterator());
+                        for (Warc warc: warcs) {
+                            long warcId = dbtx.warcs().insertWarcWithoutRollup(crawlId, warc.getStateId(), warc.getPath() == null ? null : warc.getPath().toString(), warc.getFilename(), warc.getSize(), warc.getSha256(), warc.getBlobId());
+                            warc.setId(warcId);
+                        }
                         int warcFilesDelta = warcs.size();
                         dbtx.warcs().incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, totalBytes);
                         dbtx.warcs().incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, totalBytes);
@@ -107,6 +108,7 @@ public class Crawls {
                 }
             }
             tx.commit();
+            return warcs;
         }
     }
 
