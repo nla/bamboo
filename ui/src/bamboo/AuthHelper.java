@@ -2,9 +2,9 @@ package bamboo;
 
 import bamboo.core.Permission;
 import bamboo.core.Role;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.access.PermissionEvaluator;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
@@ -18,7 +18,7 @@ public class AuthHelper {
     }
 
     public boolean hasRole(String role) {
-        return getUser().hasAuthority(Role.valueOf(role.toUpperCase()));
+        return hasAuthority(Role.valueOf(role.toUpperCase()));
     }
 
     public boolean isAuthenticated() {
@@ -26,19 +26,21 @@ public class AuthHelper {
     }
 
     public boolean hasPermission(String permission) {
-        return getUser().hasAuthority(Permission.valueOf(permission));
+        return hasAuthority(Permission.valueOf(permission));
+    }
+
+    private boolean hasAuthority(GrantedAuthority authority) {
+        return SecurityContextHolder.getContext().getAuthentication().getAuthorities().contains(authority);
     }
 
     public boolean hasPermission(Object object, String permission) {
         return permissionEvaluator.hasPermission(SecurityContextHolder.getContext().getAuthentication(), object, permission);
     }
 
-    public User getUser() {
-        return (User)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
-
     public String getUsername() {
-        return getUser().getName();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return "anonymous";
+        return authentication.getName();
     }
 
     public static String currentUser() {
