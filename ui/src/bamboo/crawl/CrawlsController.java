@@ -218,7 +218,7 @@ public class CrawlsController {
         model.addAttribute("crawl", crawl);
         model.addAttribute("warcs", pager.items);
         model.addAttribute("warcsPager", pager);
-        return "crawls/warcs";
+        return "crawls/warcs/index";
     }
 
     @GetMapping("/crawls/{id}/warcs/download")
