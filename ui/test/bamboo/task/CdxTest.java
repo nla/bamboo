@@ -13,6 +13,7 @@ public class CdxTest {
     @Test
     public void encodeJson() throws IOException {
         assertEquals("", encodeJson(""));
+        assertEquals("&a=18446744073709552000", encodeJson("{\"a\":18446744073709552000}"));
         assertEquals("&a=1&a.2_=2&a.3_=3", encodeJson("{\"a\":[1,2,3]}"));
         assertEquals("&b=2&a=3", encodeJson("{\"a\":[{\"b\":2},3]}"));
         assertEquals("&a=1&b=2&a.2_=3", encodeJson("[{\"a\":1},{\"b\":2, \"a\":3}]"));

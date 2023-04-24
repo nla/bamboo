@@ -5,6 +5,7 @@ import bamboo.util.Urls;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.exc.InputCoercionException;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
 import org.netpreserve.jwarc.*;
@@ -322,10 +323,18 @@ public class Cdx {
                                     value = "True";
                                     break;
                                 case VALUE_NUMBER_INT:
-                                    value = String.valueOf(parser.getLongValue());
+                                    try {
+                                        value = String.valueOf(parser.getLongValue());
+                                    } catch (InputCoercionException e) {
+                                        value = parser.getValueAsString();
+                                    }
                                     break;
                                 case VALUE_NUMBER_FLOAT:
-                                    value = String.valueOf(parser.getDoubleValue());
+                                    try {
+                                        value = String.valueOf(parser.getDoubleValue());
+                                    } catch (InputCoercionException e) {
+                                        value = parser.getValueAsString();
+                                    }
                                     break;
                                 default:
                                     value = URIUtil.encodeWithinQuery(parser.getValueAsString());
