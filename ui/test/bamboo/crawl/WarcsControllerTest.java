@@ -24,6 +24,10 @@ public class WarcsControllerTest {
         assertEquals("1-2/10", ranges.get(0).toString());
         assertEquals("2-3/10", ranges.get(1).toString());
         assertEquals("6-9/10", ranges.get(2).toString());
+
+        WarcsController.Range clippedRange = WarcsController.Range.parseHeader("bytes=10-999", 140).get(0);
+        assertEquals("10-139/140", clippedRange.toString());
+        assertEquals(130, clippedRange.length);
     }
 
     @Test

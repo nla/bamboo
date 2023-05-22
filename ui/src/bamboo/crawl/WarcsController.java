@@ -16,6 +16,7 @@ import org.archive.url.SURT;
 import org.netpreserve.jwarc.WarcReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.codec.Hex;
 import org.springframework.stereotype.Controller;
@@ -24,6 +25,8 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -100,6 +103,10 @@ public class WarcsController {
                 if (startText != null) {
                     long start = Long.parseLong(startText);
                     long end = endText == null ? fileSize : Long.parseLong(endText);
+                    if (start >= fileSize) {
+                        throw new ResponseStatusException(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE, "Start position past end of file");
+                    }
+                    end = Math.min(end, fileSize - 1);
                     return new Range(start, end - start + 1, fileSize);
                 } else if (endText != null) {
                     long tail = Long.parseLong(endText);
