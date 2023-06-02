@@ -1,6 +1,5 @@
 package bamboo.core;
 
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.jdbi.v3.sqlobject.customizer.Bind;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 

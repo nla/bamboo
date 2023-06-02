@@ -1,6 +1,5 @@
 package bamboo.crawl;
 
-import org.apache.tools.ant.taskdefs.War;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
 import org.jdbi.v3.sqlobject.*;
@@ -16,10 +15,8 @@ import org.jdbi.v3.sqlobject.transaction.Transactional;
 import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 @RegisterRowMapper(CrawlsDAO.CrawlMapper.class)
 @RegisterRowMapper(CrawlsDAO.CrawlWithSeriesNameMapper.class)
