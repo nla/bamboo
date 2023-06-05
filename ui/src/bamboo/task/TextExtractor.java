@@ -66,7 +66,8 @@ public class TextExtractor implements Closeable {
             TikaConfig config = new TikaConfig(getClass().getResource("tika.xml"));
             ForkParser parser = new ForkParser(getClass().getClassLoader(), new AutoDetectParser(config));
             parser.setServerParseTimeoutMillis(15000); // don't spend too long on any one record
-            parser.setJavaCommand(Arrays.asList("java", "-Xmx512m", "-Dlogback.configurationFile=" + logbackConfig));
+            Path javaBinary = Path.of(System.getProperty("java.home"), "bin", "java");
+            parser.setJavaCommand(Arrays.asList(javaBinary.toString(), "-Xmx512m", "-Dlogback.configurationFile=" + logbackConfig));
             if (System.getenv("TIKA_POOL_SIZE") != null) {
                 parser.setPoolSize(Integer.parseInt(System.getenv("TIKA_POOL_SIZE")));
             }
