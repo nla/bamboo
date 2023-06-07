@@ -393,4 +393,8 @@ public class Crawls {
         }
         dao.replaceCrawlLanguageStats(crawlId, stats);
     }
+
+    public List<Map.Entry<String, Long>> getLanguageStats(long crawlId) {
+        return dao.getLanguageStats(crawlId);
+    }
 }

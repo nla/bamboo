@@ -8,12 +8,14 @@ public class CrawlStats {
     private final long corruptWarcs;
     private final long artifactCount;
     private final long artifactBytes;
+    private final long languages;
 
     CrawlStats(CrawlsDAO dao, long crawlId) {
         warcsToBeCdxIndexed = dao.warcs().countWarcsInCrawlAndState(crawlId, Warc.IMPORTED);
         corruptWarcs = dao.warcs().countWarcsInCrawlAndState(crawlId, Warc.CDX_ERROR);
         artifactCount = dao.getArtifactCount(crawlId);
         artifactBytes = dao.getArtifactBytes(crawlId);
+        languages = dao.countLanguages(crawlId);
     }
 
     public long getWarcsToBeCdxIndexed() {
@@ -33,5 +35,9 @@ public class CrawlStats {
     }
     public String getArtifactDisplaySize() {
         return Units.displaySize(getArtifactBytes());
+    }
+
+    public long getLanguages() {
+        return languages;
     }
 }

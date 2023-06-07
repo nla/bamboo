@@ -351,6 +351,15 @@ public class CrawlsController {
         return "redirect:/crawls/" + crawlId + "/warcs";
     }
 
+    @GetMapping(value = "/crawls/{id}/languages", produces = "text/plain")
+    void languageStats(@PathVariable("id") long id, HttpServletResponse response) throws IOException {
+        try (PrintWriter out = response.getWriter()) {
+            for (var entry: bamboo.crawls.getLanguageStats(id)) {
+                out.printf("%-12s %d\n", entry.getKey(), entry.getValue());
+            }
+        }
+    }
+
     @PostMapping("/crawls/{crawlId}/refresh-language-stats")
     @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
     public String refreshLanguageStats(@PathVariable("crawlId") long crawlId) throws IOException {

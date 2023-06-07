@@ -61,8 +61,16 @@
                     [#if stats.artifactCount > 0]
                         <a href="crawls/${crawl.id?c}/artifacts">${stats.artifactCount} artifacts</a>; <abbr title="${stats.artifactBytes} bytes">${stats.artifactDisplaySize}</abbr><br>
                     [/#if]
-                </td></tr>
-            <tr>
+                </td>
+            </tr>
+            [#if stats.languages > 0]
+                <tr>
+                    <th>Other</th>
+                    <td>
+                        <a href="crawls/${crawl.id?c}/languages">${stats.languages} languages</a>
+                    </td>
+                </tr>
+            [/#if]
         </table>
     </div>
 </div>

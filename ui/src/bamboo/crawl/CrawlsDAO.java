@@ -156,6 +156,9 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
         batchInsertLanguageStats(crawlId, stats.entrySet());
     }
 
-    @SqlQuery("SELECT language, pages FROM crawl_language_stats WHERE crawl_id = :crawlId")
+    @SqlQuery("SELECT language, pages FROM crawl_language_stats WHERE crawl_id = :crawlId ORDER BY pages DESC")
     List<Map.Entry<String, Long>> getLanguageStats(@Bind("crawlId") long crawlId);
+
+    @SqlQuery("SELECT COUNT(*) FROM crawl_language_stats WHERE crawl_id = :crawlId")
+    long countLanguages(@Bind("crawlId") long crawlId);
 }
