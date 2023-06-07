@@ -2,17 +2,22 @@ package bamboo.crawl;
 
 import bamboo.core.Fixtures;
 import bamboo.util.Pager;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.zip.GZIPOutputStream;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -63,6 +68,31 @@ public class CrawlsTest {
         assertTrue(pager.totalItems > 0);
 
         crawls.stats(id);
+    }
+
+
+    private static void writeTarEntry(TarArchiveOutputStream tar, String name, byte[] contents) throws IOException {
+        TarArchiveEntry entry = new TarArchiveEntry(name);
+        entry.setSize(contents.length);
+        tar.putArchiveEntry(entry);
+        tar.write(contents);
+        tar.closeArchiveEntry();
+    }
+    @Test
+    public void testLanguageStats() throws IOException {
+        Serieses serieses = new Serieses(fixtures.dao.serieses());
+        Crawls crawls = new Crawls(fixtures.dao.crawls(), serieses, new Warcs(fixtures.dao.warcs()), null);
+        Crawl crawl = new Crawl();
+        crawl.setName("language test");
+
+        var tarFile = tmp.newFile("test-language-buckets.tar.gz");
+        try (var tar = new TarArchiveOutputStream(new GZIPOutputStream(new FileOutputStream(tarFile)))) {
+            writeTarEntry(tar, "buckets/en.txt", "1\n2\n3\n".getBytes(UTF_8));
+            writeTarEntry(tar, "buckets/kr.txt", "1\n2\n".getBytes(UTF_8));
+        }
+        long crawlId = crawls.createInPlace(crawl, List.of(), List.of(tarFile.toPath()));
+        crawls.refreshLanguageStats(crawlId);
+        System.out.println(fixtures.dao.crawls().getLanguageStats(crawlId));
     }
 
 }

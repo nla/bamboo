@@ -351,6 +351,13 @@ public class CrawlsController {
         return "redirect:/crawls/" + crawlId + "/warcs";
     }
 
+    @PostMapping("/crawls/{crawlId}/refresh-language-stats")
+    @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
+    public String refreshLanguageStats(@PathVariable("crawlId") long crawlId) throws IOException {
+        bamboo.crawls.refreshLanguageStats(crawlId);
+        return "redirect:/crawls/" + crawlId;
+    }
+
     @PutMapping("/crawls/{crawlId}/warcs/{filename}")
     @PreAuthorize("hasPermission(#crawlId, 'Crawl', 'edit')")
     @ResponseStatus(HttpStatus.CREATED)

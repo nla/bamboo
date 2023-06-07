@@ -4,11 +4,16 @@ import bamboo.AuthHelper;
 import bamboo.core.NotFoundException;
 import bamboo.util.Pager;
 import doss.*;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.jdbi.v3.core.statement.UnableToExecuteStatementException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
@@ -17,8 +22,12 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.*;
+import java.util.zip.GZIPInputStream;
+
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 public class Crawls {
+    private static final Logger log = LoggerFactory.getLogger(Crawls.class);
     private final CrawlsDAO dao;
     private final Serieses serieses;
     private final Warcs warcs;
@@ -55,12 +64,21 @@ public class Crawls {
      * @return the id of the new crawl
      */
     public long createInPlace(Crawl metadata, Collection<Path> warcPaths) throws IOException {
+        return createInPlace(metadata, warcPaths, Collections.emptyList());
+    }
+
+    public long createInPlace(Crawl metadata, Collection<Path> warcPaths, Collection<Path> artifactPaths) throws IOException {
         List<Warc> warcs = new ArrayList<>();
         for (Path path: warcPaths) {
             warcs.add(Warcs.fromFile(path));
         }
 
-        return create(metadata, warcs, Collections.emptyList());
+        List<Artifact> artifacts = new ArrayList<>();
+        for (Path path: artifactPaths) {
+            artifacts.add(Artifact.fromFile(path));
+        }
+
+        return create(metadata, warcs, artifacts);
     }
 
     private long create(Crawl metadata, List<Warc> warcs, List<Artifact> artifacts) {
@@ -345,5 +363,34 @@ public class Crawls {
 
     public Statistics getArtifactStatistics() {
         return dao.getArtifactStatistics();
+    }
+
+    public static void parseLanguageBucketsTarball(InputStream stream, Map<String, Long> stats) throws IOException {
+        try (TarArchiveInputStream tarStream = new TarArchiveInputStream(new GZIPInputStream(stream))) {
+            while (true) {
+                var entry = tarStream.getNextTarEntry();
+                if (entry == null) {
+                    break;
+                }
+                if (!entry.getName().endsWith(".txt")) continue;
+                String filename = entry.getName().replaceFirst("^.*/", "");
+                var language = filename.substring(0, filename.length() - ".txt".length());
+                var reader = new BufferedReader(new InputStreamReader(tarStream, ISO_8859_1));
+                var lineCount = reader.lines().count();
+                log.info("{} {} {}", entry.getName(), language, lineCount);
+                stats.compute(language, (k, v) -> v == null ? lineCount : v + lineCount);
+            }
+        }
+    }
+
+    public void refreshLanguageStats(long crawlId) throws IOException {
+        var stats = new HashMap<String,Long>();
+        var artifacts = dao.findArtifactsByRelpathLike(crawlId, "%-language-buckets.tar.gz");
+        log.info("Found {} language bucket tarballs in crawl {}", artifacts.size(), crawlId);
+        for (var artifact: artifacts) {
+            log.info("Reading {}", artifact.getRelpath());
+            parseLanguageBucketsTarball(openArtifactStream(artifact), stats);
+        }
+        dao.replaceCrawlLanguageStats(crawlId, stats);
     }
 }

@@ -10,18 +10,19 @@ import org.jdbi.v3.sqlobject.statement.GetGeneratedKeys;
 import org.jdbi.v3.sqlobject.statement.SqlBatch;
 import org.jdbi.v3.sqlobject.statement.SqlQuery;
 import org.jdbi.v3.sqlobject.statement.SqlUpdate;
+import org.jdbi.v3.sqlobject.transaction.Transaction;
 import org.jdbi.v3.sqlobject.transaction.Transactional;
 
 import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 @RegisterRowMapper(CrawlsDAO.CrawlMapper.class)
 @RegisterRowMapper(CrawlsDAO.CrawlWithSeriesNameMapper.class)
 @RegisterRowMapper(CrawlsDAO.ArtifactMapper.class)
 @RegisterRowMapper(WarcsDAO.StatisticsMapper.class)
+@RegisterRowMapper(CrawlsDAO.LanguageStatsMapper.class)
 public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     class CrawlMapper implements RowMapper<Crawl> {
         @Override
@@ -41,6 +42,14 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
         @Override
         public Artifact map(ResultSet rs, StatementContext ctx) throws SQLException {
             return new Artifact(rs);
+        }
+    }
+
+    class LanguageStatsMapper implements RowMapper<Map.Entry<String,Long>> {
+
+        @Override
+        public Map.Entry<String, Long> map(ResultSet rs, StatementContext ctx) throws SQLException {
+            return new AbstractMap.SimpleEntry<>(rs.getString(1), rs.getLong(2));
         }
     }
 
@@ -111,7 +120,7 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     @GetGeneratedKeys
     long createArtifact(@Bind("crawl_id") long crawlId, @Bind("type") String type, @Bind("path") Path path, @Bind("size") long size, @Bind("sha256") String sha256, @Bind("relpath") String relpath);
 
-    @SqlBatch("INSERT INTO artifact (crawl_id, type, relpath, size, sha256, blob_id) VALUES (:crawlId, :artifact.type, :artifact.relpath, :artifact.size, :artifact.sha256, :artifact.blobId)")
+    @SqlBatch("INSERT INTO artifact (crawl_id, type, path, relpath, size, sha256, blob_id) VALUES (:crawlId, :artifact.type, :artifact.path, :artifact.relpath, :artifact.size, :artifact.sha256, :artifact.blobId)")
     void batchInsertArtifacts(@Bind("crawlId") long crawlId, @BindBean("artifact") Iterator<Artifact> artifacts);
 
     @SqlQuery("SELECT count(*) FROM artifact WHERE crawl_id = :crawlId")
@@ -129,7 +138,24 @@ public interface CrawlsDAO extends Transactional<CrawlsDAO> {
     @SqlQuery("SELECT * FROM artifact WHERE crawl_id = :crawlId AND relpath = :relpath LIMIT 1")
     Artifact findArtifactByRelpath(@Bind("crawlId") long crawlId, @Bind("relpath") String relpath);
 
+    @SqlQuery("SELECT * FROM artifact WHERE crawl_id = :crawlId AND relpath LIKE :pattern")
+    List<Artifact> findArtifactsByRelpathLike(@Bind("crawlId") long crawlId, @Bind("pattern") String pattern);
+
     @SqlQuery("SELECT COUNT(*) totalFiles, SUM(size) totalSize, 0 totalRecords FROM artifact")
     Statistics getArtifactStatistics();
 
+    @SqlUpdate("DELETE FROM crawl_language_stats WHERE crawl_id = :crawlId")
+    void deleteLanguageStats(@Bind("crawlId") long crawlId);
+
+    @SqlBatch("INSERT INTO crawl_language_stats (crawl_id, language, pages) VALUES (:crawlId, :key, :value)")
+    void batchInsertLanguageStats(@Bind("crawlId") long crawlId, @BindBean Set<Map.Entry<String, Long>> languageStats);
+
+    @Transaction
+    default void replaceCrawlLanguageStats(long crawlId, Map<String, Long> stats) {
+        deleteLanguageStats(crawlId);
+        batchInsertLanguageStats(crawlId, stats.entrySet());
+    }
+
+    @SqlQuery("SELECT language, pages FROM crawl_language_stats WHERE crawl_id = :crawlId")
+    List<Map.Entry<String, Long>> getLanguageStats(@Bind("crawlId") long crawlId);
 }

@@ -2,6 +2,7 @@ package bamboo.crawl;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -58,6 +59,25 @@ public interface NamedStream {
             @Override
             public InputStream openStream() throws IOException {
                 return Files.newInputStream(path);
+            }
+        };
+    }
+
+    static NamedStream of(String name, byte[] data) {
+        return new NamedStream() {
+            @Override
+            public String name() {
+                return name;
+            }
+
+            @Override
+            public long length() {
+                return data.length;
+            }
+
+            @Override
+            public InputStream openStream() throws IOException {
+                return new ByteArrayInputStream(data);
             }
         };
     }

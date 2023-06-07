@@ -2,9 +2,9 @@ package bamboo.crawl;
 
 import bamboo.util.Units;
 import doss.Blob;
-import org.apache.commons.io.FileUtils;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
@@ -42,6 +42,23 @@ public class Artifact {
         } catch (NoSuchAlgorithmException e) {
             throw new IOException(e);
         }
+    }
+
+    Artifact(String path, String relpath, long size, String sha256) {
+        id = null;
+        type = typeFromFilename(relpath);
+        blobId = null;
+        this.path = path;
+        this.relpath = relpath;
+        this.size = size;
+        this.sha256 = sha256;
+    }
+
+    public static Artifact fromFile(Path path) throws IOException {
+        return new Artifact(path.toString(),
+                path.getFileName().toString(),
+                Files.size(path),
+                Scrub.calculateDigest("SHA-256", path));
     }
 
     public Long getId() {
