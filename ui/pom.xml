@@ -50,7 +50,7 @@
 
     <properties>
         <spring.version>3.1.0</spring.version>
-        <spring-security.version>6.0.1</spring-security.version>
+        <spring-security.version>6.1.0</spring-security.version>
         <doss.version>1.7.4</doss.version>
         <jackson.version>2.15.2</jackson.version>
     </properties>
@@ -153,7 +153,9 @@
         <dependency>
             <groupId>org.vibur</groupId>
             <artifactId>vibur-dbcp</artifactId>
-            <version>8.0</version>
+            <!-- 11.0 and above cause unit test to fail. Need more time to investigate -->
+            <!--  bamboo.pandas.PandasTest: java.lang.NullPointerException -->
+            <version>10.0</version>
         </dependency>
 
         <dependency>
@@ -178,7 +180,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>31.1-jre</version>
+            <version>32.0.1-jre</version>
         </dependency>
 
         <dependency>
@@ -252,7 +254,7 @@
         <dependency>
             <groupId>org.junit.vintage</groupId>
             <artifactId>junit-vintage-engine</artifactId>
-            <version>5.7.0</version>
+            <version>5.9.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>

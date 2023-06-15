@@ -29,9 +29,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @WithMockBambooUser
 public class WebTest {
-    public static class Factory {
 
-    }
+    private static final String OS = System.getProperty("os.name").toLowerCase();
 
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
@@ -143,7 +142,11 @@ public class WebTest {
             assertEquals(1, artifacts.size());
             Artifact artifact = artifacts.get(0);
             assertEquals("LOG", artifact.getType());
-            assertEquals("9841e00ddc894fc6456e668b032733e2390e580d5afb32f17ee37ad8331963c9", artifact.getSha256());
+            if (isWindows()) {
+                assertEquals("fce5aa428925d82a731d8446393120e9f3c5cf71ad5fb40735a77ebf0ffb06aa", artifact.getSha256());
+            } else {
+                assertEquals("9841e00ddc894fc6456e668b032733e2390e580d5afb32f17ee37ad8331963c9", artifact.getSha256());
+            }
         }
 
         mockMvc.perform(get("/crawls")).andExpect(status().isOk());
@@ -181,18 +184,9 @@ public class WebTest {
                 .andExpect(header().longValue("Content-Length", 10))
                 .andExpect(header().string("Content-Range", "1-10/6574"));
 
-        // tests below rely on the warc having been indexed
-//        mockMvc.perform(post("/warcs/" + warc.getId() + "/reindex")).andExpect(status().isOk())
-//                .andExpect(content().string(containsString("CDX indexed")))
-//                .andExpect(content().contentType("text/plain;charset=UTF-8"));
-//
-//        mockMvc.perform(get("/collections/" + collectionId + "/warcs/json"))
-//                .andExpect(status().isOk())
-//                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-//                .andExpect(content().string(containsString("\"id\": " + warc.getId())));
-//        mockMvc.perform(get("/collections/" + collectionId + "/warcs/sync"))
-//                .andExpect(status().isOk())
-//                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-//                .andExpect(content().string(containsString("\"id\": " + warc.getId())));
+    }
+
+    private static boolean isWindows() {
+        return (OS.indexOf("win") >= 0);
     }
 }
