@@ -29,9 +29,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @WithMockBambooUser
 public class WebTest {
-    public static class Factory {
 
-    }
+    private static final String OS = System.getProperty("os.name").toLowerCase();
 
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
@@ -186,8 +185,6 @@ public class WebTest {
                 .andExpect(header().string("Content-Range", "1-10/6574"));
 
     }
-
-    private static final String OS = System.getProperty("os.name").toLowerCase();
 
     private static boolean isWindows() {
         return (OS.indexOf("win") >= 0);
