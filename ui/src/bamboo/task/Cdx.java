@@ -2,21 +2,18 @@ package bamboo.task;
 
 import bamboo.crawl.RecordStats;
 import bamboo.util.Urls;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.exc.InputCoercionException;
-import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
 import org.netpreserve.jwarc.*;
-import org.netpreserve.urlcanon.ParsedUrl;
+import org.netpreserve.jwarc.cdx.CdxRequestEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
@@ -26,16 +23,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static bamboo.task.WarcUtils.cleanUrl;
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.time.ZoneOffset.UTC;
 
 public class Cdx {
     final static Pattern PANDORA_URL_MAP = Pattern.compile("^http://pandora\\.nla\\.gov\\.au/pan/([0-9]+/[0-9-]+)/url\\.map$");
     final static Pattern PANDORA_RECURSIVE_URL = Pattern.compile("^http://pandora\\.nla\\.gov\\.au/pan/([0-9]+/[0-9-]+)/pandora\\.nla\\.gov\\.au/pan/.*");
-
-    private static final MediaType JSON = MediaType.parse("application/json");
-    private static final MediaType FORM_URLENCODED = MediaType.parse("application/x-www-form-urlencoded");
     private static final DateTimeFormatter ARC_DATE = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(UTC);
     private static final Instant YEAR1990 = Instant.ofEpochMilli(631152000L);
     private static final Logger log = LoggerFactory.getLogger(Cdx.class);
@@ -125,24 +118,19 @@ public class Cdx {
                     record = reader.next().orElse(null);
                     long length = reader.position() - position;
 
+                    String urlKey = null;
+
                     // check for a corresponding request record
                     while (record instanceof WarcCaptureRecord && ((WarcCaptureRecord) record).concurrentTo().contains(id)) {
                         if (record instanceof WarcRequest) {
                             HttpRequest httpRequest = ((WarcRequest) record).http();
                             if (httpRequest.method().equals("POST") || httpRequest.method().equals("PUT")) {
-                                try {
-                                    url += (url.contains("?") ? "&" : "?") + "__wb_method=" + httpRequest.method();
-                                    MediaType baseContentType = httpRequest.contentType().base();
-                                    if (baseContentType.equals(JSON)) {
-                                        url += encodeJsonRequest(httpRequest.body().stream());
-                                    } else if (baseContentType.equals(FORM_URLENCODED)) {
-                                        String body = new String(httpRequest.body().stream().readAllBytes(), ISO_8859_1);
-                                        body = body.trim();
-                                        body = URIs.percentEncodeIllegals(body);
-                                        if (!body.isEmpty()) url += "&" + body;
-                                    }
-                                } catch (IllegalArgumentException e) {
-                                    log.trace("Bad content-type: {}", httpRequest.headers().first("Content-Type"));
+                                String encodedRequest = CdxRequestEncoder.encode(httpRequest);
+                                if (encodedRequest != null) {
+                                    String rawUrlKey = url +
+                                            (url.contains("?") ? '&' : '?')
+                                            + encodedRequest;
+                                    urlKey = URIs.toNormalizedSurt(rawUrlKey);
                                 }
                                 break;
                             }
@@ -151,7 +139,9 @@ public class Cdx {
                         record = reader.next().orElse(null);
                     }
 
-                    out.printf("%s %s %s %s %d %s %s - %d %d %s%n", "-", date, url, type, status, digest,
+                    if (urlKey == null) urlKey = URIs.toNormalizedSurt(url);
+
+                    out.printf("%s %s %s %s %d %s %s - %d %d %s%n", urlKey, date, url, type, status, digest,
                             redirect == null ? "-" : redirect, length, position, filename);
                     stats.update(length, Date.from(instant));
                 } else {
@@ -282,84 +272,5 @@ public class Cdx {
                 return path; // (example.org/index.html)
             }
         }
-    }
-
-    public static String encodeJsonRequest(InputStream stream) throws IOException {
-        StringBuilder output = new StringBuilder();
-        JsonParser parser = new JsonFactory().createParser(stream);
-        Map<String,Long> serials = new HashMap<>();
-        Deque<String> nameStack = new ArrayDeque<>();
-        String name = null;
-        try {
-            while (parser.nextToken() != null && output.length() < 4096) {
-                switch (parser.currentToken()) {
-                    case FIELD_NAME:
-                        name = parser.getCurrentName();
-                        break;
-                    case VALUE_FALSE:
-                    case VALUE_TRUE:
-                    case VALUE_NUMBER_FLOAT:
-                    case VALUE_STRING:
-                    case VALUE_NUMBER_INT:
-                    case VALUE_NULL:
-                        if (name != null) {
-                            long serial = serials.compute(name, (key, value) -> value == null ? 1 : value + 1);
-                            String key = name;
-                            if (serial > 1) {
-                                key += "." + serial + "_";
-                            }
-                            output.append('&');
-                            output.append(URIUtil.encodeWithinQuery(key));
-                            output.append('=');
-                            String value;
-                            switch (parser.currentToken()) {
-                                case VALUE_NULL:
-                                    value = "None"; // using Python names for pywb compatibility
-                                    break;
-                                case VALUE_FALSE:
-                                    value = "False";
-                                    break;
-                                case VALUE_TRUE:
-                                    value = "True";
-                                    break;
-                                case VALUE_NUMBER_INT:
-                                    try {
-                                        value = String.valueOf(parser.getLongValue());
-                                    } catch (InputCoercionException e) {
-                                        value = parser.getValueAsString();
-                                    }
-                                    break;
-                                case VALUE_NUMBER_FLOAT:
-                                    try {
-                                        value = String.valueOf(parser.getDoubleValue());
-                                    } catch (InputCoercionException e) {
-                                        value = parser.getValueAsString();
-                                    }
-                                    break;
-                                default:
-                                    value = URIUtil.encodeWithinQuery(parser.getValueAsString());
-                            }
-                            output.append(value);
-                        }
-                        break;
-                    case START_OBJECT:
-                        if (name != null) {
-                            nameStack.push(name);
-                        }
-                        break;
-                    case END_OBJECT:
-                        name = nameStack.isEmpty() ? null : nameStack.pop();
-                        break;
-                    case START_ARRAY:
-                    case END_ARRAY:
-                        break;
-                    default:
-                        throw new IllegalStateException("Unexpected: " + parser.currentToken());
-                }
-            }
-        } catch (JsonParseException e) {
-            log.debug("Encountered an error parsing a JSON request, skipping the rest of it.", e);
-        }
-        return output.toString();
     }
 }

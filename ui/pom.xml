@@ -373,18 +373,18 @@
         <dependency>
             <groupId>org.netpreserve</groupId>
             <artifactId>jwarc</artifactId>
-            <version>0.22.0</version>
+            <version>0.23.1</version>
         </dependency>
     </dependencies>
 
     <repositories>
         <repository>
             <id>nla-public-releases</id>
-            <url>http://maven.nla.gov.au/releases</url>
+            <url>https://dev.nla.gov.au/nexus/content/repositories/nla-public/</url>
         </repository>
         <repository>
             <id>nla-public-snapshots</id>
-            <url>http://maven.nla.gov.au/snapshots</url>
+            <url>https://dev.nla.gov.au/nexus/content/repositories/nla-public-snapshots/</url>
         </repository>
     </repositories>
 

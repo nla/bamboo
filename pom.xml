@@ -53,11 +53,11 @@
         <repository>
             <id>nla-public</id>
             <name>National Library of Australia Repository</name>
-            <url>http://dev.nla.gov.au/nexus/content/repositories/nla-public</url>
+            <url>https://dev.nla.gov.au/nexus/content/repositories/nla-public</url>
         </repository>
         <snapshotRepository>
             <id>nla-public-snapshots</id>
-            <url>http://dev.nla.gov.au/nexus/content/repositories/nla-public-snapshots</url>
+            <url>https://dev.nla.gov.au/nexus/content/repositories/nla-public-snapshots</url>
         </snapshotRepository>
     </distributionManagement>
 </project>

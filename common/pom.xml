@@ -39,7 +39,7 @@
     <repositories>
         <repository>
             <id>nla-public-releases</id>
-            <url>http://maven.nla.gov.au/releases</url>
+            <url>https://dev.nla.gov.au/nexus/content/repositories/nla-public/</url>
         </repository>
     </repositories>
 
