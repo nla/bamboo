@@ -55,6 +55,13 @@ public class Cdx {
         WarcRecord record = reader.next().orElse(null);
         while (record != null) {
             try {
+                if (record instanceof Warcinfo warcinfo) {
+                    try {
+                        warcinfo.fields().first("software").ifPresent(stats::setSoftware);
+                    } catch (Exception e) {
+                        log.warn("Error parsing warcinfo in {}", filename, e);
+                    }
+                }
                 if ((record instanceof WarcResponse || record instanceof WarcResource) &&
                         ((WarcCaptureRecord) record).payload().isPresent()) {
                     if (pandoraAliaser != null) {

@@ -35,6 +35,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -53,7 +54,7 @@ public class WarcsController {
     private TextCache textCache;
 
     public WarcsController(Bamboo wa) {
-        this.wa = wa;
+        this.wa = Objects.requireNonNull(wa);
         String textCachePath = System.getenv("WARC_TEXT_CACHE");
         if (textCachePath != null) {
             Path root = Paths.get(textCachePath);
@@ -355,10 +356,11 @@ public class WarcsController {
         return "warc";
     }
 
-    @PostMapping(value = "/warcs/{id}/reindex", produces = "text/plain")
+    @PostMapping(value = "/warcs/{warcId}/reindex")
     @ResponseBody
-    private String reindex(@PathVariable String id) throws IOException {
-        Warc warc = findWarc(id);
+    @PreAuthorize("hasPermission(#warcId, 'Warc', 'edit')")
+    String reindex(@PathVariable long warcId, Model model) throws IOException {
+        Warc warc = wa.warcs.get(warcId);
         RecordStats stats = wa.cdxIndexer.indexWarc(warc);
         return "CDX indexed " + stats.getRecords() + " records";
     }

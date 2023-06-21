@@ -11,6 +11,7 @@ public class RecordStats {
     private long recordBytes;
     private Date startTime = null;
     private Date endTime = null;
+    private String software;
 
     public void update(long recordLength, Date time) {
         records += 1;
@@ -51,5 +52,13 @@ public class RecordStats {
                 ", startTime=" + startTime +
                 ", endTime=" + endTime +
                 '}';
+    }
+
+    public void setSoftware(String software) {
+        this.software = software;
+    }
+
+    public String getSoftware() {
+        return software;
     }
 }

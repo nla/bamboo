@@ -170,7 +170,9 @@ public class WebTest {
                 .andExpect(content().string(containsString("test description")));
         mockMvc.perform(get("/crawls")).andExpect(status().isOk());
 
-        mockMvc.perform(get("/warcs/" + warc.getId() + "/details")).andExpect(status().isOk());
+        mockMvc.perform(post("/warcs/" + warc.getId() + "/reindex")).andExpect(status().isOk());
+        mockMvc.perform(get("/warcs/" + warc.getId() + "/details")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("warcprox")));
         mockMvc.perform(get("/warcs/" + warc.getId() + "/cdx")).andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.TEXT_PLAIN))
                 .andExpect(content().string(containsString(" 20161116220655 http://www-test.nla.gov.au/xinq/presentations/abstract.html text/html 200 HB7V54KRD7SHX6I4VH6463CBKEP4HZEA - - 2756 339 example.warc.gz")));

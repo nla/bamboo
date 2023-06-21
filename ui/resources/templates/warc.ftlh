@@ -12,6 +12,7 @@
     <tr><th>File Size</th><td><abbr title="${warc.size} bytes">${warc.displaySize}</abbr></td></tr>
     <tr><th>Path</th><td>${warc.path!}</td></tr>
     <tr><th>SHA-256 Digest</th><td>${warc.sha256!}</td></tr>
+    <tr><th>Software</th><td>${warc.software!}</td></tr>
 </table>
 
 <div class="action-buttons">

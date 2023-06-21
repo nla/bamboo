@@ -93,14 +93,13 @@ public class Bamboo implements AutoCloseable {
 
         // task package
         taskManager.register(new Importer(config, crawls, lockManager));
-        if (config.getCdxIndexerThreads() > 0) {
-            cdxIndexer = new CdxIndexer(warcs, crawls, collections, lockManager, oidc, config.getCdxIndexerThreads());
-            taskManager.register(cdxIndexer);
-            taskManager.register(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
-        } else {
+        cdxIndexer = new CdxIndexer(warcs, crawls, collections, lockManager, oidc, config.getCdxIndexerThreads());
+        if (config.getCdxIndexerThreads() <= 0) {
             log.warn("CDX indexing disabled (CDX_INDEXER_THREADS=0)");
-            cdxIndexer = null;
+        } else {
+            taskManager.register(cdxIndexer);
         }
+        taskManager.register(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
         if (runTasks && config.isTasksEnabled()) {
             taskManager.start();
         }

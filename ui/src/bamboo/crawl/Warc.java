@@ -24,6 +24,7 @@ public class Warc {
     private Long blobId;
     private Date startTime;
     private Date endTime;
+    private String software;
 
     public Warc() {
     }
@@ -130,5 +131,13 @@ public class Warc {
 
     public void setEndTime(Date endTime) {
         this.endTime = endTime;
+    }
+
+    public String getSoftware() {
+        return software;
+    }
+
+    public void setSoftware(String software) {
+        this.software = software;
     }
 }

@@ -42,6 +42,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
             warc.setBlobId((Long)rs.getObject("blob_id"));
             warc.setStartTime((Date)rs.getObject("start_time"));
             warc.setEndTime((Date)rs.getObject("end_time"));
+            warc.setSoftware(rs.getString("software"));
             return warc;
         }
     }
@@ -142,7 +143,7 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlUpdate("INSERT INTO warc_history (warc_id, warc_state_id) VALUES (:warcId, :stateId)")
     int insertWarcHistory(@Bind("warcId") long warcId, @Bind("stateId") int stateId);
 
-    @SqlUpdate("UPDATE warc SET records = :stats.records, record_bytes = :stats.recordBytes, start_time = :stats.startTime, end_time = :stats.endTime WHERE id = :id")
+    @SqlUpdate("UPDATE warc SET records = :stats.records, record_bytes = :stats.recordBytes, start_time = :stats.startTime, end_time = :stats.endTime, software = :stats.software WHERE id = :id")
     int updateWarcRecordStats(@Bind("id") long warcId, @BindBean("stats") RecordStats stats);
 
     @SqlUpdate("UPDATE warc SET size = :size WHERE id = :id")
