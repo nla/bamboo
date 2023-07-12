@@ -57,7 +57,7 @@ public class SecurityConfig {
                     .requestMatchers(antMatcher("/series/**")).permitAll()
                     .requestMatchers(antMatcher("/crawls/**")).permitAll()
 
-                    .requestMatchers(antMatcher("/api/**")).hasRole(Role.PANADMIN.name())
+                    .requestMatchers(antMatcher("/api/**")).permitAll()
 
                     .anyRequest().hasRole(Role.PANADMIN.name()));
         } else {
