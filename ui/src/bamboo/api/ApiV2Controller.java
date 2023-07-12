@@ -9,17 +9,17 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import java.util.List;
 
 @Controller
-public class ApiController {
+public class ApiV2Controller {
     private final Bamboo wa;
 
-    public ApiController(Bamboo wa) {
+    public ApiV2Controller(Bamboo wa) {
         this.wa = wa;
     }
 
     // Used by pandas-admin for the pages feature
-    @GetMapping("/api/v1/CrawlsByFilename")
+    @GetMapping("/api/v2/CrawlsByWarcFilename")
     @ResponseBody
-    public List<ApiDAO.CrawlsByFilename> crawlsByFilename(@RequestParam("filename") List<String> filenames) {
-        return wa.dao.api().crawlsByFilename(filenames);
+    public List<ApiDAO.CrawlsByFilename> crawlsByWarcFilename(@RequestParam("filename") List<String> filenames) {
+        return wa.dao.api().crawlsByWarcFilename(filenames);
     }
 }

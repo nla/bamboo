@@ -19,7 +19,7 @@ public interface ApiDAO {
             WHERE filename in (<filenames>)
             """)
     @RegisterConstructorMapper(CrawlsByFilename.class)
-    List<CrawlsByFilename> crawlsByFilename(@BindList("filenames") List<String> filenames);
+    List<CrawlsByFilename> crawlsByWarcFilename(@BindList("filenames") List<String> filenames);
 
     record CrawlsByFilename(long warcId, String filename, long crawlId, String crawlName, Long pandasInstanceId) {
     }
