@@ -2,10 +2,6 @@
 
 Keeps track of our web archiving collection, manages indexing and calculates statistics.
 
-## Status
-
-Usable for basic collection management but some functionality is unfinished or unpolished.
-
 ## Configuration
 
 ### SQL Database
