@@ -57,6 +57,7 @@ public class SecurityConfig {
                     .requestMatchers(antMatcher("/series/**")).permitAll()
                     .requestMatchers(antMatcher("/crawls/**")).permitAll()
 
+                    .requestMatchers(antMatcher("/data/**")).permitAll()
                     .requestMatchers(antMatcher("/api/v2/**")).permitAll()
                     .requestMatchers(antMatcher("/api/**")).hasRole(Role.PANADMIN.name())
 
