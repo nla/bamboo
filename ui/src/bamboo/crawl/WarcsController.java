@@ -51,7 +51,7 @@ public class WarcsController {
     private static final Logger log = LoggerFactory.getLogger(WarcsController.class);
 
     final Bamboo wa;
-    private TextCache textCache;
+    public final TextCache textCache;
 
     public WarcsController(Bamboo wa) {
         this.wa = Objects.requireNonNull(wa);
@@ -62,6 +62,8 @@ public class WarcsController {
                 throw new RuntimeException("WARC_TEXT_CACHE not found: " + textCachePath);
             }
             textCache = new TextCache(root, wa.warcs, wa.textExtractor);
+        } else {
+            textCache = null;
         }
     }
 
