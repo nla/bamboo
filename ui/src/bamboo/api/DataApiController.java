@@ -13,12 +13,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.PathResource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Set;
 
@@ -101,19 +103,22 @@ public class DataApiController {
         }
     }
 
-    @GetMapping("/data/warcsByCrawl/{crawlId}")
-    public void listWarcsByCrawl(@PathVariable long crawlId,
-                                 HttpServletRequest request,
-                                 UriComponentsBuilder uriBuilder) throws AccessDeniedException, MissingCredentialsException {
+    @GetMapping(value = "/data/warcsByCrawl/{crawlId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ArrayList<WarcData> listWarcsByCrawl(@PathVariable long crawlId,
+                                                @RequestParam(value = "page", defaultValue = "0") int page,
+                                                HttpServletRequest request,
+                                                UriComponentsBuilder uriBuilder) throws AccessDeniedException, MissingCredentialsException {
         enforceAgwaCredentials(request);
         var crawl = wa.crawls.get(crawlId);
         enforceAgwaCrawl(crawl);
-        var pager = wa.warcs.paginateWithCrawlId(0, crawlId);
+        var pager = wa.warcs.paginateWithCrawlId(page, crawlId);
+        var list = new ArrayList<WarcData>();
         for (var warc : pager.items) {
             String url = uriBuilder.path("/data/warcs").pathSegment(Long.toString(warc.getId())).toUriString();
             String textUrl = uriBuilder.path("/data/text").pathSegment(Long.toString(warc.getId())).toUriString();
-            new WarcData(url, textUrl, warc);
+            list.add(new WarcData(url, textUrl, warc));
         }
+        return list;
     }
 
     @GetMapping("/data/warcs/{warcId}")
