@@ -57,12 +57,14 @@ public class WarcsController {
         this.wa = Objects.requireNonNull(wa);
         String textCachePath = System.getenv("WARC_TEXT_CACHE");
         if (textCachePath != null) {
+            log.info("WARC_TEXT_CACHE: {}", textCachePath);
             Path root = Paths.get(textCachePath);
             if (!Files.exists(root)) {
                 throw new RuntimeException("WARC_TEXT_CACHE not found: " + textCachePath);
             }
             textCache = new TextCache(root, wa.warcs, wa.textExtractor);
         } else {
+            log.info("WARC_TEXT_CACHE disabled");
             textCache = null;
         }
     }
