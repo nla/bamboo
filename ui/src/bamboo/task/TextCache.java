@@ -1,10 +1,16 @@
 package bamboo.task;
 
+import bamboo.app.Bamboo;
 import bamboo.crawl.Warc;
 import bamboo.crawl.Warcs;
+import io.swagger.v3.oas.annotations.servers.Server;
 import org.archive.io.ArchiveReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -19,16 +25,22 @@ import java.util.zip.GZIPOutputStream;
 import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
+@Component
+@ConditionalOnProperty("WARC_TEXT_CACHE")
 public class TextCache {
     private static final Logger log = LoggerFactory.getLogger(CdxCache.class);
     private final Path root;
     private Warcs warcs;
     private final TextExtractor extractor;
 
-    public TextCache(Path root, Warcs warcs, TextExtractor textExtractor) {
+    public TextCache(@Value("${WARC_TEXT_CACHE}") Path root, Bamboo wa) throws IOException {
         this.root = root;
-        this.warcs = warcs;
-        extractor = textExtractor;
+        this.warcs = wa.warcs;
+        extractor = wa.textExtractor;
+        log.info("TextCache at {}", root);
+        if (Files.exists(root)) {
+            Files.createDirectories(root);
+        }
     }
 
     public Path entryPath(long warcId) {

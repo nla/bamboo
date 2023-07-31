@@ -16,6 +16,7 @@ import org.archive.url.SURT;
 import org.netpreserve.jwarc.WarcReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.codec.Hex;
@@ -53,20 +54,9 @@ public class WarcsController {
     final Bamboo wa;
     public final TextCache textCache;
 
-    public WarcsController(Bamboo wa) {
+    public WarcsController(Bamboo wa, @Autowired(required = false) TextCache textCache) {
         this.wa = Objects.requireNonNull(wa);
-        String textCachePath = System.getenv("WARC_TEXT_CACHE");
-        if (textCachePath != null) {
-            log.info("WARC_TEXT_CACHE: {}", textCachePath);
-            Path root = Paths.get(textCachePath);
-            if (!Files.exists(root)) {
-                throw new RuntimeException("WARC_TEXT_CACHE not found: " + textCachePath);
-            }
-            textCache = new TextCache(root, wa.warcs, wa.textExtractor);
-        } else {
-            log.info("WARC_TEXT_CACHE disabled");
-            textCache = null;
-        }
+        this.textCache = textCache;
     }
 
     static class Range {

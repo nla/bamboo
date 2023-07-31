@@ -5,8 +5,10 @@ import bamboo.core.NotFoundException;
 import bamboo.crawl.Crawl;
 import bamboo.crawl.Warc;
 import bamboo.crawl.WarcsController;
+import bamboo.task.TextCache;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.PathResource;
@@ -27,14 +29,16 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class DataApiController {
     private final Bamboo wa;
     private final WarcsController warcsController;
+    private final TextCache textCache;
     @Value("${data_api.allowed_series_ids}")
     private Set<Long> allowedSeriesIds;
     @Value("${data_api.credentials}")
     private Set<String> credentials;
 
-    public DataApiController(Bamboo wa, WarcsController warcsController) {
+    public DataApiController(Bamboo wa, WarcsController warcsController, @Autowired(required = false) TextCache textCache) {
         this.wa = wa;
         this.warcsController = warcsController;
+        this.textCache = textCache;
     }
 
     public static class MissingCredentialsException extends Exception {
@@ -130,13 +134,13 @@ public class DataApiController {
                                 HttpServletRequest request,
                                 HttpServletResponse response) throws AccessDeniedException, MissingCredentialsException {
         enforceAgwaCredentials(request);
-        if (warcsController.textCache == null) {
+        if (textCache == null) {
             throw new NotFoundException("Text cache is disabled");
         }
         var warc = wa.warcs.get(warcId);
         var crawl = wa.crawls.get(warc.getCrawlId());
         enforceAgwaCrawl(crawl);
-        var textPath = warcsController.textCache.find(warcId);
+        var textPath = textCache.find(warcId);
         if (textPath == null) {
             throw new NotFoundException("No text for warc " + warcId);
         }

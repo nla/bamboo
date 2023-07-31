@@ -107,12 +107,12 @@ public class CLI {
                             endId = Long.parseLong(args[3]);
                         }
                     }
-                    new TextCache(Paths.get(args[1]), bamboo.warcs, bamboo.textExtractor).populateAll(startId, endId);
+                    new TextCache(Paths.get(args[1]), bamboo).populateAll(startId, endId);
                     break;
                 }
 
                 case "build-text-cache-series": {
-                    new TextCache(Paths.get(args[1]), bamboo.warcs, bamboo.textExtractor).populateSeries(Long.parseLong(args[2]));
+                    new TextCache(Paths.get(args[1]), bamboo).populateSeries(Long.parseLong(args[2]));
                     break;
                 }
 
