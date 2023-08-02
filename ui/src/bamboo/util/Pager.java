@@ -11,7 +11,7 @@ public class Pager<T> {
     public final List<T> items;
 
     public Pager(long page, long totalItems, PaginationQuery<T> query) {
-        this(page, totalItems, 100, query);
+        this(page, 100, totalItems, query);
     }
 
     public Pager(long page, long pageSize, long totalItems, PaginationQuery<T> query) {

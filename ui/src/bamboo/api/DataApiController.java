@@ -105,7 +105,7 @@ public class DataApiController {
     @GetMapping(value = "/data/crawls/{crawlId}/warcs", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ArrayList<WarcData> listWarcsByCrawl(@PathVariable long crawlId,
-                                                @RequestParam(value = "page", defaultValue = "0") int page,
+                                                @RequestParam(value = "page", defaultValue = "1") int page,
                                                 @RequestParam(value = "pageSize", defaultValue = "10000") int pageSize,
                                                 HttpServletRequest request,
                                                 UriComponentsBuilder uriBuilder) throws AccessDeniedException, MissingCredentialsException {
@@ -115,8 +115,8 @@ public class DataApiController {
         var pager = wa.warcs.paginateWithCrawlId(page, crawlId, pageSize);
         var list = new ArrayList<WarcData>();
         for (var warc : pager.items) {
-            String url = uriBuilder.path("/data/warcs").pathSegment(Long.toString(warc.getId())).toUriString();
-            String textUrl = uriBuilder.path("/data/text").pathSegment(Long.toString(warc.getId())).toUriString();
+            String url = uriBuilder.cloneBuilder().path("/data/warcs").pathSegment(Long.toString(warc.getId())).toUriString();
+            String textUrl = uriBuilder.cloneBuilder().path("/data/text").pathSegment(Long.toString(warc.getId())).toUriString();
             list.add(new WarcData(url, textUrl, warc));
         }
         return list;
