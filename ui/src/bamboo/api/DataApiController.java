@@ -106,7 +106,7 @@ public class DataApiController {
     @ResponseBody
     public ArrayList<WarcData> listWarcsByCrawl(@PathVariable long crawlId,
                                                 @RequestParam(value = "page", defaultValue = "1") int page,
-                                                @RequestParam(value = "pageSize", defaultValue = "10000") int pageSize,
+                                                @RequestParam(value = "size", defaultValue = "10000") int pageSize,
                                                 HttpServletRequest request,
                                                 UriComponentsBuilder uriBuilder) throws AccessDeniedException, MissingCredentialsException {
         enforceAgwaCredentials(request);
