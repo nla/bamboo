@@ -106,12 +106,13 @@ public class DataApiController {
     @GetMapping(value = "/data/warcsByCrawl/{crawlId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ArrayList<WarcData> listWarcsByCrawl(@PathVariable long crawlId,
                                                 @RequestParam(value = "page", defaultValue = "0") int page,
+                                                @RequestParam(value = "pageSize", defaultValue = "10000") int pageSize,
                                                 HttpServletRequest request,
                                                 UriComponentsBuilder uriBuilder) throws AccessDeniedException, MissingCredentialsException {
         enforceAgwaCredentials(request);
         var crawl = wa.crawls.get(crawlId);
         enforceAgwaCrawl(crawl);
-        var pager = wa.warcs.paginateWithCrawlId(page, crawlId);
+        var pager = wa.warcs.paginateWithCrawlId(page, crawlId, pageSize);
         var list = new ArrayList<WarcData>();
         for (var warc : pager.items) {
             String url = uriBuilder.path("/data/warcs").pathSegment(Long.toString(warc.getId())).toUriString();
@@ -161,7 +162,8 @@ public class DataApiController {
             long records,
             long recordBytes,
             Instant startTime,
-            Instant endTime) {
+            Instant endTime,
+            String filename) {
         public WarcData(String url, String textUrl, Warc warc) {
             this(url, textUrl,
                     warc.getSize(),
@@ -169,7 +171,8 @@ public class DataApiController {
                     warc.getRecords(),
                     warc.getRecordBytes(),
                     warc.getStartTime() == null ? null : warc.getStartTime().toInstant(),
-                    warc.getEndTime() == null ? null : warc.getEndTime().toInstant());
+                    warc.getEndTime() == null ? null : warc.getEndTime().toInstant(),
+                    warc.getFilename());
         }
     }
 }

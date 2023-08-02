@@ -56,6 +56,11 @@ public class Warcs {
         return dao.findWarcsByCrawlId(crawlId);
     }
 
+    public Pager<Warc> paginateWithCrawlId(long page, long crawlId, long pageSize) {
+        return new Pager<>(page, dao.countWarcsWithCrawlId(crawlId),
+                (limit, offset) -> dao.paginateWarcsInCrawl(crawlId, limit, offset));
+    }
+
     public Pager<Warc> paginateWithCrawlId(long page, long crawlId) {
         return new Pager<>(page, dao.countWarcsWithCrawlId(crawlId),
                 (limit, offset) -> dao.paginateWarcsInCrawl(crawlId, limit, offset));
