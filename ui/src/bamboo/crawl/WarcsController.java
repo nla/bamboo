@@ -272,6 +272,13 @@ public class WarcsController {
 
         Warc warc = findWarc(id);
         Crawl crawl = wa.crawls.get(warc.getCrawlId());
+        serveText(request, response, warc, crawl);
+    }
+
+    public void serveText(HttpServletRequest request,
+                           HttpServletResponse response,
+                           Warc warc,
+                           Crawl crawl) throws IOException {
         List<CollectionMatcher> collections = wa.collections.findByCrawlSeriesId(crawl.getCrawlSeriesId())
                 .stream().map(CollectionMatcher::new).collect(Collectors.toList());
 

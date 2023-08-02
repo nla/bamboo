@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -31,16 +32,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class DataApiController {
     private final Bamboo wa;
     private final WarcsController warcsController;
-    private final TextCache textCache;
     @Value("${data_api.allowed_series_ids}")
     private Set<Long> allowedSeriesIds;
     @Value("${data_api.credentials}")
     private Set<String> credentials;
 
-    public DataApiController(Bamboo wa, WarcsController warcsController, @Autowired(required = false) TextCache textCache) {
+    public DataApiController(Bamboo wa, WarcsController warcsController) {
         this.wa = wa;
         this.warcsController = warcsController;
-        this.textCache = textCache;
     }
 
     public static class MissingCredentialsException extends Exception {
@@ -135,23 +134,14 @@ public class DataApiController {
     }
 
     @GetMapping(value = "/data/text/{warcId}", produces = "application/json")
-    @ResponseBody
-    public PathResource getText(@PathVariable long warcId,
+    public void getText(@PathVariable long warcId,
                                 HttpServletRequest request,
-                                HttpServletResponse response) throws AccessDeniedException, MissingCredentialsException {
+                                HttpServletResponse response) throws AccessDeniedException, MissingCredentialsException, IOException {
         enforceAgwaCredentials(request);
-        if (textCache == null) {
-            throw new NotFoundException("Text cache is disabled");
-        }
         var warc = wa.warcs.get(warcId);
         var crawl = wa.crawls.get(warc.getCrawlId());
         enforceAgwaCrawl(crawl);
-        var textPath = textCache.find(warcId);
-        if (textPath == null) {
-            throw new NotFoundException("No text for warc " + warcId);
-        }
-        response.setHeader("Content-Encoding", "gzip");
-        return new PathResource(textPath);
+        warcsController.serveText(request, response, warc, crawl);
     }
 
     record WarcData(
