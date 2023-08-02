@@ -102,7 +102,7 @@ public class DataApiController {
         }
     }
 
-    @GetMapping(value = "/data/warcsByCrawl/{crawlId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/data/crawls/{crawlId}/warcs", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ArrayList<WarcData> listWarcsByCrawl(@PathVariable long crawlId,
                                                 @RequestParam(value = "page", defaultValue = "0") int page,
