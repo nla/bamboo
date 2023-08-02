@@ -36,6 +36,8 @@ public class DataApiController {
     private Set<Long> allowedSeriesIds;
     @Value("${data_api.credentials}")
     private Set<String> credentials;
+    @Value("${data_api.base_url}")
+    private String dataApiBaseUrl;
 
     public DataApiController(Bamboo wa, WarcsController warcsController) {
         this.wa = wa;
@@ -114,9 +116,13 @@ public class DataApiController {
         enforceAgwaCrawl(crawl);
         var pager = wa.warcs.paginateWithCrawlId(page, crawlId, pageSize);
         var list = new ArrayList<WarcData>();
+        String baseUrl = dataApiBaseUrl;
+        if (baseUrl == null) {
+            baseUrl = uriBuilder.cloneBuilder().path("/data").toUriString();
+        }
         for (var warc : pager.items) {
-            String url = uriBuilder.cloneBuilder().path("/data/warcs").pathSegment(Long.toString(warc.getId())).toUriString();
-            String textUrl = uriBuilder.cloneBuilder().path("/data/text").pathSegment(Long.toString(warc.getId())).toUriString();
+            String url = baseUrl + "/data/warcs/" + warc.getId();
+            String textUrl = baseUrl + "/data/text/" + warc.getId();
             list.add(new WarcData(url, textUrl, warc));
         }
         return list;
