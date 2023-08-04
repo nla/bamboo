@@ -167,7 +167,7 @@ public class DataApiController {
                         HttpServletResponse response) throws AccessDeniedException, MissingCredentialsException, IOException {
         enforceAgwaCredentials(request);
         var solrParams = new LinkedMultiValueMap<String, String>();
-        solrParams.set("fq", "+auGov:true -discoverable:false");
+        solrParams.set("fq", "+auGov:true -discoverable:false -deliverable:false");
         solrParams.addAll(params);
         long maxTimeAllowed = 60000L;
         var timeAllowed = Optional.ofNullable(solrParams.getFirst("timeAllowed")).map(Long::parseLong).orElse(maxTimeAllowed);
