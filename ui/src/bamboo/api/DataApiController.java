@@ -6,24 +6,33 @@ import bamboo.crawl.Crawl;
 import bamboo.crawl.Warc;
 import bamboo.crawl.WarcsController;
 import bamboo.task.TextCache;
+import com.drew.metadata.mov.atoms.Atom;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.PathResource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -38,6 +47,7 @@ public class DataApiController {
     private Set<String> credentials;
     @Value("${data_api.base_url}")
     private String dataApiBaseUrl;
+    private AtomicInteger solrQueriesInFlight = new AtomicInteger();
 
     public DataApiController(Bamboo wa, WarcsController warcsController) {
         this.wa = wa;
@@ -149,6 +159,50 @@ public class DataApiController {
         var crawl = wa.crawls.get(warc.getCrawlId());
         enforceAgwaCrawl(crawl);
         warcsController.serveText(request, response, warc, crawl);
+    }
+
+    @GetMapping(value = "/data/solr", produces = "application/json")
+    public void search(@RequestParam MultiValueMap<String, String> params,
+                       HttpServletRequest request,
+                        HttpServletResponse response) throws AccessDeniedException, MissingCredentialsException, IOException {
+        enforceAgwaCredentials(request);
+        var solrParams = new LinkedMultiValueMap<String, String>();
+        solrParams.set("fq", "+auGov:true -discoverable:false");
+        solrParams.addAll(params);
+        var timeAllowed = Optional.ofNullable(solrParams.getFirst("timeAllowed")).map(Long::parseLong).orElse(0L);
+        if (timeAllowed > 60000L) timeAllowed = 60000L;
+        solrParams.set("timeAllowed", String.valueOf(timeAllowed));
+        if (!solrParams.containsKey("wt")) {
+            solrParams.add("wt", "json");
+        }
+        if (solrQueriesInFlight.incrementAndGet() > 5) {
+            solrQueriesInFlight.decrementAndGet();
+            response.setStatus(429);
+            response.getWriter().write("Too many queries in flight");
+            return;
+        }
+        try {
+            var url = URI.create("http://wa-solr-prd-1.nla.gov.au:20001/solr/webarchive/select?" +
+                    UriUtils.encodeQueryParams(solrParams)).toURL();
+            var conn = (HttpURLConnection) url.openConnection();
+            response.setStatus(conn.getResponseCode());
+            response.setContentType(conn.getContentType());
+
+            var err = conn.getErrorStream();
+            if (err != null) {
+                try (err; var out = response.getOutputStream()) {
+                    err.transferTo(out);
+                }
+                return;
+            }
+
+            try (var in = conn.getInputStream();
+                 var out = response.getOutputStream()) {
+                in.transferTo(out);
+            }
+        } finally {
+            solrQueriesInFlight.decrementAndGet();
+        }
     }
 
     record WarcData(
