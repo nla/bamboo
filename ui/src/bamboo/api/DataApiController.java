@@ -45,7 +45,7 @@ public class DataApiController {
     private Set<Long> allowedSeriesIds;
     @Value("${data_api.credentials}")
     private Set<String> credentials;
-    @Value("${data_api.base_url}")
+    @Value("${data_api.base_url:}")
     private String dataApiBaseUrl;
     private AtomicInteger solrQueriesInFlight = new AtomicInteger();
 
@@ -182,8 +182,9 @@ public class DataApiController {
             return;
         }
         try {
-            var url = URI.create("http://wa-solr-prd-1.nla.gov.au:20001/solr/webarchive/select?" +
-                    UriUtils.encodeQueryParams(solrParams)).toURL();
+            var uri = UriComponentsBuilder.fromUriString("http://wa-solr-prd-1.nla.gov.au:20001/solr/webarchive/select")
+                    .queryParams(solrParams).build().toUri();
+            var url = uri.toURL();
             var conn = (HttpURLConnection) url.openConnection();
             response.setStatus(conn.getResponseCode());
             response.setContentType(conn.getContentType());
