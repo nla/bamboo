@@ -169,8 +169,9 @@ public class DataApiController {
         var solrParams = new LinkedMultiValueMap<String, String>();
         solrParams.set("fq", "+auGov:true -discoverable:false");
         solrParams.addAll(params);
-        var timeAllowed = Optional.ofNullable(solrParams.getFirst("timeAllowed")).map(Long::parseLong).orElse(0L);
-        if (timeAllowed > 60000L) timeAllowed = 60000L;
+        long maxTimeAllowed = 60000L;
+        var timeAllowed = Optional.ofNullable(solrParams.getFirst("timeAllowed")).map(Long::parseLong).orElse(maxTimeAllowed);
+        if (timeAllowed > maxTimeAllowed) timeAllowed = maxTimeAllowed;
         solrParams.set("timeAllowed", String.valueOf(timeAllowed));
         if (!solrParams.containsKey("wt")) {
             solrParams.add("wt", "json");
