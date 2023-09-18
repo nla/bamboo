@@ -35,14 +35,14 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -63,7 +63,7 @@ public class TextExtractor implements Closeable {
                 Files.copy(stream, logbackConfig, REPLACE_EXISTING);
             }
 
-            TikaConfig config = new TikaConfig(getClass().getResource("tika.xml"));
+            TikaConfig config = new TikaConfig();
             ForkParser parser = new ForkParser(getClass().getClassLoader(), new AutoDetectParser(config));
             parser.setServerParseTimeoutMillis(15000); // don't spend too long on any one record
             Path javaBinary = Path.of(System.getProperty("java.home"), "bin", "java");
@@ -74,7 +74,7 @@ public class TextExtractor implements Closeable {
             this.parser = parser;
         } catch (Exception e) {
             close();
-            throw new RuntimeException("Error configuring tika via tika.xml", e);
+            throw new RuntimeException("Error configuring tika", e);
         }
     }
 
@@ -229,11 +229,11 @@ public class TextExtractor implements Closeable {
             doc.setText(clean(bodyHandler.toString()));
             doc.setTitle(clean(getAny(metadata, TikaCoreProperties.TITLE.getName())));
             doc.setDescription(clean(getAny(metadata, "description", "DC.description", "DC.Description", "dcterms.description")));
-            doc.setKeywords(clean(getAny(metadata, "Keywords", "keywords", "DC.keywords", "DC.Keywords", "dcterms.keywords")));
+            doc.setKeywords(clean(getAny(metadata, "Keywords", "keywords", "DC.keywords", "DC.Keywords", "dcterms.keywords", "pdf:docinfo:keywords")));
             doc.setPublisher(clean(getAny(metadata, "publisher", "DC.publisher", "DC.Publisher", "dcterms.publisher")));
             doc.setCreator(clean(getAny(metadata, "creator", "DC.creator", "DC.Creator", "dcterms.creator")));
             doc.setContributor(clean(getAny(metadata, "contributor", "DC.contributor", "DC.Contributor", "dcterms.contributor")));
-            doc.setCoverage(clean(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage", "subject", "Subject")));
+            doc.setCoverage(clean(getAny(metadata, "coverage", "DC.coverage", "DC.Coverage", "dcterms.coverage", "subject", "Subject", "pdf:docinfo:subject")));
             doc.setH1(headingHandler.getHeadings());
             doc.setOgSiteName(clean(metadata.get("og:site_name")));
             doc.setOgTitle(clean(metadata.get("og:title")));
