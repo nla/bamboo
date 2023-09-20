@@ -5,6 +5,7 @@ import bamboo.crawl.*;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.*;
 import java.util.HashMap;
 import java.util.List;
@@ -123,11 +124,26 @@ public class WatchImporter implements Runnable {
     private void handleClosedWarc(Config.Watch watch, Path path) throws IOException {
         log.finest("handleClosedWarc(" + path + ")");
 
+        long size = Files.size(path);
+        if (size == 0) {
+            return; // ignore empty files
+        }
+
+        // Pywb flocks open files instead of renaming them, so check for a file lock
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+            var lock = channel.tryLock();
+            if (lock == null) {
+                log.finest("WARC has file lock, treating as still open: " + path);
+                handleOpenWarc(watch, path);
+                return;
+            }
+            lock.release();
+        }
+
         String filename = path.getFileName().toString();
         Warc warc = warcs.getOrNullByFilename(filename);
         Crawl crawl = crawls.get(watch.crawlId);
 
-        long size = Files.size(path);
         String digest = Scrub.calculateDigest("SHA-256", path);
 
         log.info("Moving now-closed WARC " + path);
