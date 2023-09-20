@@ -130,7 +130,7 @@ public class WatchImporter implements Runnable {
         }
 
         // Pywb flocks open files instead of renaming them, so check for a file lock
-        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.WRITE)) {
             var lock = channel.tryLock();
             if (lock == null) {
                 log.finest("WARC has file lock, treating as still open: " + path);
