@@ -2,6 +2,8 @@ package bamboo.task;
 
 import bamboo.core.*;
 import bamboo.crawl.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -10,7 +12,6 @@ import java.nio.file.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
@@ -19,7 +20,7 @@ import static java.nio.file.StandardWatchEventKinds.*;
  * they're closed (renamed to *.warc.gz) finish importing them.
  */
 public class WatchImporter implements Runnable {
-    final static Logger log = Logger.getLogger(WatchImporter.class.getName());
+    final static Logger log = LoggerFactory.getLogger(WatchImporter.class);
     final Map<Path,Config.Watch> watches = new HashMap<>();
     final Warcs warcs;
     final Crawls crawls;
@@ -50,7 +51,7 @@ public class WatchImporter implements Runnable {
             for (WatchKey key = watcher.take(); key.isValid(); key = watcher.take()) {
                 Config.Watch watch = watches.get(key.watchable());
                 if (watch == null) {
-                    log.warning("Ignoring unexpected watch key " + key.watchable());
+                    log.warn("Ignoring unexpected watch key " + key.watchable());
                     continue;
                 }
                 for (WatchEvent<?> event : key.pollEvents()) {
@@ -61,7 +62,7 @@ public class WatchImporter implements Runnable {
                         }
 
                         Path path = watch.dir.resolve((Path) event.context());
-                        log.finest("saw event " + path);
+                        log.trace("saw event " + path);
 
                         if (!Files.exists(path)) {
                             /*
@@ -95,7 +96,7 @@ public class WatchImporter implements Runnable {
      * Incrementally index any new records.
      */
     void handleOpenWarc(Config.Watch watch, Path path) throws IOException {
-        log.finest("handleOpenWarc(" + path + ")");
+        log.trace("handleOpenWarc(" + path + ")");
         long warcId, prevSize;
         long currentSize = Files.size(path);
         String filename = path.getFileName().toString().replaceFirst(".open$", "");
@@ -122,7 +123,7 @@ public class WatchImporter implements Runnable {
      * Move the WARC into the crawl's archival directory and finalise the db record.
      */
     private void handleClosedWarc(Config.Watch watch, Path path) throws IOException {
-        log.finest("handleClosedWarc(" + path + ")");
+        log.trace("handleClosedWarc(" + path + ")");
 
         long size = Files.size(path);
         if (size == 0) {
@@ -133,7 +134,7 @@ public class WatchImporter implements Runnable {
         try (FileChannel channel = FileChannel.open(path, StandardOpenOption.WRITE)) {
             var lock = channel.tryLock();
             if (lock == null) {
-                log.finest("WARC has file lock, treating as still open: " + path);
+                log.trace("WARC has file lock, treating as still open: " + path);
                 handleOpenWarc(watch, path);
                 return;
             }
@@ -172,6 +173,7 @@ public class WatchImporter implements Runnable {
      */
     private void scanForChanges() throws IOException {
         for (Config.Watch watch : watches.values()) {
+            log.info("Scanning for changes: {}", watch.dir);
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(watch.dir)) {
                 for (Path entry : stream) {
                     if (entry.toString().endsWith(".warc.gz.open")) {
