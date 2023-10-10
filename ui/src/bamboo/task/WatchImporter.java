@@ -192,7 +192,7 @@ public class WatchImporter implements Runnable {
         scanLock.lock();
         try {
             for (Config.Watch watch : watches.values()) {
-                log.info("Scanning for changes: {}", watch.dir);
+                log.trace("Scanning for changes: {}", watch.dir);
                 try (DirectoryStream<Path> stream = Files.newDirectoryStream(watch.dir)) {
                     for (Path entry : stream) {
                         if (entry.toString().endsWith(".warc.gz.open")) {
