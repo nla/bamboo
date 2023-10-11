@@ -87,7 +87,8 @@ public class WatchImporter implements Runnable {
 
                         if (event.kind() == ENTRY_MODIFY && path.toString().endsWith(".warc.gz.open")) {
                             handleOpenWarc(watch, path);
-                        } else if (event.kind() == ENTRY_CREATE && path.toString().endsWith(".warc.gz")) {
+                        } else if ((event.kind() == ENTRY_CREATE || event.kind() == ENTRY_MODIFY) &&
+                                path.toString().endsWith(".warc.gz")) {
                             handleClosedWarc(watch, path);
                         }
                     } catch (IOException | UncheckedIOException e) {
