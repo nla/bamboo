@@ -42,7 +42,7 @@
                 </li>
                 -->
                 [#if auth.hasRole("panadmin")]
-                    <li><a href="http://dl.nla.gov.au/agwa/stayback">Access Control</a></li>
+                    <li><a href="http://pandas.nla.gov.au/cdx/">Access Control</a></li>
                     <li [#if requestContext.requestUri?starts_with("/tasks")]class="active"[/#if]><a href="tasks">Task Manager</a></li>
                 [/#if]
                 [#if auth.authenticated]
