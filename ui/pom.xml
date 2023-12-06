@@ -368,7 +368,7 @@
         <dependency>
             <groupId>org.netpreserve</groupId>
             <artifactId>jwarc</artifactId>
-            <version>0.28.2</version>
+            <version>0.28.4</version>
         </dependency>
     </dependencies>
 
