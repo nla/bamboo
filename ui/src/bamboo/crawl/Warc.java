@@ -53,6 +53,20 @@ public class Warc {
         this.stateId = stateId;
     }
 
+    public String getStateName() {
+        return switch (stateId) {
+            case Warc.DELETED -> "deleted";
+            case Warc.SOLR_ERROR -> "solr_error";
+            case Warc.CDX_ERROR -> "cdx_error";
+            case Warc.IMPORT_ERROR -> "import_error";
+            case Warc.OPEN -> "open";
+            case Warc.IMPORTED -> "imported";
+            case Warc.CDX_INDEXED -> "cdx_indexed";
+            case Warc.SOLR_INDEXED -> "solr_indexed";
+            default -> "unknown_" + stateId;
+        };
+    }
+
     public Path getPath() {
         return path;
     }

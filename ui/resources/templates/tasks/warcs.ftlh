@@ -8,6 +8,7 @@
             <td>Filename</td>
             <td>Records</td>
             <td>Size</td>
+            <td>State</td>
         </tr>
     </thead>
     <tbody>
@@ -16,6 +17,7 @@
             <td><a href="warcs/${warc.id?c}/details">${warc.filename}</a></td>
             <td>${warc.records}</td>
             <td>${warc.displaySize}</td>
+            <td>${warc.stateName}</td>
         </tr>
     [/#list]
     </tbody>
