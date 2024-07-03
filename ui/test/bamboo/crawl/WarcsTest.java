@@ -29,8 +29,13 @@ public class WarcsTest {
 
         Path testFile = tmp.newFile("test.warc.gz").toPath();
 
+        Series series = new Series();
+        series.setName("test series");
+        long seriesId = serieses.create(series);
+
         Crawl crawl = new Crawl();
         crawl.setName("test crawl");
+        crawl.setCrawlSeriesId(seriesId);
         long crawlId = crawls.createInPlace(crawl, Arrays.asList(testFile));
         long warcId = warcs.findByCrawlId(crawlId).get(0).getId();
 

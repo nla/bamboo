@@ -75,6 +75,9 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlUpdate("UPDATE crawl_series SET warc_files = warc_files + :warc_files,  warc_size = warc_size + :warc_size WHERE id = (SELECT crawl_series_id FROM crawl WHERE crawl.id = :crawl_id)")
     void incrementWarcStatsForCrawlSeriesByCrawlId(@Bind("crawl_id") long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
 
+    @SqlUpdate("UPDATE crawl_series SET warc_files = warc_files + :warc_files,  warc_size = warc_size + :warc_size WHERE id = :crawl_series_id")
+    void incrementWarcStatsForCrawlSeries(@Bind("crawl_series_id") long crawlSeriesId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
+
     @SqlUpdate("UPDATE crawl SET warc_files = warc_files + :warc_files, warc_size = warc_size + :warc_size WHERE id = :crawlId")
     void incrementWarcStatsForCrawlInternal(@Bind("crawlId") long crawlId, @Bind("warc_files") int warcFilesDelta, @Bind("warc_size") long warcSizeDelta);
 

@@ -89,7 +89,9 @@ public class Crawls {
             tx.warcs().batchInsertWarcsWithoutRollup(crawlId, warcs.iterator());
             int warcFilesDelta = warcs.size();
             tx.warcs().incrementWarcStatsForCrawlInternal(crawlId, warcFilesDelta, totalBytes);
-            tx.warcs().incrementWarcStatsForCrawlSeriesByCrawlId(crawlId, warcFilesDelta, totalBytes);
+            if (metadata.getCrawlSeriesId() != null) {
+                tx.warcs().incrementWarcStatsForCrawlSeries(metadata.getCrawlSeriesId(), warcFilesDelta, totalBytes);
+            }
             tx.batchInsertArtifacts(crawlId, artifacts.iterator());
             return crawlId;
         });
