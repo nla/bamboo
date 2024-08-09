@@ -9,6 +9,7 @@ import org.jdbi.v3.core.argument.ArgumentFactory;
 import org.jdbi.v3.core.config.ConfigRegistry;
 import org.jdbi.v3.core.statement.Slf4JSqlLogger;
 import org.jdbi.v3.core.statement.StatementContext;
+import org.jdbi.v3.core.transaction.SerializableTransactionRunner;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.skife.jdbi.v2.logging.PrintStreamLog;
 import org.vibur.dbcp.ViburDBCPDataSource;
@@ -42,6 +43,7 @@ public class DbPool implements Closeable {
         System.out.println("Initialized connection pool in " + (System.currentTimeMillis() - start) + "ms");
 
         dbi = Jdbi.create(ds).installPlugin(new SqlObjectPlugin());
+        dbi.setTransactionHandler(new SerializableTransactionRunner());
         dbi.registerArgument(new PathArgumentFactory());
 
         if (System.getenv("SQL_LOG") != null) {
