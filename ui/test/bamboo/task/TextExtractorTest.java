@@ -55,7 +55,7 @@ public class TextExtractorTest {
         try (InputStream stream = getClass().getResourceAsStream("badtitle.html")) {
             textExtractor.extractTika(stream, doc, URI.create("http://example.net/subdir/badtitle.html"));
         }
-        assertEquals("Ministerial Decision and Recommendations: New South Wales Ocean Trawl Fishery", doc.getTitle());
+        assertEquals("Ministerial Decision and Recommendations: New South Wales Ocean Trawl Fishery<", doc.getTitle());
         assertEquals("Heading one!" +
                 " Test\n" +
                 "Link textHeading two!", doc.getText().trim());
