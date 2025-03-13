@@ -106,6 +106,20 @@ public class Cdx {
                         continue;
                     }
 
+                    // Workaround: Browsertrix < 1.4.2 sometimes recorded partial responses. For example if a page
+                    // made XHR request the browser blocked due to cross-origin policy, only the HTTP status line
+                    // might be recorded. We skip these records during indexing because they break replay.
+                    // We look for WARC-JSON-Metadata and WARC-Page-ID as a hint this is a Browsertrix record.
+                    if (record instanceof WarcResponse response &&
+                        response.http().headers().map().isEmpty() &&
+                        response.http().body().size() == 0 &&
+                        response.headers().first("WARC-JSON-Metadata").isPresent() &&
+                        response.headers().first("WARC-Page-ID").isPresent()) {
+                        log.debug("Skipping probable bad Browsertrix record: partial response with no headers or body. (position {})", position);
+                        record = reader.next().orElse(null);
+                        continue;
+                    }
+
                     if (digest == null) {
                         digest = WarcUtils.calcDigest(payload.body().stream());
                     }

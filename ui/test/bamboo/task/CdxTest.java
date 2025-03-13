@@ -24,4 +24,14 @@ public class CdxTest {
             assertEquals("warcprox 1.4", stats.getSoftware());
         }
     }
+
+    @Test
+    public void testIncompleteResponse() throws IOException {
+        StringWriter stringWriter = new StringWriter();
+        try (WarcReader warcReader = new WarcReader(Objects.requireNonNull(
+                CdxTest.class.getResourceAsStream("incomplete-response.warc.gz")))) {
+            var stats = Cdx.buildIndex(warcReader, new PrintWriter(stringWriter), "incomplete-response.warc.gz");
+            assertEquals("incomplete response record should be skipped", 0, stats.getRecords());
+        }
+    }
 }
