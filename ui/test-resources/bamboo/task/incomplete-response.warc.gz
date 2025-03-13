@@ -1,0 +1,17 @@
+WARC/1.1
+Content-Length: 19
+Content-Type: application/http; msgtype=response
+WARC-Block-Digest: sha256:5212f7a67551c4744fd1099622fe454a56221fcb231c76d1ab15efbdf44f1057
+WARC-Date: 2025-01-28T20:30:47.182Z
+WARC-JSON-Metadata: {"ipType":"Public"}
+WARC-Page-ID: 5c113c15-bc68-4526-b700-7306719140dd
+WARC-Payload-Digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+WARC-Record-ID: <urn:uuid:a7cbb560-2a27-4cca-9605-c0a2c45a98ba>
+WARC-Resource-Type: xhr
+WARC-Target-URI: https://www.abs.gov.au/
+WARC-Type: response
+
+HTTP/1.1 200 OK
+
+
+
