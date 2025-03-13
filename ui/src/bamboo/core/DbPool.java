@@ -5,13 +5,10 @@ import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.argument.AbstractArgumentFactory;
 import org.jdbi.v3.core.argument.Argument;
-import org.jdbi.v3.core.argument.ArgumentFactory;
 import org.jdbi.v3.core.config.ConfigRegistry;
 import org.jdbi.v3.core.statement.Slf4JSqlLogger;
-import org.jdbi.v3.core.statement.StatementContext;
 import org.jdbi.v3.core.transaction.SerializableTransactionRunner;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
-import org.skife.jdbi.v2.logging.PrintStreamLog;
 import org.vibur.dbcp.ViburDBCPDataSource;
 
 import org.flywaydb.core.Flyway;
@@ -19,9 +16,7 @@ import org.flywaydb.core.Flyway;
 import javax.sql.DataSource;
 import java.io.Closeable;
 import java.io.PrintWriter;
-import java.lang.reflect.Type;
 import java.nio.file.Path;
-import java.util.Optional;
 
 public class DbPool implements Closeable {
     final ViburDBCPDataSource ds;

@@ -35,12 +35,4 @@
             <version>2.15.2</version>
         </dependency>
     </dependencies>
-
-    <repositories>
-        <repository>
-            <id>nla-public-releases</id>
-            <url>https://dev.nla.gov.au/nexus/content/repositories/nla-public/</url>
-        </repository>
-    </repositories>
-
 </project>
