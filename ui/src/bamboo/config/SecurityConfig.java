@@ -31,14 +31,15 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf().disable();
+        http.csrf(csrf -> csrf.disable());
         String issuerUrl = System.getProperty("spring.security.oauth2.client.provider.oidc.issuer-uri");
         if (issuerUrl != null) {
-            http.oauth2Login().userInfoEndpoint().oidcUserService(oidcUserService());
-            http.logout().logoutSuccessUrl("/");
-            http.oauth2ResourceServer().jwt()
-                    .jwkSetUri(issuerUrl + "/protocol/openid-connect/certs")
-                    .jwtAuthenticationConverter(jwt -> new JwtAuthenticationToken(jwt, mapClaimsToAuthorities(jwt.getClaims())));
+            http.oauth2Login(oauth2Login ->
+                    oauth2Login.userInfoEndpoint(userInfoEndpoint -> userInfoEndpoint.oidcUserService(oidcUserService())));
+            http.logout(logout -> logout.logoutSuccessUrl("/"));
+            http.oauth2ResourceServer(oauth2ResourceServer ->
+                    oauth2ResourceServer.jwt(c -> c.jwkSetUri(issuerUrl + "/protocol/openid-connect/certs")
+                            .jwtAuthenticationConverter(jwt -> new JwtAuthenticationToken(jwt, mapClaimsToAuthorities(jwt.getClaims())))));
             http.authorizeHttpRequests(authorize -> authorize
                     // static content
                     .requestMatchers(antMatcher("/webjars/**")).permitAll()
@@ -71,10 +72,10 @@ public class SecurityConfig {
                 authorities.add(role);
                 authorities.addAll(role.getPermissions());
             }
-            http.anonymous()
-                    .authorities(new ArrayList<>(authorities))
+            http.anonymous(anonymous ->
+                    anonymous.authorities(new ArrayList<>(authorities))
                     .principal(new User(authorities, new OidcIdToken("A", Instant.now(), Instant.now().plusSeconds(60*60*24), Map.of("username", "admin")),
-                            new OidcUserInfo(Map.of("username", "admin")), "username"));
+                            new OidcUserInfo(Map.of("username", "admin")), "username")));
         }
         return http.build();
     }
