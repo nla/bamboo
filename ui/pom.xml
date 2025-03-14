@@ -49,7 +49,7 @@
     </build>
 
     <properties>
-        <spring.version>3.1.1</spring.version>
+        <spring.version>3.4.3</spring.version>
         <doss.version>1.7.6</doss.version>
         <tika.version>3.1.0</tika.version>
     </properties>
@@ -228,6 +228,12 @@
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
             <version>1.18.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.27.1</version>
         </dependency>
 
         <dependency>

@@ -2,6 +2,7 @@ package bamboo;
 
 import bamboo.app.Bamboo;
 import bamboo.crawl.*;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -11,9 +12,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
@@ -32,14 +36,19 @@ public class WebTest {
 
     private static final String OS = System.getProperty("os.name").toLowerCase();
 
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    @ClassRule
+    public static TemporaryFolder folder = new TemporaryFolder();
 
     @Autowired
     private MockMvc mockMvc;
 
     @Autowired
     private Bamboo bamboo;
+
+    @DynamicPropertySource
+    static void properties(DynamicPropertyRegistry registry) throws IOException {
+        registry.add("WARC_TEXT_CACHE", () -> folder.getRoot().toPath().resolve("warc-text-cache").toString());
+    }
 
     @Test
     public void test() throws Exception {
