@@ -1,8 +1,9 @@
 package bamboo.cli;
 
-import com.github.mizosoft.methanol.MediaType;
-import com.github.mizosoft.methanol.MultipartBodyPublisher;
-import com.github.mizosoft.methanol.ProgressTracker;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.github.mizosoft.methanol.*;
+import com.github.mizosoft.methanol.adapter.jackson.JacksonAdapterFactory;
+import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
 import java.io.IOException;
@@ -13,6 +14,7 @@ import java.net.URI;
 import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,7 +24,14 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 
 public class BambooCLI {
-    private final HttpClient httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+    private final JsonMapper mapper = new JsonMapper();
+    private final Methanol httpClient = Methanol.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
+            .adapterCodec(AdapterCodec.newBuilder()
+                    .encoder(JacksonAdapterFactory.createJsonEncoder(mapper))
+                    .decoder(JacksonAdapterFactory.createJsonDecoder(mapper))
+                    .build())
+            .build();
     private final Auth auth = new Auth(httpClient);
     private String baseUrl = System.getenv().getOrDefault("BAMBOO_URL", "https://pandas.nla.gov.au/bamboo");
 
@@ -34,7 +43,8 @@ public class BambooCLI {
         System.err.println("Usage: bamboo subcommand [args]\n" +
                 "\n" +
                 "Subcommands:\n" +
-                "  login <auth-url> <user>            Login to Bamboo\n" +
+                "  login                              Login to Bamboo via browser\n" +
+                "  password-login <user>              Login to Bamboo via username/password\n" +
                 "  add-artifact <crawl-id> <files..>  Upload artifacts to an existing crawl\n" +
                 "  add-warc <crawl-id> <files..>      Upload WARC files to an existing crawl\n" +
                 "  delete-warc <warc-id>              Mark a WARC file as deleted and remove it from the CDX index\n");
@@ -56,8 +66,11 @@ public class BambooCLI {
             case "delete-warc":
                 deleteWarc(args[1]);
                 break;
+            case "password-login":
+                passwordLogin(args.length > 1 ? args[1] : null, args.length > 2 ? args[2] : null);
+                break;
             case "login":
-                login(args.length > 1 ? args[1] : null, args.length > 2 ? args[2] : null);
+                auth.deviceLogin();
                 break;
             default:
                 usage();
@@ -119,7 +132,7 @@ public class BambooCLI {
         System.out.println(response.statusCode() + " " + response.body());
     }
 
-    void login(String username, String password) throws IOException, InterruptedException, JsonParserException {
+    void passwordLogin(String username, String password) throws IOException, InterruptedException, JsonParserException {
         var request = HttpRequest.newBuilder(URI.create(baseUrl + "/oauth2/authorization/oidc")).GET().build();
         var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() == 200) {
@@ -134,6 +147,28 @@ public class BambooCLI {
         System.out.println("Authenticating to realm " + url);
         if (username == null) username = System.console().readLine("Username: ");
         if (password == null) password = new String(System.console().readPassword("Password: "));
-        auth.login(url, username, password);
+        auth.login(username, password);
     }
+
+    private void login2() throws IOException, InterruptedException, JsonParserException {
+        var request = HttpRequest.newBuilder(URI.create(baseUrl + "/oauth2/auth/device"))
+                .POST(BodyPublishers.ofString("clientId=bamboo-cli&scope=openid"))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .build();
+        var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            System.err.println("Unexpected response code: " + response.statusCode() + " from " + request.uri());
+            System.exit(1);
+        }
+        var message = JsonParser.object().from(response.body());
+        System.out.println("Visit in browser: " + message.getString("verification_uri_complete"));
+        int interval = message.getInt("interval", 5);
+        while (true) {
+            Thread.sleep(interval * 1000);
+            var request2 = HttpRequest.newBuilder(URI.create(baseUrl + "/oauth2/auth/device"));
+
+        }
+    }
+
+
 }
