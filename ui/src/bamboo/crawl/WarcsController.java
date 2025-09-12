@@ -4,6 +4,7 @@ import bamboo.app.Bamboo;
 import bamboo.core.Streams;
 import bamboo.task.*;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.net.HttpHeaders;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
@@ -246,6 +247,22 @@ public class WarcsController {
         if (file == null) return false;
 
         response.setContentType("application/json");
+
+        if ("false".equals(request.getParameter("populateCollections"))) {
+            try (InputStream in = Files.newInputStream(file, READ)) {
+                InputStream stream;
+                if ("gzip".equals(request.getHeader(HttpHeaders.ACCEPT_ENCODING))) {
+                    stream = in;
+                    response.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
+                } else {
+                    stream = new GZIPInputStream(in, 8192);
+                }
+                stream.transferTo(response.getOutputStream());
+                return true;
+            }
+        }
+
+        // populate collections info
         try (JsonWriter writer = gson.newJsonWriter(new OutputStreamWriter(response.getOutputStream(), UTF_8));
              JsonReader reader = gson.newJsonReader(new InputStreamReader(new GZIPInputStream(Files.newInputStream(file), 8192), UTF_8))) {
             reader.beginArray();
