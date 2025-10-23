@@ -1,7 +1,5 @@
 package bamboo.task;
 
-import org.apache.commons.httpclient.Header;
-import org.apache.commons.httpclient.StatusLine;
 import org.archive.format.arc.ARCConstants;
 import org.archive.util.LaxHttpParser;
 
@@ -14,6 +12,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class HttpHeader {
+    private static final Pattern HTTP_PREFIX = Pattern.compile("\\s*HTTP.*", Pattern.DOTALL | Pattern.MULTILINE);
+
     int status;
     String location;
     String rawLocation;
@@ -22,12 +22,12 @@ public class HttpHeader {
 
     public static HttpHeader parse(InputStream in, String targetUrl) throws IOException {
         String line = LaxHttpParser.readLine(in, "ISO-8859-1");
-        if (line == null || !StatusLine.startsWithHTTP(line)) {
+        if (line == null || !HTTP_PREFIX.matcher(line).matches()) {
             return null;
         }
         HttpHeader result = new HttpHeader();
         result.status = parseStatusLine(line);
-        for (Header header : LaxHttpParser.parseHeaders(in, ARCConstants.DEFAULT_ENCODING)) {
+        for (var header : LaxHttpParser.parseHeaders(in, ARCConstants.DEFAULT_ENCODING)) {
             switch (header.getName().toLowerCase()) {
                 case "location":
                     try {

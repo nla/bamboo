@@ -2,7 +2,7 @@ package bamboo.task;
 
 import bamboo.crawl.RecordStats;
 import bamboo.util.Urls;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.netpreserve.jwarc.*;
 import org.netpreserve.jwarc.cdx.CdxRequestEncoder;
 import org.slf4j.Logger;
