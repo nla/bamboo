@@ -185,7 +185,7 @@
         <dependency>
             <groupId>org.netpreserve.commons</groupId>
             <artifactId>webarchive-commons</artifactId>
-            <version>1.3.0</version>
+            <version>3.0.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.hadoop</groupId>
