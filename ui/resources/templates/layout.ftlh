@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <base href="${requestContext.contextPath!""}/">
     <title>${title} - Bamboo</title>
-    <link rel="stylesheet" href="webjars/bootswatch-paper/3.3.4%2B1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="webjars/bootswatch-paper/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/bamboo.css">
 </head>
 <body>
@@ -63,8 +63,8 @@
 <div class="container main">
     [#nested/]
 </div>
-<script src="webjars/jquery/2.1.3/jquery.min.js"></script>
-<script src="webjars/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+<script src="webjars/jquery/jquery.min.js"></script>
+<script src="webjars/bootstrap/js/bootstrap.min.js"></script>
 </body>
 </html>
 [/#macro]
