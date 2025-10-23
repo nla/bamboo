@@ -4,7 +4,7 @@
     <parent>
         <groupId>au.gov.nla.pandas</groupId>
         <artifactId>bamboo</artifactId>
-        <version>0.7.0</version>
+        <version>0.7.0-SNAPSHOT</version>
     </parent>
     <artifactId>bamboo-common</artifactId>
     <build>

@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>au.gov.nla.pandas</groupId>
     <artifactId>bamboo</artifactId>
-    <version>0.7.0</version>
+    <version>0.7.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -72,4 +72,19 @@
             <url>https://dev.nla.gov.au/nexus/content/repositories/nla-public-snapshots</url>
         </snapshotRepository>
     </distributionManagement>
+
+    <scm>
+        <url>https://github.com/nla/pandas4</url>
+        <connection>scm:git:git@github.com:nla/pandas4</connection>
+        <developerConnection>scm:git:git@github.com:nla/pandas4</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 </project>
