@@ -1,7 +1,7 @@
 package bamboo.seedlist;
 
 import com.google.common.net.InternetDomainName;
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.archive.url.SURT;
 import org.archive.url.URLParser;
 
@@ -46,7 +46,7 @@ public class Seed {
     }
 
     public String highlighted() {
-        String domain = StringEscapeUtils.escapeHtml(topPrivateDomain());
+        String domain = StringEscapeUtils.escapeHtml4(topPrivateDomain());
         String pattern = "(" + Pattern.quote(domain) + ")([:/]|$)";
         return "<span class='hlurl'>" + getUrl().replaceFirst(pattern, "<span class='domain'>$1</span>$2") + "</span>";
     }
