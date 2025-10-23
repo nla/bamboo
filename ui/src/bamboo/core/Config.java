@@ -55,11 +55,11 @@ public class Config {
     }
 
     public String getPandasDbUser() {
-        return getEnv("PANDAS_DB_USER", null);
+        return getEnv("PANDAS_DB_USER", "pandas3");
     }
 
     public String getPandasDbPassword() {
-        return getEnv("PANDAS_DB_PASSWORD", null);
+        return getEnv("PANDAS_DB_PASSWORD", "pandas3");
     }
 
     public List<Watch> getWatches() {
