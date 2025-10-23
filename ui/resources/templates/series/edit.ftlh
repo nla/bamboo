@@ -68,11 +68,7 @@
 </div>
 
 <script src="webjars/jquery/jquery.min.js"></script>
-<script src="webjars/chosen/chosen.jquery.min.js"></script>
-<link rel="stylesheet" href="webjars/chosen/chosen.min.css">
 <script>
-$(".chosen").chosen();
-
 function removeFromCollection() {
     $(this).closest('tr').remove();
 }
