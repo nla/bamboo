@@ -53,7 +53,7 @@
         <dependency>
             <groupId>com.github.mizosoft.methanol</groupId>
             <artifactId>methanol-jackson</artifactId>
-            <version>1.8.4</version>
+            <version>1.9.0</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
