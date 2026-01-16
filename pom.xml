@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>au.gov.nla.pandas</groupId>
     <artifactId>bamboo</artifactId>
-    <version>0.7.2-SNAPSHOT</version>
+    <version>0.7.2</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -85,7 +85,7 @@
         <url>https://github.com/nla/pandas4</url>
         <connection>scm:git:git@github.com:nla/pandas4</connection>
         <developerConnection>scm:git:git@github.com:nla/pandas4</developerConnection>
-        <tag>v0.7.1</tag>
+        <tag>v0.7.2</tag>
     </scm>
 
     <licenses>
