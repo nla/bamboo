@@ -1,6 +1,10 @@
 package bamboo.config;
 
-import org.springframework.boot.autoconfigure.orm.jpa.EntityManagerFactoryDependsOnPostProcessor;
+import jakarta.persistence.EntityManagerFactory;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.support.DatabaseStartupValidator;
@@ -23,7 +27,16 @@ public class DatabaseStartupConfig {
      * until the database is ready.
      */
     @Bean
-    public static EntityManagerFactoryDependsOnPostProcessor databaseStartupDependency() {
-        return new EntityManagerFactoryDependsOnPostProcessor("databaseStartupValidator");
+    public static BeanFactoryPostProcessor entityManagerFactoryDependsOnPostProcessor() {
+        return new BeanFactoryPostProcessor() {
+            @Override
+            public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+                String[] beanNames = beanFactory.getBeanNamesForType(EntityManagerFactory.class);
+                for (String beanName : beanNames) {
+                    BeanDefinition definition = beanFactory.getBeanDefinition(beanName);
+                    definition.setDependsOn("databaseStartupValidator");
+                }
+            }
+        };
     }
 }
