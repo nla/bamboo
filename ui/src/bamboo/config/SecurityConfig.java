@@ -23,8 +23,6 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.util.*;
 
-import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
-
 @Configuration
 public class SecurityConfig {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
@@ -42,25 +40,25 @@ public class SecurityConfig {
                             .jwtAuthenticationConverter(jwt -> new JwtAuthenticationToken(jwt, mapClaimsToAuthorities(jwt.getClaims())))));
             http.authorizeHttpRequests(authorize -> authorize
                     // static content
-                    .requestMatchers(antMatcher("/webjars/**")).permitAll()
-                    .requestMatchers(antMatcher("/assets/**")).permitAll()
+                    .requestMatchers("/webjars/**").permitAll()
+                    .requestMatchers("/assets/**").permitAll()
 
                     // api: solr indexer
-                    .requestMatchers(antMatcher("/collections/*/warcs/json")).permitAll()
-                    .requestMatchers(antMatcher("/collections/*/warcs/sync")).permitAll()
-                    .requestMatchers(antMatcher("/warcs/*/text")).permitAll()
+                    .requestMatchers("/collections/*/warcs/json").permitAll()
+                    .requestMatchers("/collections/*/warcs/sync").permitAll()
+                    .requestMatchers("/warcs/*/text").permitAll()
                     // api: wayback
-                    .requestMatchers(antMatcher("/warcs/*")).permitAll()
-                    .requestMatchers(antMatcher("/healthcheck")).permitAll()
+                    .requestMatchers("/warcs/*").permitAll()
+                    .requestMatchers("/healthcheck").permitAll()
 
-                    .requestMatchers(antMatcher("/")).hasRole(Role.STDUSER.name())
-                    .requestMatchers(antMatcher("/series")).permitAll()
-                    .requestMatchers(antMatcher("/series/**")).permitAll()
-                    .requestMatchers(antMatcher("/crawls/**")).permitAll()
+                    .requestMatchers("/").hasRole(Role.STDUSER.name())
+                    .requestMatchers("/series").permitAll()
+                    .requestMatchers("/series/**").permitAll()
+                    .requestMatchers("/crawls/**").permitAll()
 
-                    .requestMatchers(antMatcher("/data/**")).permitAll()
-                    .requestMatchers(antMatcher("/api/v2/**")).permitAll()
-                    .requestMatchers(antMatcher("/api/**")).hasRole(Role.PANADMIN.name())
+                    .requestMatchers("/data/**").permitAll()
+                    .requestMatchers("/api/v2/**").permitAll()
+                    .requestMatchers("/api/**").hasRole(Role.PANADMIN.name())
 
                     .anyRequest().hasRole(Role.PANADMIN.name()));
         } else {
