@@ -281,14 +281,18 @@ public class Crawls {
 
     /**
      * Copies a collection of warc files into this crawl.
+     * WARCs are added one by one and skipped if they already exist.
+     * This is intended for incremental import of very large crawls.
      */
     public void addWarcsFromPaths(long crawlId, List<Path> warcFiles) throws IOException {
-        var streams = new ArrayList<NamedStream>();
         for (Path warcFile : warcFiles) {
-            NamedStream of = NamedStream.of(warcFile);
-            streams.add(of);
+            NamedStream namedStream = NamedStream.of(warcFile);
+            if (warcs.getOrNullByCrawlIdAndFilename(crawlId, namedStream.name()) != null) {
+                log.info("WARC already exists, skipping: {}", namedStream.name());
+                continue;
+            }
+            addWarcs(crawlId, Collections.singletonList(namedStream));
         }
-        addWarcs(crawlId, streams);
     }
 
 
