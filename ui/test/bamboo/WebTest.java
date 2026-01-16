@@ -104,8 +104,8 @@ public class WebTest {
         Series series = bamboo.serieses.get(seriesId);
         assertNotNull(series.getCreated());
         assertNotNull(series.getModifier());
-        assertEquals("mockuser", series.getCreator());
-        assertEquals("mockuser", series.getModifier());
+        assertEquals("admin", series.getCreator());
+        assertEquals("admin", series.getModifier());
     }
 
     @Test
