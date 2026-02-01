@@ -48,7 +48,7 @@
     </build>
 
     <properties>
-        <spring.version>4.0.1</spring.version>
+        <spring.version>4.0.2</spring.version>
         <doss.version>1.7.6</doss.version>
         <tika.version>3.2.3</tika.version>
     </properties>
@@ -129,7 +129,7 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>3.0.0</version>
+            <version>3.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
@@ -235,7 +235,7 @@
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
-            <version>1.20.0</version>
+            <version>1.21.0</version>
         </dependency>
 
         <dependency>
@@ -355,7 +355,7 @@
         <dependency>
             <groupId>org.netpreserve</groupId>
             <artifactId>jwarc</artifactId>
-            <version>0.33.0</version>
+            <version>0.34.0</version>
         </dependency>
     </dependencies>
 
