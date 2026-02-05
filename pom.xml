@@ -95,4 +95,23 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+
+    <profiles>
+        <profile>
+            <id>jenkins</id>
+            <distributionManagement>
+                <repository>
+                    <id>nla-public-releases</id>
+                    <url>https://dev.nla.gov.au/nexus/content/repositories/nla-public/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>nla-public-snapshots</id>
+                    <url>https://dev.nla.gov.au/nexus/content/repositories/nla-public-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+            <properties>
+                <skipTests>true</skipTests>
+            </properties>
+        </profile>
+    </profiles>
 </project>
