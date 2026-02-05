@@ -3,7 +3,7 @@
     <parent>
         <groupId>au.gov.nla.pandas</groupId>
         <artifactId>bamboo</artifactId>
-        <version>0.7.2</version>
+        <version>0.7.3-SNAPSHOT</version>
     </parent>
     <artifactId>bamboo-ui</artifactId>
     <build>
