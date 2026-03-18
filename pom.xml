@@ -82,9 +82,9 @@
     </distributionManagement>
 
     <scm>
-        <url>https://github.com/nla/pandas4</url>
-        <connection>scm:git:git@github.com:nla/pandas4</connection>
-        <developerConnection>scm:git:git@github.com:nla/pandas4</developerConnection>
+        <url>https://github.com/nla/bamboo</url>
+        <connection>scm:git:git@github.com:nla/bamboo</connection>
+        <developerConnection>scm:git:git@github.com:nla/bamboo</developerConnection>
         <tag>v0.7.2</tag>
     </scm>
 
