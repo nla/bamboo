@@ -24,6 +24,7 @@ import java.util.List;
 @RegisterRowMapper(WarcsDAO.CollectionWarcMapper.class)
 @RegisterRowMapper(WarcsDAO.WarcResumptionTokenMapper.class)
 @RegisterRowMapper(WarcsDAO.StatisticsMapper.class)
+@RegisterConstructorMapper(WarcsDAO.WarcHistoryRow.class)
 public interface WarcsDAO extends Transactional<WarcsDAO> {
 
     class WarcMapper implements RowMapper<Warc> {
@@ -247,4 +248,20 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
                     resultSet.getLong("urlCount"));
         }
     }
+
+    class WarcHistoryRow {
+        public final long id;
+        public final int stateId;
+
+        public WarcHistoryRow(long id, int stateId) {
+            this.id = id;
+            this.stateId = stateId;
+        }
+    }
+
+    @SqlQuery("SELECT id, warc_state_id AS stateId FROM warc_history WHERE warc_id = :warcId ORDER BY id DESC LIMIT 1 FOR UPDATE")
+    WarcHistoryRow selectLatestHistoryForUpdate(@Bind("warcId") long warcId);
+
+    @SqlUpdate("UPDATE warc_history SET time = CURRENT_TIMESTAMP WHERE id = :historyId")
+    int touchWarcHistory(@Bind("historyId") long historyId);
 }

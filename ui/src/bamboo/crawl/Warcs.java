@@ -141,6 +141,26 @@ public class Warcs {
         dao.insertWarcHistory(id, stateId);
     }
 
+    public void markCdxIndexed(long warcId) {
+        dao.inTransaction(tx -> {
+            Warc prev = getAndLock(warcId);
+            if (prev.getStateId() != Warc.CDX_INDEXED) {
+                int rows = tx.updateWarcStateWithoutHistory(warcId, Warc.CDX_INDEXED);
+                if (rows == 0) {
+                    throw new NotFoundException("warc", warcId);
+                }
+            }
+
+            WarcsDAO.WarcHistoryRow latest = tx.selectLatestHistoryForUpdate(warcId);
+            if (latest != null && latest.stateId == Warc.CDX_INDEXED) {
+                tx.touchWarcHistory(latest.id);
+            } else {
+                tx.insertWarcHistory(warcId, Warc.CDX_INDEXED);
+            }
+            return null;
+        });
+    }
+
     public void updateRecordStats(long warcId, RecordStats stats, boolean deleteMode) {
         dao.inTransaction(tx -> {
             long records = stats.getRecords();

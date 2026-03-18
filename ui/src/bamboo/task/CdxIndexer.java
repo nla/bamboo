@@ -184,7 +184,11 @@ public class CdxIndexer implements Runnable {
         warcs.updateCollections(warc.getId(), collectionStats, deleteMode);
 
         // mark indexing as finished
-        warcs.updateState(warc.getId(), deleteMode ? Warc.DELETED : Warc.CDX_INDEXED);
+        if (deleteMode) {
+            warcs.updateState(warc.getId(), Warc.DELETED);
+        } else {
+            warcs.markCdxIndexed(warc.getId());
+        }
 
         System.out.println("Finished CDX indexing " + warc.getId() + " " + warc.getPath() + " " + stats);
         return stats;

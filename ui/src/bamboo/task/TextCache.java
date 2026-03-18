@@ -3,6 +3,7 @@ package bamboo.task;
 import bamboo.app.Bamboo;
 import bamboo.crawl.Warc;
 import bamboo.crawl.Warcs;
+import com.google.gson.Gson;
 import io.swagger.v3.oas.annotations.servers.Server;
 import org.archive.io.ArchiveReader;
 import org.slf4j.Logger;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Files;
@@ -29,9 +32,17 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 @ConditionalOnProperty("WARC_TEXT_CACHE")
 public class TextCache {
     private static final Logger log = LoggerFactory.getLogger(CdxCache.class);
+    private static final Gson gson = new Gson();
     private final Path root;
     private Warcs warcs;
     private final TextExtractor extractor;
+
+    public static class Metadata {
+        long warcId;
+        long size;
+        int stateId;
+        String sha256;
+    }
 
     public TextCache(@Value("${WARC_TEXT_CACHE}") Path root, Bamboo wa) throws IOException {
         this.root = root;
@@ -51,6 +62,78 @@ public class TextCache {
         return root.resolve(dirs).resolve("nla.warc-" + warcId + ".text.json.gz");
     }
 
+    public Path metadataPath(long warcId) {
+        return Paths.get(entryPath(warcId).toString() + ".meta.json");
+    }
+
+    private Path rankedPath(long warcId) {
+        return Paths.get(entryPath(warcId).toString().replace("text", "ranked"));
+    }
+
+    public Metadata readMetadata(long warcId) throws IOException {
+        Path path = metadataPath(warcId);
+        if (!Files.exists(path)) {
+            return null;
+        }
+        try (var reader = new InputStreamReader(Files.newInputStream(path))) {
+            return gson.fromJson(reader, Metadata.class);
+        } catch (Exception e) {
+            log.warn("Deleting unreadable cache metadata {}", path, e);
+            Files.deleteIfExists(path);
+            return null;
+        }
+    }
+
+    public boolean isCurrent(Warc warc) throws IOException {
+        Path cachePath = find(warc.getId());
+        if (cachePath == null) {
+            return false;
+        }
+
+        Metadata metadata = readMetadata(warc.getId());
+        if (metadata == null) {
+            // Legacy cache entries are safe to keep for immutable closed WARCs.
+            return warc.getStateId() != Warc.OPEN && warc.getSha256() != null;
+        }
+
+        if (metadata.warcId != warc.getId()) {
+            return false;
+        }
+        if (metadata.size != warc.getSize()) {
+            return false;
+        }
+        if (metadata.sha256 != null && warc.getSha256() != null && !metadata.sha256.equals(warc.getSha256())) {
+            return false;
+        }
+        return true;
+    }
+
+    public void invalidate(long warcId) throws IOException {
+        Files.deleteIfExists(entryPath(warcId));
+        Files.deleteIfExists(rankedPath(warcId));
+        Files.deleteIfExists(metadataPath(warcId));
+    }
+
+    public void writeMetadata(Warc warc) throws IOException {
+        Metadata metadata = new Metadata();
+        metadata.warcId = warc.getId();
+        metadata.size = warc.getSize();
+        metadata.stateId = warc.getStateId();
+        metadata.sha256 = warc.getSha256();
+
+        Path path = metadataPath(warc.getId());
+        Path tmpPath = Paths.get(path.toString() + ".tmp");
+        Files.createDirectories(path.getParent());
+        try {
+            try (var writer = new OutputStreamWriter(Files.newOutputStream(tmpPath))) {
+                gson.toJson(metadata, writer);
+            }
+            Files.move(tmpPath, path, ATOMIC_MOVE, REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(tmpPath);
+        }
+    }
+
     void populate(Warc warc) throws IOException {
         Path path = entryPath(warc.getId());
         if (Files.exists(path)) {
@@ -64,6 +147,7 @@ public class TextCache {
                 extractor.extractAll(reader, out);
             }
             Files.move(tmpPath, path, ATOMIC_MOVE, REPLACE_EXISTING);
+            writeMetadata(warc);
         } finally {
             Files.deleteIfExists(tmpPath);
         }
@@ -131,7 +215,7 @@ public class TextCache {
 
     public Path find(long warcId) {
         Path path = entryPath(warcId);
-        Path rankedPath = Paths.get(path.toString().replace("text", "ranked"));
+        Path rankedPath = rankedPath(warcId);
         if (Files.exists(rankedPath)) {
             return rankedPath;
         }

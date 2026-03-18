@@ -243,6 +243,10 @@ public class WarcsController {
 
     private boolean serveTextFromCache(HttpServletRequest request, HttpServletResponse response, Warc warc, List<CollectionMatcher> collections) throws IOException {
         if (textCache == null) return false;
+        if (!textCache.isCurrent(warc)) {
+            textCache.invalidate(warc.getId());
+            return false;
+        }
         Path file = textCache.find(warc.getId());
         if (file == null) return false;
 
@@ -278,7 +282,7 @@ public class WarcsController {
             return true;
         } catch (JsonSyntaxException e) {
             log.error("Deleting corrupt cache entry {}", file);
-            Files.deleteIfExists(file);
+            textCache.invalidate(warc.getId());
             // we can't meaningfully recover in this situation so bail and hope the client retries
             throw e;
         }
@@ -340,6 +344,7 @@ public class WarcsController {
                 cacheStream.close();
                 cacheStream = null;
                 Files.move(tmpCachePath, cachePath, StandardCopyOption.REPLACE_EXISTING);
+                textCache.writeMetadata(warc);
             }
         } catch (Exception | StackOverflowError e) {
             String message = "Text extraction failed. warcId=" + warc.getId() + " path=" + warc.getPath() + " recordUrl=" + url;
