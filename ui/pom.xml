@@ -48,9 +48,9 @@
     </build>
 
     <properties>
-        <spring.version>4.0.3</spring.version>
+        <spring.version>4.0.6</spring.version>
         <doss.version>1.7.6</doss.version>
-        <tika.version>3.2.3</tika.version>
+        <tika.version>3.3.0</tika.version>
     </properties>
 
     <dependencies>
@@ -133,7 +133,7 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>3.0.2</version>
+            <version>3.0.3</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
@@ -144,7 +144,7 @@
         <dependency>
             <groupId>org.jdbi</groupId>
             <artifactId>jdbi3-sqlobject</artifactId>
-            <version>3.51.0</version>
+            <version>3.53.0</version>
         </dependency>
 
         <dependency>
@@ -160,7 +160,7 @@
         <dependency>
             <groupId>org.mariadb.jdbc</groupId>
             <artifactId>mariadb-java-client</artifactId>
-            <version>3.5.7</version>
+            <version>3.5.8</version>
         </dependency>
 
 	<dependency>
@@ -183,13 +183,13 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.5.0-jre</version>
+            <version>33.6.0-jre</version>
         </dependency>
 
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.21.0</version>
+            <version>2.22.0</version>
         </dependency>
 
         <dependency>
@@ -239,7 +239,7 @@
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
-            <version>1.21.0</version>
+            <version>1.22.0</version>
         </dependency>
 
         <dependency>
@@ -298,7 +298,7 @@
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.13.2</version>
+            <version>2.14.0</version>
         </dependency>
 
         <dependency>
@@ -359,7 +359,7 @@
         <dependency>
             <groupId>org.netpreserve</groupId>
             <artifactId>jwarc</artifactId>
-            <version>0.35.0</version>
+            <version>0.36.0</version>
         </dependency>
     </dependencies>
 
