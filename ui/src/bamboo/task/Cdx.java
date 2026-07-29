@@ -162,7 +162,7 @@ public class Cdx {
 
                     if (urlKey == null) urlKey = URIs.toNormalizedSurt(url);
 
-                    out.printf("%s %s %s %s %d %s %s - %d %d %s%n", urlKey, date, url, type, status, digest,
+                    out.printf("%s %s %s %s %d %s %s - %d %d %s%n", urlKey, date, url, escape(type.toString()), status, digest,
                             redirect == null ? "-" : redirect, length, position, filename);
                     stats.update(length, Date.from(instant));
                 } else {
@@ -178,6 +178,12 @@ public class Cdx {
         return stats;
     }
 
+    private static String escape(String str) {
+        if (str == null) return null;
+        return str.replace(" ", "%20")
+                .replace("\n", "%0A")
+                .replace("\0", "%00");
+    }
 
     static class PandoraAliaser {
         private final PrintWriter out;
