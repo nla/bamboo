@@ -13,17 +13,17 @@ public class LockManager implements Closeable {
     private final String myName = ManagementFactory.getRuntimeMXBean().getName();
     private final LockManagerDAO dao;
     private Thread keepaliveThread;
-    private int keepaliveInterval = 5000;
-    int expiryTime = 120000;
-    private int expireStaleInterval = 300000;
+    private int keepaliveIntervalMillis = 5000;
+    int expirySeconds = 120;
+    private int expireStaleIntervalMillis = 300000;
 
     public LockManager(LockManagerDAO dao) {
         this.dao = dao;
     }
 
     public synchronized boolean takeLock(String lockName) {
-        dao.expireLock(lockName, expiryTime);
-        int rows = dao.takeLock(lockName, myName, expiryTime);
+        dao.expireLock(lockName, expirySeconds);
+        int rows = dao.takeLock(lockName, myName, expirySeconds);
         if (rows > 0) {
             if (keepaliveThread == null) {
                 keepaliveThread = new Thread(this::keepaliveLoop);
@@ -42,18 +42,24 @@ public class LockManager implements Closeable {
     }
 
     void keepaliveLoop() {
+        long lastExpiryMillis = 0;
         while (!Thread.currentThread().isInterrupted()) {
-            long lastExpiry = 0;
             try {
                 dao.checkin(myName);
-                if (System.currentTimeMillis() < lastExpiry + expireStaleInterval) {
-                    dao.expireStaleLocks(expiryTime);
-                }
-                Thread.sleep(keepaliveInterval);
+                lastExpiryMillis = expireStaleLocksIfDue(System.currentTimeMillis(), lastExpiryMillis);
+                Thread.sleep(keepaliveIntervalMillis);
             } catch (InterruptedException e) {
                 break;
             }
         }
+    }
+
+    long expireStaleLocksIfDue(long nowMillis, long lastExpiryMillis) {
+        if (nowMillis >= lastExpiryMillis + expireStaleIntervalMillis) {
+            dao.expireStaleLocks(expirySeconds);
+            return nowMillis;
+        }
+        return lastExpiryMillis;
     }
 
     @Override
