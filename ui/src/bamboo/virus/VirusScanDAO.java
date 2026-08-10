@@ -42,11 +42,11 @@ public interface VirusScanDAO extends Transactional<VirusScanDAO> {
     void setCurrentWarc(@Bind("runId") long runId, @Bind("warcId") long warcId, @Bind("now") Timestamp now);
 
     @SqlUpdate("UPDATE virus_scan_run SET last_warc_id = :warcId, current_warc_id = NULL, " +
-            "warcs_scanned = warcs_scanned + 1, records_scanned = records_scanned + :records, " +
+            "warcs_scanned = warcs_scanned + :warcs, records_scanned = records_scanned + :records, " +
             "bytes_scanned = bytes_scanned + :bytes, findings_count = findings_count + :findings, " +
             "errors_count = errors_count + :errors, heartbeat_at = :now WHERE id = :runId")
     void advanceRun(@Bind("runId") long runId, @Bind("warcId") long warcId,
-                    @Bind("records") long records, @Bind("bytes") long bytes,
+                    @Bind("warcs") long warcs, @Bind("records") long records, @Bind("bytes") long bytes,
                     @Bind("findings") long findings, @Bind("errors") long errors,
                     @Bind("now") Timestamp now);
 

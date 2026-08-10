@@ -19,6 +19,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class VirusScanner implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(VirusScanner.class);
@@ -29,15 +33,18 @@ public class VirusScanner implements Runnable {
     private final LockManager lockManager;
     private final ClamdClient clamd;
     private final Duration interval;
+    private final int threads;
     private Instant clamdRetryAfter = Instant.EPOCH;
 
     public VirusScanner(VirusScanDAO dao, Warcs warcs, LockManager lockManager, ClamdClient clamd,
-                        Duration interval) {
+                        Duration interval, int threads) {
         this.dao = dao;
         this.warcs = warcs;
         this.lockManager = lockManager;
         this.clamd = clamd;
         this.interval = interval;
+        if (threads < 1) throw new IllegalArgumentException("threads must be positive");
+        this.threads = threads;
     }
 
     @Override
@@ -51,7 +58,7 @@ public class VirusScanner implements Runnable {
                 if (latest != null && latest.getFinishedAt().plus(interval).isAfter(Instant.now())) return;
                 run = startRun();
             }
-            scanNextWarc(run);
+            scanNextBatch(run);
         } catch (IOException e) {
             clamdRetryAfter = Instant.now().plus(Duration.ofMinutes(1));
             log.warn("Unable to communicate with clamd: {}", e.getMessage());
@@ -70,18 +77,45 @@ public class VirusScanner implements Runnable {
         return dao.findRun(id);
     }
 
-    private void scanNextWarc(VirusScanRun run) throws IOException {
-        List<Warc> candidates = warcs.streamForVirusScan(run.getLastWarcId(), run.getMaxWarcId(), 1);
+    private void scanNextBatch(VirusScanRun run) throws IOException {
+        List<Warc> candidates = warcs.streamForVirusScan(run.getLastWarcId(), run.getMaxWarcId(), threads);
         if (candidates.isEmpty()) {
             dao.finishRun(run.getId(), now());
             log.info("Completed virus scan {}", run.getId());
             return;
         }
 
-        Warc warc = candidates.get(0);
-        dao.setCurrentWarc(run.getId(), warc.getId(), now());
-        ScanOutcome outcome = scanWarc(warc);
-        saveOutcome(run.getId(), warc, outcome);
+        dao.setCurrentWarc(run.getId(), candidates.get(0).getId(), now());
+        saveBatch(run.getId(), scanBatch(candidates));
+    }
+
+    private List<WarcOutcome> scanBatch(List<Warc> warcs) throws IOException {
+        ExecutorService executor = Executors.newFixedThreadPool(Math.min(threads, warcs.size()));
+        try {
+            List<Future<WarcOutcome>> futures = new ArrayList<>();
+            for (Warc warc : warcs) {
+                futures.add(executor.submit(() -> new WarcOutcome(warc, scanWarc(warc))));
+            }
+
+            List<WarcOutcome> outcomes = new ArrayList<>();
+            Throwable failure = null;
+            for (Future<WarcOutcome> future : futures) {
+                try {
+                    outcomes.add(future.get());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted while virus scanning", e);
+                } catch (ExecutionException e) {
+                    if (failure == null) failure = e.getCause();
+                }
+            }
+            if (failure instanceof IOException ioException) throw ioException;
+            if (failure instanceof RuntimeException runtimeException) throw runtimeException;
+            if (failure != null) throw new RuntimeException(failure);
+            return outcomes;
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     private ScanOutcome scanWarc(Warc warc) throws IOException {
@@ -119,7 +153,7 @@ public class VirusScanner implements Runnable {
             } catch (ClamdIOException e) {
                 throw (IOException) e.getCause();
             } catch (IOException e) {
-                problems.add(new VirusScanProblem(warc.getId(), "warc", abbreviate(e.getMessage(), 4096)));
+                problems.add(new VirusScanProblem(warc.getId(), "warc", abbreviate(exceptionMessage(e), 4096)));
             }
         }
 
@@ -140,28 +174,44 @@ public class VirusScanner implements Runnable {
                 abbreviate(digest, 128), abbreviate(signature, 128));
     }
 
-    private void saveOutcome(long runId, Warc warc, ScanOutcome outcome) {
+    private void saveBatch(long runId, List<WarcOutcome> outcomes) {
         Timestamp now = now();
         dao.inTransaction(tx -> {
-            if (outcome.problems().isEmpty()) {
-                tx.markFindingsNotDetected(warc.getId());
-                tx.deleteProblems(warc.getId());
+            long records = 0;
+            long bytes = 0;
+            long findings = 0;
+            long errors = 0;
+            for (WarcOutcome warcOutcome : outcomes) {
+                Warc warc = warcOutcome.warc();
+                ScanOutcome outcome = warcOutcome.outcome();
+                saveOutcome(tx, runId, warc, outcome, now);
+                records += outcome.records();
+                bytes += outcome.bytes();
+                findings += outcome.findings().size();
+                errors += outcome.problems().size();
             }
-            for (VirusFinding finding : outcome.findings()) {
-                Timestamp captureTime = finding.captureTime() == null ? null : Timestamp.from(finding.captureTime());
-                if (tx.updateFinding(runId, finding, captureTime, now) == 0) {
-                    tx.insertFinding(runId, finding, captureTime, now);
-                }
-            }
-            for (VirusScanProblem problem : outcome.problems()) {
-                if (tx.updateProblem(runId, problem, now) == 0) {
-                    tx.insertProblem(runId, problem, now);
-                }
-            }
-            tx.advanceRun(runId, warc.getId(), outcome.records(), outcome.bytes(), outcome.findings().size(),
-                    outcome.problems().size(), now);
+            long lastWarcId = outcomes.get(outcomes.size() - 1).warc().getId();
+            tx.advanceRun(runId, lastWarcId, outcomes.size(), records, bytes, findings, errors, now);
             return null;
         });
+    }
+
+    private static void saveOutcome(VirusScanDAO tx, long runId, Warc warc, ScanOutcome outcome, Timestamp now) {
+        if (outcome.problems().isEmpty()) {
+            tx.markFindingsNotDetected(warc.getId());
+            tx.deleteProblems(warc.getId());
+        }
+        for (VirusFinding finding : outcome.findings()) {
+            Timestamp captureTime = finding.captureTime() == null ? null : Timestamp.from(finding.captureTime());
+            if (tx.updateFinding(runId, finding, captureTime, now) == 0) {
+                tx.insertFinding(runId, finding, captureTime, now);
+            }
+        }
+        for (VirusScanProblem problem : outcome.problems()) {
+            if (tx.updateProblem(runId, problem, now) == 0) {
+                tx.insertProblem(runId, problem, now);
+            }
+        }
     }
 
     private static Timestamp now() {
@@ -173,8 +223,16 @@ public class VirusScanner implements Runnable {
         return value.substring(0, maxLength);
     }
 
+    static String exceptionMessage(Throwable error) {
+        String message = error.getMessage();
+        return error.getClass().getName() + (message == null || message.isBlank() ? "" : ": " + message);
+    }
+
     private record ScanOutcome(List<VirusFinding> findings, List<VirusScanProblem> problems,
                                long records, long bytes) {
+    }
+
+    private record WarcOutcome(Warc warc, ScanOutcome outcome) {
     }
 
     private static class ClamdIOException extends IOException {

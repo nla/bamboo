@@ -106,7 +106,7 @@ public class Bamboo implements AutoCloseable {
         if (config.getClamdSocket() != null) {
             taskManager.register(new VirusScanner(dao.virusScans(), warcs, lockManager,
                     new ClamdClient(config.getClamdSocket()),
-                    Duration.ofHours(config.getVirusScanIntervalHours())));
+                    Duration.ofHours(config.getVirusScanIntervalHours()), config.getVirusScanThreads()));
         } else {
             log.info("Virus scanning disabled (CLAMD_SOCKET is not set)");
         }

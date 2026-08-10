@@ -111,6 +111,10 @@ public class Config {
         return Integer.parseInt(getEnv("VIRUS_SCAN_INTERVAL_HOURS", "168"));
     }
 
+    public int getVirusScanThreads() {
+        return Integer.parseInt(getEnv("VIRUS_SCAN_THREADS", "2"));
+    }
+
     public static class Watch {
         public final long crawlId;
         public final Path dir;

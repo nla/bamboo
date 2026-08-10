@@ -18,6 +18,9 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 
@@ -47,6 +50,15 @@ public class VirusScannerTest {
             Path example = Path.of(getClass().getResource("/bamboo/task/example.warc.gz").toURI());
             crawls.createInPlace(crawl, List.of(example));
 
+            Crawl secondCrawl = new Crawl();
+            secondCrawl.setName("virus scanner test 2");
+            secondCrawl.setCrawlSeriesId(seriesId);
+            crawls.createInPlace(secondCrawl, List.of(example));
+
+            CountDownLatch scansStarted = new CountDownLatch(2);
+            AtomicInteger activeScans = new AtomicInteger();
+            AtomicInteger maximumActiveScans = new AtomicInteger();
+
             ClamdClient cleanClamd = new ClamdClient(Path.of("unused")) {
                 @Override
                 public String version() {
@@ -58,8 +70,21 @@ public class VirusScannerTest {
                     return new ScanSession() {
                         @Override
                         public ScanResult scan(InputStream input) throws IOException {
-                            long bytes = input.transferTo(OutputStream.nullOutputStream());
-                            return new ScanResult(Status.CLEAN, null, "stream: OK", bytes);
+                            int active = activeScans.incrementAndGet();
+                            maximumActiveScans.accumulateAndGet(active, Math::max);
+                            scansStarted.countDown();
+                            try {
+                                if (!scansStarted.await(5, TimeUnit.SECONDS)) {
+                                    throw new IOException("parallel scans did not start");
+                                }
+                                long bytes = input.transferTo(OutputStream.nullOutputStream());
+                                return new ScanResult(Status.CLEAN, null, "stream: OK", bytes);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                throw new IOException(e);
+                            } finally {
+                                activeScans.decrementAndGet();
+                            }
                         }
 
                         @Override
@@ -71,10 +96,11 @@ public class VirusScannerTest {
 
             try (LockManager locks = new LockManager(dao.lockManager())) {
                 VirusScanner scanner = new VirusScanner(dao.virusScans(), warcs, locks, cleanClamd,
-                        Duration.ofDays(7));
+                        Duration.ofDays(7), 2);
                 scanner.run(); // creates the run and scans the WARC
                 VirusScanRun running = dao.virusScans().findRunningRun();
                 assertEquals(running.getMaxWarcId(), running.getLastWarcId());
+                assertEquals(2, maximumActiveScans.get());
 
                 scanner.run(); // observes the end of the high-water range and completes the run
                 assertEquals("completed", dao.virusScans().findLatestFinishedRun().getState());
