@@ -43,6 +43,14 @@ For example:
 Bamboo will watch for newly created *.warc.gz.open files, index them as new records are added and then move the WARC
 into crawl 42's archive directory when the file is renamed to *.warc.gz.
 
+## Virus scanning
+
+Set `CLAMD_SOCKET` to a clamd Unix socket to enable background virus scanning of finalized WARC payloads. Bamboo
+starts a complete scan when no previous scan exists, then repeats it weekly by default. Set
+`VIRUS_SCAN_INTERVAL_HOURS` to change the interval. Scan progress, deduplicated findings and unresolved problems are
+stored in the database. Ensure clamd's `StreamMaxLength` is large enough for the captured payloads you expect to scan.
+Bamboo sends at most the first 100 MiB of each payload.
+
 ### Tuning
 
     CDX_INDEXER_THREADS=4

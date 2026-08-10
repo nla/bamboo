@@ -96,6 +96,11 @@ public interface WarcsDAO extends Transactional<WarcsDAO> {
     @SqlQuery("SELECT * FROM warc WHERE id > :fromId LIMIT :limit")
     List<Warc> streamWarcs(@Bind("fromId") long fromId, @Bind("limit") int limit);
 
+    @SqlQuery("SELECT * FROM warc WHERE id > :fromId AND id <= :maxId " +
+            "AND warc_state_id NOT IN (" + Warc.OPEN + ", " + Warc.DELETED + ") ORDER BY id LIMIT :limit")
+    List<Warc> streamWarcsForVirusScan(@Bind("fromId") long fromId, @Bind("maxId") long maxId,
+                                       @Bind("limit") int limit);
+
     @SqlQuery("SELECT * FROM warc " +
             "LEFT JOIN crawl ON warc.crawl_id = crawl.id " +
             "WHERE warc.id > :fromId AND " +

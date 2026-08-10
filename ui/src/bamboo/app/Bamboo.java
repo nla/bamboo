@@ -9,6 +9,8 @@ import bamboo.pandas.Pandas;
 import bamboo.seedlist.Seedlists;
 import bamboo.task.*;
 import bamboo.util.Oidc;
+import bamboo.virus.ClamdClient;
+import bamboo.virus.VirusScanner;
 import doss.BlobStore;
 import doss.DOSS;
 import doss.http.Credentials;
@@ -24,6 +26,7 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 
 public class Bamboo implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(Bamboo.class);
@@ -100,6 +103,13 @@ public class Bamboo implements AutoCloseable {
             taskManager.register(cdxIndexer);
         }
         taskManager.register(new WatchImporter(collections, crawls, cdxIndexer, warcs, config.getWatches()));
+        if (config.getClamdSocket() != null) {
+            taskManager.register(new VirusScanner(dao.virusScans(), warcs, lockManager,
+                    new ClamdClient(config.getClamdSocket()),
+                    Duration.ofHours(config.getVirusScanIntervalHours())));
+        } else {
+            log.info("Virus scanning disabled (CLAMD_SOCKET is not set)");
+        }
         if (runTasks && config.isTasksEnabled()) {
             taskManager.start();
         }

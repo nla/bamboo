@@ -427,6 +427,10 @@ public class Warcs {
         return dao.streamWarcs(fromId, limit);
     }
 
+    public List<Warc> streamForVirusScan(long fromId, long maxId, int limit) {
+        return dao.streamWarcsForVirusScan(fromId, maxId, limit);
+    }
+
     public List<Warc> streamSeries(long fromWarcId, long seriesId, int limit) {
         return dao.streamWarcsInSeries(fromWarcId, seriesId, limit);
     }

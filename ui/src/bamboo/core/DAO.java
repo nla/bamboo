@@ -4,6 +4,7 @@ import bamboo.api.ApiDAO;
 import bamboo.crawl.*;
 import bamboo.seedlist.SeedlistsDAO;
 import bamboo.task.TaskDAO;
+import bamboo.virus.VirusScanDAO;
 import org.jdbi.v3.sqlobject.*;
 
 public interface DAO {
@@ -23,6 +24,9 @@ public interface DAO {
 	// tasks package
 	@CreateSqlObject
 	TaskDAO tasks();
+
+    @CreateSqlObject
+    VirusScanDAO virusScans();
 
 	@CreateSqlObject
     LockManagerDAO lockManager();

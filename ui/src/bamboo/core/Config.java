@@ -102,6 +102,15 @@ public class Config {
         return Boolean.parseBoolean(getEnv("TASKS_ENABLED", "true"));
     }
 
+    public Path getClamdSocket() {
+        String value = getEnv("CLAMD_SOCKET", null);
+        return value == null || value.isBlank() ? null : Paths.get(value);
+    }
+
+    public int getVirusScanIntervalHours() {
+        return Integer.parseInt(getEnv("VIRUS_SCAN_INTERVAL_HOURS", "168"));
+    }
+
     public static class Watch {
         public final long crawlId;
         public final Path dir;
