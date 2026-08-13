@@ -61,7 +61,7 @@ public class VirusScanner implements Runnable {
             scanNextBatch(run);
         } catch (IOException e) {
             clamdRetryAfter = Instant.now().plus(Duration.ofMinutes(1));
-            log.warn("Unable to communicate with clamd: {}", e.getMessage());
+            log.warn("Unable to communicate with clamd", e);
         } finally {
             lockManager.releaseLock(LOCK_NAME);
         }
@@ -143,7 +143,14 @@ public class VirusScanner implements Runnable {
                             findings.add(finding(warc, offset, record, capture, payload, result.signature()));
                         } else if (result.status() == ClamdClient.Status.ERROR) {
                             problems.add(new VirusScanProblem(warc.getId(), offset, "clamd", abbreviate(result.reply(), 4096)));
+                            break;
                         }
+                    } catch (ClamdClient.InputReadException e) {
+                        IOException cause = (IOException) e.getCause();
+                        problems.add(new VirusScanProblem(warc.getId(), offset, "warc",
+                                abbreviate(exceptionMessage(cause), 4096)));
+                        log.warn("Skipping unreadable WARC payload {} at offset {}", warc.getPath(), offset, cause);
+                        break;
                     } catch (IOException e) {
                         // Leave the cursor at this WARC and pause. Otherwise one daemon outage could create a problem
                         // row for every WARC in the archive.

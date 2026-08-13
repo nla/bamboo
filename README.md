@@ -49,7 +49,7 @@ Set `CLAMD_SOCKET` to a clamd Unix socket to enable background virus scanning of
 starts a complete scan when no previous scan exists, then repeats it weekly by default. Set
 `VIRUS_SCAN_INTERVAL_HOURS` to change the interval. Scan progress, deduplicated findings and unresolved problems are
 stored in the database. Ensure clamd's `StreamMaxLength` is large enough for the captured payloads you expect to scan.
-Bamboo sends at most the first 100 MiB of each payload.
+Bamboo sends at most the first 100,000,000 bytes of each payload.
 Set `VIRUS_SCAN_THREADS` to control how many WARCs are scanned in parallel (default: 2).
 
 ### Tuning

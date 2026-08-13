@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class ClamdClientTest {
     @Test
@@ -38,7 +39,22 @@ public class ClamdClientTest {
                     assertEquals(5, found.bytes());
                 }
 
-                assertEquals(2, server.connections.get()); // VERSION plus one IDSESSION
+                try (ClamdClient.ScanSession session = client.openSession()) {
+                    ClamdClient.ScanResult error = session.scan(new ByteArrayInputStream("error".getBytes(StandardCharsets.UTF_8)));
+                    assertEquals(ClamdClient.Status.ERROR, error.status());
+                }
+
+                try (ClamdClient.ScanSession session = client.openSession()) {
+                    try {
+                        session.scan(new InputStreamThatFails());
+                        fail("expected an input read error");
+                    } catch (ClamdClient.InputReadException e) {
+                        assertEquals("broken gzip", e.getCause().getMessage());
+                    }
+                }
+
+                assertEquals(4, server.connections.get()); // VERSION plus three IDSESSION connections
+                assertEquals(1, server.endCommands.get()); // errored and incomplete sessions close without sending END
             }
         } finally {
             Files.deleteIfExists(socket);
@@ -46,10 +62,23 @@ public class ClamdClientTest {
         }
     }
 
+    private static class InputStreamThatFails extends java.io.InputStream {
+        @Override
+        public int read() throws IOException {
+            throw new IOException("broken gzip");
+        }
+
+        @Override
+        public int read(byte[] bytes, int offset, int length) throws IOException {
+            throw new IOException("broken gzip");
+        }
+    }
+
     private static class FakeClamd implements AutoCloseable {
         private final ServerSocketChannel server;
         private final Thread thread;
         private final AtomicInteger connections = new AtomicInteger();
+        private final AtomicInteger endCommands = new AtomicInteger();
         private volatile IOException failure;
 
         FakeClamd(Path socket) throws IOException {
@@ -81,17 +110,33 @@ public class ClamdClientTest {
             }
         }
 
-        private static void serveSession(SocketChannel client) throws IOException {
+        private void serveSession(SocketChannel client) throws IOException {
             int requestId = 0;
             while (true) {
-                String command = readCommand(client);
-                if (command.equals("zEND")) return;
+                String command;
+                try {
+                    command = readCommand(client);
+                } catch (IOException e) {
+                    if ("unexpected EOF".equals(e.getMessage())) return;
+                    throw e;
+                }
+                if (command.equals("zEND")) {
+                    endCommands.incrementAndGet();
+                    return;
+                }
                 requestId++;
                 if (command.equals("zINSTREAM")) {
-                    String content = new String(readChunks(client), StandardCharsets.UTF_8);
-                    reply(client, requestId + ": " + (content.contains("virus")
-                            ? "stream: Test.Signature FOUND"
-                            : "stream: OK"));
+                    byte[] chunks;
+                    try {
+                        chunks = readChunks(client);
+                    } catch (IOException e) {
+                        if ("unexpected EOF".equals(e.getMessage())) return;
+                        throw e;
+                    }
+                    String content = new String(chunks, StandardCharsets.UTF_8);
+                    String result = content.contains("virus") ? "stream: Test.Signature FOUND" :
+                            content.contains("error") ? "stream: size limit ERROR" : "stream: OK";
+                    reply(client, requestId + ": " + result);
                 } else {
                     reply(client, requestId + ": UNKNOWN COMMAND ERROR");
                 }

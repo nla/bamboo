@@ -11,6 +11,7 @@ import bamboo.crawl.Serieses;
 import bamboo.crawl.Warcs;
 import org.junit.Test;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,7 +27,7 @@ import static org.junit.Assert.assertEquals;
 
 public class VirusScannerTest {
     @Test
-    public void completesAndCheckpointsAFullScan() throws Exception {
+    public void completesAndCheckpointsAFullScanIncludingUnreadablePayloads() throws Exception {
         String dbUrl = "jdbc:h2:mem:virus-scanner-" + UUID.randomUUID() + ";mode=MySQL";
         TestConfig config = new TestConfig() {
             @Override
@@ -58,6 +59,7 @@ public class VirusScannerTest {
             CountDownLatch scansStarted = new CountDownLatch(2);
             AtomicInteger activeScans = new AtomicInteger();
             AtomicInteger maximumActiveScans = new AtomicInteger();
+            AtomicInteger scanNumber = new AtomicInteger();
 
             ClamdClient cleanClamd = new ClamdClient(Path.of("unused")) {
                 @Override
@@ -76,6 +78,9 @@ public class VirusScannerTest {
                             try {
                                 if (!scansStarted.await(5, TimeUnit.SECONDS)) {
                                     throw new IOException("parallel scans did not start");
+                                }
+                                if (scanNumber.getAndIncrement() == 0) {
+                                    throw new InputReadException(new EOFException("unexpected end of gzip stream"));
                                 }
                                 long bytes = input.transferTo(OutputStream.nullOutputStream());
                                 return new ScanResult(Status.CLEAN, null, "stream: OK", bytes);
@@ -101,9 +106,15 @@ public class VirusScannerTest {
                 VirusScanRun running = dao.virusScans().findRunningRun();
                 assertEquals(running.getMaxWarcId(), running.getLastWarcId());
                 assertEquals(2, maximumActiveScans.get());
+                assertEquals(2L, dbPool.dbi.withHandle(handle -> handle
+                        .createQuery("SELECT warcs_scanned FROM virus_scan_run WHERE id = :id")
+                        .bind("id", running.getId()).mapTo(Long.class).one()).longValue());
+                assertEquals("java.io.EOFException: unexpected end of gzip stream", dbPool.dbi.withHandle(handle -> handle
+                        .createQuery("SELECT message FROM virus_scan_problem")
+                        .mapTo(String.class).one()));
 
                 scanner.run(); // observes the end of the high-water range and completes the run
-                assertEquals("completed", dao.virusScans().findLatestFinishedRun().getState());
+                assertEquals("completed_with_errors", dao.virusScans().findLatestFinishedRun().getState());
             }
         }
     }

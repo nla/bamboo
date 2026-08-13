@@ -14,7 +14,8 @@ import java.nio.file.Path;
 /** Minimal client for clamd's NUL-framed Unix socket protocol. */
 public class ClamdClient {
     private static final int CHUNK_SIZE = 64 * 1024;
-    public static final long DEFAULT_MAX_STREAM_LENGTH = 100L * 1024 * 1024;
+    // clamd's "100M" StreamMaxLength is a decimal limit, not 100 MiB.
+    public static final long DEFAULT_MAX_STREAM_LENGTH = 100_000_000L;
     private final Path socketPath;
     private final long maxStreamLength;
 
@@ -52,6 +53,7 @@ public class ClamdClient {
         private final InputStream response;
         private final OutputStream request;
         private int requestId;
+        private boolean sendEnd = true;
 
         Session(SocketChannel channel) {
             this.channel = channel;
@@ -66,8 +68,15 @@ public class ClamdClient {
             byte[] chunk = new byte[CHUNK_SIZE];
             long bytes = 0;
             int length;
-            while (bytes < maxStreamLength &&
-                    (length = input.read(chunk, 0, (int) Math.min(chunk.length, maxStreamLength - bytes))) != -1) {
+            while (bytes < maxStreamLength) {
+                try {
+                    length = input.read(chunk, 0, (int) Math.min(chunk.length, maxStreamLength - bytes));
+                } catch (IOException e) {
+                    // The INSTREAM request is incomplete, so this session cannot be used or ended cleanly.
+                    sendEnd = false;
+                    throw new InputReadException(e);
+                }
+                if (length == -1) break;
                 if (length == 0) continue;
                 request.write(ByteBuffer.allocate(4).putInt(length).array());
                 request.write(chunk, 0, length);
@@ -87,6 +96,9 @@ public class ClamdClient {
                         : reply.substring(separator + 2, reply.length() - " FOUND".length());
                 return new ScanResult(Status.FOUND, signature, reply, bytes);
             }
+            // Some INSTREAM errors leave unread chunk data in clamd's receive buffer. The session can no longer be
+            // framed reliably, so close the socket without sending another command.
+            sendEnd = false;
             return new ScanResult(Status.ERROR, null, reply, bytes);
         }
 
@@ -97,9 +109,11 @@ public class ClamdClient {
 
         @Override
         public void close() {
-            try {
-                writeCommand("END");
-            } catch (IOException ignored) {
+            if (sendEnd) {
+                try {
+                    writeCommand("END");
+                } catch (IOException ignored) {
+                }
             }
             try {
                 channel.close();
@@ -162,6 +176,13 @@ public class ClamdClient {
     public enum Status { CLEAN, FOUND, ERROR }
 
     public record ScanResult(Status status, String signature, String reply, long bytes) {
+    }
+
+    /** An error reading the stream supplied for scanning, rather than an error communicating with clamd. */
+    public static class InputReadException extends IOException {
+        InputReadException(IOException cause) {
+            super(cause);
+        }
     }
 
     public interface ScanSession extends AutoCloseable {
