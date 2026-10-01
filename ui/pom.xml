@@ -50,7 +50,7 @@
     <properties>
         <spring.version>4.1.1</spring.version>
         <doss.version>1.7.6</doss.version>
-        <tika.version>3.2.3</tika.version>
+        <tika.version>4.1.0</tika.version>
     </properties>
 
     <dependencies>
